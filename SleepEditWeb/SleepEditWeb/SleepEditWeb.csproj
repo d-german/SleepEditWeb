@@ -6,4 +6,10 @@
         <ImplicitUsings>enable</ImplicitUsings>
     </PropertyGroup>
 
+    <ItemGroup>
+      <Content Include="..\..\.github\workflows\main_sleepeditweb.yml">
+        <Link>main_sleepeditweb.yml</Link>
+      </Content>
+    </ItemGroup>
+
 </Project>
