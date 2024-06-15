@@ -5,6 +5,7 @@
 <head>
     <meta charset="utf-8"/>
     <title>Med List</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -19,12 +20,9 @@
             }
             <form asp-action="Index" method="post">
                 <div class="input-group mb-3">
-                    <select name="selectedMed" class="form-select">
+                    <input type="text" id="filter" class="form-control" placeholder="Type to filter">
+                    <select name="selectedMed" id="medList" class="form-select">
                         <option value="" disabled selected>Select a medication</option>
-                        @foreach (var med in Model.Where(m => m.StartsWith("test")))
-                        {
-                        <option value="@med">@med</option>
-                        }
                     </select>
                 </div>
                 <div class="d-grid">
@@ -34,5 +32,24 @@
         </div>
     </div>
 </div>
+
+<script>
+$(document).ready(function() {
+    var meds = @Html.Raw(Json.Serialize(Model));
+    $('#filter').on('keyup', function() {
+        var filter = $(this).val().toLowerCase();
+        var $dropdown = $('#medList');
+        $dropdown.empty();
+        $dropdown.append('<option value="" disabled selected>Select a medication</option>');
+        if (filter) {
+            var filteredMeds = meds.filter(med => med.toLowerCase().startsWith(filter));
+            $.each(filteredMeds, function(i, med) {
+                $dropdown.append('<option value="' + med + '">' + med + '</option>');
+            });
+        }
+    });
+});
+</script>
+
 </body>
 </html>
