@@ -14,16 +14,15 @@
             <h1 class="text-center mb-4">Select a Medication</h1>
             @if (ViewBag.Message != null)
             {
-            <div class="alert alert-success" role="alert">
-                @ViewBag.Message
-            </div>
+                <div class="alert alert-success" role="alert">
+                    @ViewBag.Message
+                </div>
             }
             <form asp-action="Index" method="post">
                 <div class="input-group mb-3">
-                    <input type="text" id="filter" class="form-control" placeholder="Type to filter">
-                    <select name="selectedMed" id="medList" class="form-select">
-                        <option value="" disabled selected>Select a medication</option>
-                    </select>
+                    <input list="medList" id="filter" name="selectedMed" class="form-control" placeholder="Type to filter">
+                    <datalist id="medList">
+                    </datalist>
                 </div>
                 <div class="d-grid">
                     <button type="submit" class="btn btn-primary">Submit</button>
@@ -36,15 +35,14 @@
 <script>
 $(document).ready(function() {
     var meds = @Html.Raw(Json.Serialize(Model));
-    $('#filter').on('keyup', function() {
+    $('#filter').on('input', function() {
         var filter = $(this).val().toLowerCase();
-        var $dropdown = $('#medList');
-        $dropdown.empty();
-        $dropdown.append('<option value="" disabled selected>Select a medication</option>');
+        var $datalist = $('#medList');
+        $datalist.empty();
         if (filter) {
             var filteredMeds = meds.filter(med => med.toLowerCase().startsWith(filter));
             $.each(filteredMeds, function(i, med) {
-                $dropdown.append('<option value="' + med + '">' + med + '</option>');
+                $datalist.append('<option value="' + med + '">' + med + '</option>');
             });
         }
     });
