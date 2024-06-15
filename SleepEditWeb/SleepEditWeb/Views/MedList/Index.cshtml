@@ -1,8 +1,18 @@
-﻿@model dynamic
+﻿@model List<string>
 
-@{
-    ViewBag.Title = "title";
-    Layout = "_Layout";
-}
-
-<h2>Medlist</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Med List</title>
+</head>
+<body>
+<h1>Medication List</h1>
+<ul>
+    @foreach (var med in Model)
+    {
+        <li>@med</li>
+    }
+</ul>
+</body>
+</html>

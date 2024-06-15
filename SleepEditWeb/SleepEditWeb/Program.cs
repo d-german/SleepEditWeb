@@ -1,3 +1,5 @@
+using SleepEditWeb.Controllers;
+
 namespace SleepEditWeb;
 
 public class Program
@@ -8,6 +10,7 @@ public class Program
 
 		// Add services to the container.
 		builder.Services.AddControllersWithViews();
+		builder.Services.AddHttpClient(); // Add HttpClient here
 
 		var app = builder.Build();
 
