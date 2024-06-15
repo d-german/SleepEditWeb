@@ -21,7 +21,7 @@
                 <div class="input-group mb-3">
                     <select name="selectedMed" class="form-select">
                         <option value="" disabled selected>Select a medication</option>
-                        @foreach (var med in Model)
+                        @foreach (var med in Model.Where(m => m.StartsWith("test")))
                         {
                         <option value="@med">@med</option>
                         }
