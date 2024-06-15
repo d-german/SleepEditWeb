@@ -1,4 +1,7 @@
 ﻿@model List<string>
+@{
+var selectedMeds = ViewBag.SelectedMeds as List<string>;
+}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -28,6 +31,13 @@
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </div>
             </form>
+
+            <!-- Add the new code here -->
+            @if (selectedMeds != null && selectedMeds.Count > 0)
+            {
+                <h2>Selected Medications:</h2>
+                <textarea readonly class="form-control" rows="3">@string.Join(", ", selectedMeds)</textarea>
+            }
         </div>
     </div>
 </div>

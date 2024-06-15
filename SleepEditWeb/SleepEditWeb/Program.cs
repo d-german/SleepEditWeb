@@ -12,6 +12,14 @@ public class Program
 		builder.Services.AddControllersWithViews();
 		builder.Services.AddHttpClient(); // Add HttpClient here
 
+		builder.Services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
+		builder.Services.AddSession(options =>
+		{
+			options.IdleTimeout = TimeSpan.FromMinutes(30); // You can set the timeout here
+			options.Cookie.HttpOnly = true;
+			options.Cookie.IsEssential = true;
+		});
+
 		var app = builder.Build();
 
 		// Configure the HTTP request pipeline.
@@ -22,6 +30,7 @@ public class Program
 			app.UseHsts();
 		}
 
+		app.UseSession();
 		app.UseHttpsRedirection();
 		app.UseStaticFiles();
 

@@ -18,6 +18,9 @@ public class MedListController : Controller
 	// GET
 	public async Task<IActionResult> Index()
 	{
+		var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
+		var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : new List<string>();
+		ViewBag.SelectedMeds = selectedMedsList;
 		return View(MedList);
 	}
 
@@ -25,9 +28,12 @@ public class MedListController : Controller
 	[HttpPost]
 	public IActionResult Index(string selectedMed)
 	{
-		// Handle the form submission here
-		// For example, you can save the selected medication or perform an action with it
+		var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
+		var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : new List<string>();
+		selectedMedsList.Add(selectedMed);
+		HttpContext.Session.SetString("SelectedMeds", string.Join(",", selectedMedsList));
 		ViewBag.Message = $"You selected: {selectedMed}";
+		ViewBag.SelectedMeds = selectedMedsList;
 		return View(MedList);
 	}
 
