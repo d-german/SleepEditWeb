@@ -3,16 +3,36 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
+    <meta charset="utf-8"/>
     <title>Med List</title>
 </head>
 <body>
-<h1>Medication List</h1>
-<ul>
-    @foreach (var med in Model)
-    {
-        <li>@med</li>
-    }
-</ul>
+<div class="container">
+    <div class="row mt-5">
+        <div class="col-md-6 offset-md-3">
+            <h1 class="text-center mb-4">Select a Medication</h1>
+            @if (ViewBag.Message != null)
+            {
+            <div class="alert alert-success" role="alert">
+                @ViewBag.Message
+            </div>
+            }
+            <form asp-action="Index" method="post">
+                <div class="input-group mb-3">
+                    <select name="selectedMed" class="form-select">
+                        <option value="" disabled selected>Select a medication</option>
+                        @foreach (var med in Model)
+                        {
+                        <option value="@med">@med</option>
+                        }
+                    </select>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 </body>
 </html>

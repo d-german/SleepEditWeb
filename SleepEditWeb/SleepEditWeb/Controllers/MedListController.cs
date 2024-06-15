@@ -7,17 +7,28 @@ namespace SleepEditWeb.Controllers;
 public class MedListController : Controller
 {
 	private readonly HttpClient _httpClient;
+	private static List<string> MedList;
 
 	public MedListController(HttpClient httpClient)
 	{
 		_httpClient = httpClient;
+		MedList = GetMedList().Result;
 	}
 
 	// GET
 	public async Task<IActionResult> Index()
 	{
-		var medList = await GetMedList();
-		return View(medList);
+		return View(MedList);
+	}
+
+	// POST
+	[HttpPost]
+	public IActionResult Index(string selectedMed)
+	{
+		// Handle the form submission here
+		// For example, you can save the selected medication or perform an action with it
+		ViewBag.Message = $"You selected: {selectedMed}";
+		return View(MedList);
 	}
 
 	private  async Task<List<string>> GetMedList()
