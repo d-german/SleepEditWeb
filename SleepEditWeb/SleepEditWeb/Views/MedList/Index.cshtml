@@ -56,6 +56,15 @@ var selectedMeds = ViewBag.SelectedMeds as List<string>;
                 });
             }
         });
+
+        // Prevent form submission if input string is empty or less than two characters
+        $('form').on('submit', function(e) {
+            var inputVal = $('#filter').val();
+            if (inputVal.length < 2) {
+                e.preventDefault();
+                alert('Please enter at least two characters.');
+            }
+        });
     });
 </script>
 
