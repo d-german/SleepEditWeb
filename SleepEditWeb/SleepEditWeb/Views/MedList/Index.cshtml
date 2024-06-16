@@ -43,20 +43,20 @@ var selectedMeds = ViewBag.SelectedMeds as List<string>;
 </div>
 
 <script>
-$(document).ready(function() {
-    var meds = @Html.Raw(Json.Serialize(Model));
-    $('#filter').on('input', function() {
-        var filter = $(this).val().toLowerCase();
-        var $datalist = $('#medList');
-        $datalist.empty();
-        if (filter) {
-            var filteredMeds = meds.filter(med => med.toLowerCase().startsWith(filter));
-            $.each(filteredMeds, function(i, med) {
-                $datalist.append('<option value="' + med + '">' + med + '</option>');
-            });
-        }
+    $(document).ready(function() {
+        var meds = @Html.Raw(Json.Serialize(Model));
+        $('#filter').on('input', function() {
+            var filter = $(this).val().toLowerCase();
+            var $datalist = $('#medList');
+            $datalist.empty();
+            if (filter.length >= 2) { // Only start filtering after two characters
+                var filteredMeds = meds.filter(med => med.toLowerCase().startsWith(filter));
+                $.each(filteredMeds, function(i, med) {
+                    $datalist.append('<option value="' + med + '">' + med + '</option>');
+                });
+            }
+        });
     });
-});
 </script>
 
 </body>
