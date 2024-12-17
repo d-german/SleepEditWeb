@@ -12,4 +12,10 @@
       </Content>
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="Resources\medlist.txt">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

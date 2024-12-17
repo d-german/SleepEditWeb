@@ -8,7 +8,6 @@ var selectedMeds = ViewBag.SelectedMeds as List<string>;
 <head>
     <meta charset="utf-8"/>
     <title>Med List</title>
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
 </head>
 <body>
 <div class="container">
@@ -42,19 +41,19 @@ var selectedMeds = ViewBag.SelectedMeds as List<string>;
     </div>
 </div>
 
-<script>
+@section Scripts {
+    <script>
     $(document).ready(function() {
         var meds = @Html.Raw(Json.Serialize(Model));
-        $('#filter').on('input', function() {
-            var filter = $(this).val().toLowerCase();
-            var $datalist = $('#medList');
-            $datalist.empty();
-            if (filter.length >= 2) { // Only start filtering after two characters
-                var filteredMeds = meds.filter(med => med.toLowerCase().startsWith(filter));
-                $.each(filteredMeds, function(i, med) {
-                    $datalist.append('<option value="' + med + '">' + med + '</option>');
+        $('#filter').autocomplete({
+            source: function(request, response) {
+                var term = request.term.toLowerCase();
+                var results = meds.filter(function(med) {
+                    return med.toLowerCase().startsWith(term);
                 });
-            }
+                response(results.slice(0, 10)); // limit the number of displayed results
+            },
+            minLength: 2 // start after two characters
         });
 
         // Prevent form submission if input string is empty or less than two characters
@@ -65,8 +64,16 @@ var selectedMeds = ViewBag.SelectedMeds as List<string>;
                 alert('Please enter at least two characters.');
             }
         });
+
+        // Submit form when Enter key is pressed
+        $('#filter').on('keypress', function(e) {
+            if (e.which == 13) { // Enter key
+                $('form').submit();
+            }
+        });
     });
 </script>
+}
 
 </body>
 </html>
