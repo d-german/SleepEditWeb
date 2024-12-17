@@ -43,7 +43,7 @@ public class MedListController : Controller
         return View(MedList);
     }
 
-    private async Task<List<string>> GetMedList()
+    private static async Task<List<string>> GetMedList()
     {
         var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "medlist.txt");
 
