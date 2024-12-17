@@ -63,5 +63,5 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'SleepEditWeb'
-          slot-name: 'Production'
+          slot-name: 'production'
           package: .
