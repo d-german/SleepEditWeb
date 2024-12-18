@@ -64,7 +64,7 @@ public class MedListController : Controller
         // No special character: Add medication to user's session list (default behavior)
         else
         {
-            if (selectedMed.Equals("clear", StringComparison.CurrentCultureIgnoreCase))
+            if (selectedMed.Equals("cls", StringComparison.CurrentCultureIgnoreCase))
             {
                 HttpContext.Session.Remove("SelectedMeds");
                 ViewBag.Message = "Selected medications cleared.";
