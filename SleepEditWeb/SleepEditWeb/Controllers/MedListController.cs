@@ -64,12 +64,20 @@ public class MedListController : Controller
         // No special character: Add medication to user's session list (default behavior)
         else
         {
-            var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
-            var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : new List<string>();
-            selectedMedsList.Add(cleanMed);
-            HttpContext.Session.SetString("SelectedMeds", string.Join(",", selectedMedsList));
-            ViewBag.Message = $"You selected: {cleanMed}";
-            ViewBag.SelectedMeds = selectedMedsList;
+            if (selectedMed.Equals("clear", StringComparison.CurrentCultureIgnoreCase))
+            {
+                HttpContext.Session.Remove("SelectedMeds");
+                ViewBag.Message = "Selected medications cleared.";
+            }
+            else
+            {
+                var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
+                var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
+                selectedMedsList.Add(cleanMed);
+                HttpContext.Session.SetString("SelectedMeds", string.Join(",", selectedMedsList));
+                ViewBag.Message = $"You selected: {cleanMed}";
+                ViewBag.SelectedMeds = selectedMedsList;
+            }
         }
 
         // Return updated MedList to the view

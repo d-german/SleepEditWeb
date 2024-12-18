@@ -22,7 +22,7 @@ var selectedMeds = ViewBag.SelectedMeds as List<string>;
             }
             <form asp-action="Index" method="post">
                 <div class="input-group mb-3">
-                    <input list="medList" id="filter" name="selectedMed" class="form-control" placeholder="Type to filter">
+                    <input list="medList" id="filter" name="selectedMed" class="form-control" placeholder="Type to filter or type clear to clear Selected">
                     <datalist id="medList">
                     </datalist>
                 </div>
