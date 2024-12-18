@@ -14,7 +14,7 @@
 
     <ItemGroup>
       <None Update="Resources\medlist.txt">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>
 
