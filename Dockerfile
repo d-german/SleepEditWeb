@@ -1,46 +1,44 @@
-# Build stage
+# Force fresh build - v3
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /src
 
-# Cache bust - change this to force rebuild: v2
-ARG CACHEBUST=2
+# Different WORKDIR to bust cache
+WORKDIR /source
 
-# Copy csproj and restore dependencies
-COPY ["SleepEditWeb/SleepEditWeb.csproj", "./"]
-RUN dotnet restore
+# Copy csproj first
+COPY ["SleepEditWeb/SleepEditWeb.csproj", "SleepEditWeb/"]
+WORKDIR /source/SleepEditWeb
+RUN dotnet restore "SleepEditWeb.csproj"
 
-# Copy everything else and build
-COPY SleepEditWeb/. .
+# Copy all source files
+WORKDIR /source
+COPY SleepEditWeb/. SleepEditWeb/
 
-# Verify source files
-RUN echo "=== Source check ===" && ls -la Resources/
+# Verify medlist.txt is there
+RUN echo "=== Checking source ===" && \
+    ls -la /source/SleepEditWeb/Resources/ && \
+    wc -l /source/SleepEditWeb/Resources/medlist.txt
 
-# Publish
-RUN dotnet publish -c Release -o /app/publish
+# Build and publish
+WORKDIR /source/SleepEditWeb
+RUN dotnet publish "SleepEditWeb.csproj" -c Release -o /publish
 
-# Force copy Resources after publish
-RUN cp -rv Resources /app/publish/ && \
-    echo "=== After copy ===" && \
-    ls -la /app/publish/Resources/
+# Verify publish output
+RUN echo "=== Checking publish ===" && \
+    ls -la /publish/Resources/ && \
+    wc -l /publish/Resources/medlist.txt
 
 # Runtime stage  
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
-
-# Set working directory
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# Copy from build stage - use explicit path
-COPY --from=build /app/publish/. .
+# Copy published app
+COPY --from=build /publish .
 
-# Debug: show what we have
-RUN echo "=== Runtime /app contents ===" && \
-    ls -la /app/ && \
-    echo "=== Runtime /app/Resources contents ===" && \
+# Final verification
+RUN echo "=== Final check ===" && \
     ls -la /app/Resources/ && \
-    echo "=== File size check ===" && \
-    wc -l /app/Resources/medlist.txt
+    head -3 /app/Resources/medlist.txt
 
-# Expose port 8000 (Koyeb default)
 ENV ASPNETCORE_URLS=http://+:8000
 EXPOSE 8000
 
