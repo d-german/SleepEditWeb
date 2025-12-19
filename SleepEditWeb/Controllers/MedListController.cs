@@ -101,13 +101,46 @@ public class MedListController : Controller
         public string? SelectedMed { get; set; }
     }
 
+    // GET - Diagnostic endpoint to check file status
+    [HttpGet]
+    public IActionResult DiagnosticInfo()
+    {
+        var basePath = AppDomain.CurrentDomain.BaseDirectory;
+        var filePath = Path.Combine(basePath, "Resources", "medlist.txt");
+        var resourcesDir = Path.Combine(basePath, "Resources");
+        
+        var info = new
+        {
+            BasePath = basePath,
+            FilePath = filePath,
+            FileExists = System.IO.File.Exists(filePath),
+            ResourcesDirExists = Directory.Exists(resourcesDir),
+            MedListCount = MedList.Count,
+            FirstFiveMeds = MedList.Take(5).ToList(),
+            DirectoryContents = Directory.Exists(resourcesDir) 
+                ? Directory.GetFiles(resourcesDir).Select(Path.GetFileName).ToList() 
+                : new List<string?>()
+        };
+        
+        return Json(info);
+    }
+    
     private static List<string> GetMedList()
     {
         var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "medlist.txt");
+        
+        Console.WriteLine($"[MedList] Looking for medlist.txt at: {filePath}");
+        Console.WriteLine($"[MedList] File exists: {System.IO.File.Exists(filePath)}");
 
         // Read all lines from the included file
-        if (!System.IO.File.Exists(filePath)) return ["No medications found!"];
+        if (!System.IO.File.Exists(filePath))
+        {
+            Console.WriteLine("[MedList] WARNING: medlist.txt not found!");
+            return ["No medications found!"];
+        }
+        
         var storedList = System.IO.File.ReadAllLines(filePath);
+        Console.WriteLine($"[MedList] Loaded {storedList.Length} medications from file");
         return storedList.ToList();
     }
 
