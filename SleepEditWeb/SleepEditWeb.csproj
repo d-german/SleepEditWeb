@@ -13,9 +13,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Resources\medlist.txt">
+      <Content Include="Resources\medlist.txt">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
+      </Content>
     </ItemGroup>
 
 </Project>
