@@ -303,3 +303,7 @@ _tests/
 
 # User's config
 /src/Hyland.ClinicianWindow.BFF/config.json
+
+# LiteDB database files
+*.db
+**/Data/medications.db

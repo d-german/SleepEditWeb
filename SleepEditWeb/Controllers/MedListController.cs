@@ -1,64 +1,77 @@
-﻿using System.Reflection;
 using Microsoft.AspNetCore.Mvc;
+using SleepEditWeb.Data;
+
 namespace SleepEditWeb.Controllers;
+
 public class MedListController : Controller
 {
-    private static readonly List<string> MedList = GetMedList();
+    private readonly IMedicationRepository _repository;
+
+    public MedListController(IMedicationRepository repository)
+    {
+        _repository = repository;
+    }
+
     // GET
-    public Task<IActionResult> Index()
+    public IActionResult Index()
     {
         var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
         var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
         ViewBag.SelectedMeds = selectedMedsList;
-        return Task.FromResult<IActionResult>(View(MedList));
+        
+        var medList = _repository.GetAllMedicationNames().ToList();
+        return View(medList);
     }
+
     // POST - AJAX endpoint
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult AddMedication([FromBody] MedRequest request)
     {
         var selectedMed = request?.SelectedMed;
+
         // Trim and validate input
         if (string.IsNullOrWhiteSpace(selectedMed))
         {
             return Json(new { success = false, message = "Invalid input. Please try again.", selectedMeds = GetSelectedMedsFromSession() });
         }
+
         // Determine action based on special character
         selectedMed = selectedMed.Trim();
         var isAddition = selectedMed.StartsWith("+");
         var isRemoval = selectedMed.StartsWith("-");
+
         // Get clean medication name without special character
         var cleanMed = isAddition || isRemoval ? selectedMed[1..].Trim() : selectedMed;
+
         string message;
-        // Handle addition to the MedList
+
+        // Handle addition to the MedList (master list)
         if (isAddition)
         {
-            if (!MedList.Contains(cleanMed, StringComparer.OrdinalIgnoreCase))
+            if (_repository.AddUserMedication(cleanMed))
             {
-                MedList.Add(cleanMed);
-                var saved = SaveMedListToFile();
-                message = saved 
-                    ? $"Medication '{cleanMed}' has been added to the master list."
-                    : $"Medication '{cleanMed}' added (will not persist after restart).";
+                message = $"Medication '{cleanMed}' has been added to the master list.";
             }
             else
             {
                 message = $"Medication '{cleanMed}' already exists in the list.";
             }
         }
-        // Handle removal from the MedList
+        // Handle removal from the MedList (master list - user meds only)
         else if (isRemoval)
         {
-            if (MedList.Remove(cleanMed))
+            if (_repository.RemoveUserMedication(cleanMed))
             {
-                var saved = SaveMedListToFile();
-                message = saved 
-                    ? $"Medication '{cleanMed}' has been removed from the master list."
-                    : $"Medication '{cleanMed}' removed (will not persist after restart).";
+                message = $"Medication '{cleanMed}' has been removed from the master list.";
             }
             else
             {
-                message = $"Medication '{cleanMed}' does not exist in the list.";
+                // Could be system med or not found
+                var exists = _repository.MedicationExists(cleanMed);
+                message = exists 
+                    ? $"Medication '{cleanMed}' is a system medication and cannot be removed."
+                    : $"Medication '{cleanMed}' does not exist in the list.";
             }
         }
         // No special character: Add medication to user's session list
@@ -78,174 +91,48 @@ public class MedListController : Controller
                 message = $"Added: {cleanMed}";
             }
         }
-        return Json(new { 
-            success = true, 
-            message, 
+
+        return Json(new
+        {
+            success = true,
+            message,
             selectedMeds = GetSelectedMedsFromSession(),
-            medList = MedList 
+            medList = _repository.GetAllMedicationNames()
         });
     }
+
     private List<string> GetSelectedMedsFromSession()
     {
         var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
         return selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
     }
+
     public class MedRequest
     {
         public string? SelectedMed { get; set; }
     }
-    // GET - Diagnostic endpoint to check file status
+
+    // GET - Diagnostic endpoint to check database status
     [HttpGet]
     public IActionResult DiagnosticInfo()
     {
-        var basePath = AppDomain.CurrentDomain.BaseDirectory;
-        var filePath = Path.Combine(basePath, "Resources", "medlist.txt");
-        var resourcesDir = Path.Combine(basePath, "Resources");
-        // Check embedded resource
-        var assembly = Assembly.GetExecutingAssembly();
-        var embeddedResourceNames = assembly.GetManifestResourceNames();
-        // Get all files in /app directory
-        var appDirContents = new List<string>();
-        try
-        {
-            if (Directory.Exists("/app"))
-            {
-                appDirContents = Directory.GetFileSystemEntries("/app", "*", SearchOption.AllDirectories)
-                    .Take(50)
-                    .ToList();
-            }
-        }
-        catch (Exception ex)
-        {
-            appDirContents.Add("Error: " + ex.Message);
-        }
+        var stats = _repository.GetStats();
+        
+        // Get database path if repository is LiteDbMedicationRepository
+        var databasePath = (_repository as LiteDbMedicationRepository)?.DatabasePath ?? "unknown";
+        
         var info = new
         {
-            BasePath = basePath,
-            CurrentDirectory = Directory.GetCurrentDirectory(),
-            FilePath = filePath,
-            FileExists = System.IO.File.Exists(filePath),
-            ResourcesDirExists = Directory.Exists(resourcesDir),
-            EmbeddedResourceNames = embeddedResourceNames.ToList(),
-            MedListCount = MedList.Count,
-            FirstFiveMeds = MedList.Take(5).ToList(),
-            LoadedFrom = _loadedFrom,
-            DirectoryContents = Directory.Exists(resourcesDir) 
-                ? Directory.GetFiles(resourcesDir).Select(Path.GetFileName).ToList() 
-                : new List<string?>(),
-            AppDirContents = appDirContents
+            DatabasePath = databasePath,
+            TotalMedicationCount = stats.TotalCount,
+            SystemMedicationCount = stats.SystemMedCount,
+            UserMedicationCount = stats.UserMedCount,
+            SeedVersion = stats.SeedVersion,
+            LastSeeded = stats.LastSeeded,
+            LoadedFrom = stats.LoadedFrom,
+            FirstFiveMeds = _repository.GetAllMedicationNames().Take(5).ToList()
         };
+
         return Json(info);
     }
-    private static string _loadedFrom = "not loaded";
-    private static List<string> GetMedList()
-    {
-        // Use persistent volume path for user modifications
-        var persistentFilePath = Path.Combine("/app/Data", "medlist.txt");
-        var embeddedFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "medlist.txt");
-        
-        // First, check persistent volume (may have user additions from previous saves)
-        Console.WriteLine($"[MedList] Checking persistent volume at: {persistentFilePath}");
-        if (System.IO.File.Exists(persistentFilePath))
-        {
-            try
-            {
-                var storedList = System.IO.File.ReadAllLines(persistentFilePath);
-                if (storedList.Length > 0)
-                {
-                    Console.WriteLine($"[MedList] Loaded {storedList.Length} medications from persistent volume");
-                    _loadedFrom = "persistent volume";
-                    return storedList.ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MedList] Error reading from persistent volume: {ex.Message}");
-            }
-        }
-        
-        // Next, check embedded file system (initial deployment copy)
-        Console.WriteLine($"[MedList] Checking embedded file at: {embeddedFilePath}");
-        // Check embedded file copy (from initial deployment)
-        if (System.IO.File.Exists(embeddedFilePath))
-        {
-            try
-            {
-                var storedList = System.IO.File.ReadAllLines(embeddedFilePath);
-                if (storedList.Length > 0)
-                {
-                    Console.WriteLine($"[MedList] Loaded {storedList.Length} medications from embedded file");
-                    _loadedFrom = "embedded file";
-                    
-                    // Copy to persistent volume for future modifications
-                    try
-                    {
-                        var persistentDir = Path.GetDirectoryName(persistentFilePath);
-                        if (persistentDir != null && !Directory.Exists(persistentDir))
-                        {
-                            Directory.CreateDirectory(persistentDir);
-                        }
-                        System.IO.File.WriteAllLines(persistentFilePath, storedList);
-                        Console.WriteLine($"[MedList] Copied to persistent volume: {persistentFilePath}");
-                    }
-                    catch (Exception copyEx)
-                    {
-                        Console.WriteLine($"[MedList] Could not copy to persistent volume: {copyEx.Message}");
-                    }
-                    
-                    return storedList.ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MedList] Error reading embedded file: {ex.Message}");
-            }
-        }
-        // Fall back to embedded resource (initial deployment)
-        Console.WriteLine("[MedList] File not found or empty, trying embedded resource");
-        var assembly = Assembly.GetExecutingAssembly();
-        var resourceStream = assembly.GetManifestResourceStream("medlist.txt");
-        if (resourceStream != null)
-        {
-            Console.WriteLine("[MedList] Loading from embedded resource");
-            _loadedFrom = "embedded resource";
-            using var reader = new StreamReader(resourceStream);
-            var content = reader.ReadToEnd();
-            var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            Console.WriteLine($"[MedList] Loaded {lines.Length} medications from embedded resource");
-            return lines.ToList();
-        }
-        Console.WriteLine("[MedList] WARNING: No medication data found!");
-        _loadedFrom = "not found";
-        return ["No medications found!"];
-    }
-    /// <summary>
-    /// Save the current medication list to the 'medlist.txt' file.
-    /// Returns true if save was successful, false otherwise.
-    /// </summary>
-    private static bool SaveMedListToFile()
-    {
-        // Always save to persistent volume
-        var filePath = Path.Combine("/app/Data", "medlist.txt");
-        try
-        {
-            // Ensure directory exists
-            var dir = Path.GetDirectoryName(filePath);
-            if (dir != null && !Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-            System.IO.File.WriteAllLines(filePath, MedList);
-            Console.WriteLine($"[MedList] Successfully saved {MedList.Count} medications to file");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[MedList] Error saving to file: {ex.Message}");
-            return false;
-        }
-    }
 }
-
-
-

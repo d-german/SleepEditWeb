@@ -1,4 +1,5 @@
 using SleepEditWeb.Controllers;
+using SleepEditWeb.Data;
 
 namespace SleepEditWeb;
 
@@ -11,6 +12,9 @@ public class Program
 		// Add services to the container.
 		builder.Services.AddControllersWithViews();
 		builder.Services.AddHttpClient(); // Add HttpClient here
+		
+		// Register LiteDB medication repository as singleton (thread-safe, single connection per app lifetime)
+		builder.Services.AddSingleton<IMedicationRepository, LiteDbMedicationRepository>();
 
 		builder.Services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
 		builder.Services.AddSession(options =>

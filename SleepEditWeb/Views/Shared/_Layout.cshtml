@@ -37,6 +37,11 @@
                     <i class="bi bi-list-ul"></i>
                     <span>Medication List</span>
                 </a>
+                <a href="@Url.Action("Index", "Admin", new { secretKey = "medAdmin2025xK9!" })" 
+                   class="sidebar-nav-item @(currentController == "admin" ? "active" : "")">
+                    <i class="bi bi-gear"></i>
+                    <span>Admin</span>
+                </a>
             </nav>
         </aside>
 
