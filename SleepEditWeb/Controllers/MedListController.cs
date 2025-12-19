@@ -36,8 +36,10 @@ public class MedListController : Controller
             if (!MedList.Contains(cleanMed, StringComparer.OrdinalIgnoreCase))
             {
                 MedList.Add(cleanMed);
-                SaveMedListToFile();
-                message = $"Medication '{cleanMed}' has been added to the master list.";
+                var saved = SaveMedListToFile();
+                message = saved 
+                    ? $"Medication '{cleanMed}' has been added to the master list."
+                    : $"Medication '{cleanMed}' added (will not persist after restart).";
             }
             else
             {
@@ -49,8 +51,10 @@ public class MedListController : Controller
         {
             if (MedList.Remove(cleanMed))
             {
-                SaveMedListToFile();
-                message = $"Medication '{cleanMed}' has been removed from the master list.";
+                var saved = SaveMedListToFile();
+                message = saved 
+                    ? $"Medication '{cleanMed}' has been removed from the master list."
+                    : $"Medication '{cleanMed}' removed (will not persist after restart).";
             }
             else
             {
@@ -136,7 +140,28 @@ public class MedListController : Controller
     private static string _loadedFrom = "not loaded";
     private static List<string> GetMedList()
     {
-        // First, try to load from embedded resource (most reliable in containers)
+        var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "medlist.txt");
+        // First, check file system (may have user additions from previous saves)
+        Console.WriteLine($"[MedList] Checking file system at: {filePath}");
+        if (System.IO.File.Exists(filePath))
+        {
+            try
+            {
+                var storedList = System.IO.File.ReadAllLines(filePath);
+                if (storedList.Length > 1) // More than just "No medications found!"
+                {
+                    Console.WriteLine($"[MedList] Loaded {storedList.Length} medications from file system");
+                    _loadedFrom = "file system";
+                    return storedList.ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MedList] Error reading file: {ex.Message}");
+            }
+        }
+        // Fall back to embedded resource (initial deployment)
+        Console.WriteLine("[MedList] File not found or empty, trying embedded resource");
         var assembly = Assembly.GetExecutingAssembly();
         var resourceStream = assembly.GetManifestResourceStream("medlist.txt");
         if (resourceStream != null)
@@ -149,27 +174,15 @@ public class MedListController : Controller
             Console.WriteLine($"[MedList] Loaded {lines.Length} medications from embedded resource");
             return lines.ToList();
         }
-        Console.WriteLine("[MedList] Embedded resource not found, trying file system");
-        // Fallback to file system
-        var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "medlist.txt");
-        Console.WriteLine($"[MedList] Looking for medlist.txt at: {filePath}");
-        Console.WriteLine($"[MedList] File exists: {System.IO.File.Exists(filePath)}");
-        if (!System.IO.File.Exists(filePath))
-        {
-            Console.WriteLine("[MedList] WARNING: medlist.txt not found!");
-            _loadedFrom = "not found";
-            return ["No medications found!"];
-        }
-        _loadedFrom = "file system";
-        var storedList = System.IO.File.ReadAllLines(filePath);
-        Console.WriteLine($"[MedList] Loaded {storedList.Length} medications from file");
-        return storedList.ToList();
+        Console.WriteLine("[MedList] WARNING: No medication data found!");
+        _loadedFrom = "not found";
+        return ["No medications found!"];
     }
     /// <summary>
     /// Save the current medication list to the 'medlist.txt' file.
-    /// This overwrites the file with the updated data.
+    /// Returns true if save was successful, false otherwise.
     /// </summary>
-    private static void SaveMedListToFile()
+    private static bool SaveMedListToFile()
     {
         var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "medlist.txt");
         try
@@ -181,11 +194,16 @@ public class MedListController : Controller
                 Directory.CreateDirectory(dir);
             }
             System.IO.File.WriteAllLines(filePath, MedList);
+            Console.WriteLine($"[MedList] Successfully saved {MedList.Count} medications to file");
+            return true;
         }
         catch (Exception ex)
         {
-            // Log the exception or show an error
-            Console.WriteLine($"Error saving MedList to file: {ex.Message}");
+            Console.WriteLine($"[MedList] Error saving to file: {ex.Message}");
+            return false;
         }
     }
 }
+
+
+
