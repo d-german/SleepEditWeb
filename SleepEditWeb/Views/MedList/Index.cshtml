@@ -20,10 +20,6 @@
                 Select a Medication
             </div>
             <div class="dashboard-card-body">
-                <div id="messageAlert" class="alert alert-success d-none" role="alert">
-                    <i class="bi bi-check-circle me-2"></i><span id="messageText"></span>
-                </div>
-                
                 <form id="medForm">
                     <label for="filter" class="form-label">Search Medications</label>
                     <input type="text" 
@@ -40,9 +36,14 @@
                         <label class="selected-meds-label mb-0">
                             <i class="bi bi-clipboard-check me-2"></i>Selected Medications (<span id="medCount">@selectedMeds.Count</span>):
                         </label>
-                        <button type="button" id="copyBtn" class="btn btn-outline-secondary btn-sm" title="Copy to clipboard">
-                            <i class="bi bi-copy me-1"></i>Copy
-                        </button>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" id="copyBtn" class="btn btn-outline-secondary" title="Copy to clipboard">
+                                <i class="bi bi-copy me-1"></i>Copy
+                            </button>
+                            <button type="button" id="clearBtn" class="btn btn-outline-danger" title="Clear all selections">
+                                <i class="bi bi-trash me-1"></i>Clear
+                            </button>
+                        </div>
                     </div>
                     <textarea readonly id="selectedMedsText" class="form-control" rows="4">@string.Join(", ", selectedMeds)</textarea>
                 </div>
@@ -74,7 +75,7 @@
     <script>
         $(document).ready(function () {
             var meds = @Html.Raw(Json.Serialize(Model));
-            var isAutocompleteOpen = false;
+            
             var antiForgeryToken = $('input[name="__RequestVerificationToken"]').val();
             
             $('#filter').autocomplete({
@@ -86,17 +87,12 @@
                     response(results.slice(0, 10));
                 },
                 minLength: 2,
-                open: function() {
-                    isAutocompleteOpen = true;
-                },
-                close: function() {
-                    isAutocompleteOpen = false;
-                },
+                
                 select: function(event, ui) {
+                    event.preventDefault();
                     $('#filter').val(ui.item.value);
-                    setTimeout(function() {
-                        submitMedication();
-                    }, 50);
+                    $('#filter').autocomplete('close');
+                    // Submission will happen via keydown Enter handler
                     return false;
                 }
             });
@@ -104,19 +100,14 @@
             $('#filter').on('keydown', function (e) {
                 if (e.which === 13) {
                     e.preventDefault();
-                    if (isAutocompleteOpen) {
-                        return;
-                    }
                     submitMedication();
                 }
             });
 
-            $('#medForm').on('submit', function (e) {
-                e.preventDefault();
-                submitMedication();
-            });
+            
 
             function submitMedication() {
+                
                 var inputVal = $('#filter').val().trim();
                 
                 // Silently ignore if input is empty (can happen after successful submission clears the field)
@@ -125,7 +116,6 @@
                 }
                 
                 if (inputVal.length < 2) {
-                    showMessage('Please enter at least two characters.', false);
                     $('#filter').focus();
                     return;
                 }
@@ -139,8 +129,6 @@
                         'RequestVerificationToken': antiForgeryToken
                     },
                     success: function(response) {
-                        showMessage(response.message, response.success);
-                        
                         if (response.success) {
                             // Update selected medications display
                             if (response.selectedMeds && response.selectedMeds.length > 0) {
@@ -163,24 +151,18 @@
                         }
                     },
                     error: function() {
-                        showMessage('An error occurred. Please try again.', false);
+                        console.error('An error occurred while adding medication.');
                     }
                 });
             }
 
-            function showMessage(message, success) {
-                var alert = $('#messageAlert');
-                alert.removeClass('d-none alert-success alert-danger')
-                     .addClass(success ? 'alert-success' : 'alert-danger');
-                $('#messageText').text(message);
-                
-                // Auto-hide after 3 seconds
-                setTimeout(function() {
-                    alert.addClass('d-none');
-                }, 3000);
-            }
-
             $('#filter').focus();
+
+            // Clear selections functionality
+            $('#clearBtn').click(function() {
+                $('#filter').val('cls');
+                submitMedication();
+            });
 
             // Copy to clipboard functionality
             $('#copyBtn').click(function() {
