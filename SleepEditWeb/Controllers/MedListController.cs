@@ -15,59 +15,62 @@ public class MedListController : Controller
         return Task.FromResult<IActionResult>(View(MedList));
     }
 
-    // POST
+    // POST - AJAX endpoint
     [HttpPost]
-    public IActionResult Index(string selectedMed)
+    [ValidateAntiForgeryToken]
+    public IActionResult AddMedication([FromBody] MedRequest request)
     {
+        var selectedMed = request?.SelectedMed;
+        
         // Trim and validate input
         if (string.IsNullOrWhiteSpace(selectedMed))
         {
-            ViewBag.Message = "Invalid input. Please try again.";
-            return View(MedList);
+            return Json(new { success = false, message = "Invalid input. Please try again.", selectedMeds = GetSelectedMedsFromSession() });
         }
 
         // Determine action based on special character
-        selectedMed = selectedMed.Trim(); // Remove extra spaces around user input
-        var isAddition = selectedMed.StartsWith($"+");
-        var isRemoval = selectedMed.StartsWith($"-");
+        selectedMed = selectedMed.Trim();
+        var isAddition = selectedMed.StartsWith("+");
+        var isRemoval = selectedMed.StartsWith("-");
 
         // Get clean medication name without special character
         var cleanMed = isAddition || isRemoval ? selectedMed[1..].Trim() : selectedMed;
+        string message;
 
         // Handle addition to the MedList
         if (isAddition)
         {
             if (!MedList.Contains(cleanMed, StringComparer.OrdinalIgnoreCase))
             {
-                MedList.Add(cleanMed); // Add to list
-                SaveMedListToFile(); // Persist changes on disk
-                ViewBag.Message = $"Medication '{cleanMed}' has been successfully added to the list.";
+                MedList.Add(cleanMed);
+                SaveMedListToFile();
+                message = $"Medication '{cleanMed}' has been added to the master list.";
             }
             else
             {
-                ViewBag.Message = $"Medication '{cleanMed}' already exists in the list.";
+                message = $"Medication '{cleanMed}' already exists in the list.";
             }
         }
         // Handle removal from the MedList
         else if (isRemoval)
         {
-            if (MedList.Remove(cleanMed)) // Remove from list
+            if (MedList.Remove(cleanMed))
             {
-                SaveMedListToFile(); // Persist changes on disk
-                ViewBag.Message = $"Medication '{cleanMed}' has been successfully removed from the list.";
+                SaveMedListToFile();
+                message = $"Medication '{cleanMed}' has been removed from the master list.";
             }
             else
             {
-                ViewBag.Message = $"Medication '{cleanMed}' does not exist in the list.";
+                message = $"Medication '{cleanMed}' does not exist in the list.";
             }
         }
-        // No special character: Add medication to user's session list (default behavior)
+        // No special character: Add medication to user's session list
         else
         {
             if (selectedMed.Equals("cls", StringComparison.CurrentCultureIgnoreCase))
             {
                 HttpContext.Session.Remove("SelectedMeds");
-                ViewBag.Message = "Selected medications cleared.";
+                message = "Selected medications cleared.";
             }
             else
             {
@@ -75,13 +78,27 @@ public class MedListController : Controller
                 var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
                 selectedMedsList.Add(cleanMed);
                 HttpContext.Session.SetString("SelectedMeds", string.Join(",", selectedMedsList));
-                ViewBag.Message = $"You selected: {cleanMed}";
-                ViewBag.SelectedMeds = selectedMedsList;
+                message = $"Added: {cleanMed}";
             }
         }
 
-        // Return updated MedList to the view
-        return View(MedList);
+        return Json(new { 
+            success = true, 
+            message, 
+            selectedMeds = GetSelectedMedsFromSession(),
+            medList = MedList 
+        });
+    }
+    
+    private List<string> GetSelectedMedsFromSession()
+    {
+        var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
+        return selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
+    }
+    
+    public class MedRequest
+    {
+        public string? SelectedMed { get; set; }
     }
 
     private static List<string> GetMedList()

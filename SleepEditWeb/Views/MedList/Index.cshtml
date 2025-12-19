@@ -1,81 +1,73 @@
 @model List<string>
 @{
     ViewData["Title"] = "Medication List";
-    var selectedMeds = ViewBag.SelectedMeds as List<string>;
+    var selectedMeds = ViewBag.SelectedMeds as List<string> ?? new List<string>();
 }
+
+@Html.AntiForgeryToken()
 
 <div class="page-header">
     <h1 class="page-title">Medication List</h1>
     <p class="page-subtitle">Search and manage your medication selections</p>
 </div>
 
-<div class="row">
+<div class="row g-4">
     <!-- Main Form Section -->
-    <div class="col-lg-8 mb-4">
-        <div class="dashboard-card">
+    <div class="col-12 col-xl-8">
+        <div class="dashboard-card h-100">
             <div class="dashboard-card-header">
                 <i class="bi bi-search"></i>
                 Select a Medication
             </div>
             <div class="dashboard-card-body">
-                @if (ViewBag.Message != null)
-                {
-                    <div class="alert alert-success" role="alert">
-                        <i class="bi bi-check-circle me-2"></i>@ViewBag.Message
-                    </div>
-                }
+                <div id="messageAlert" class="alert alert-success d-none" role="alert">
+                    <i class="bi bi-check-circle me-2"></i><span id="messageText"></span>
+                </div>
                 
-                <form asp-action="Index" method="post">
-                    <div class="mb-3">
-                        <label for="filter" class="form-label">Search Medications</label>
-                        <input type="text" 
-                               id="filter" 
-                               name="selectedMed" 
-                               class="form-control form-control-lg"
-                               placeholder="Type to search medications..."
-                               autocomplete="off"
-                               autofocus>
-                    </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-plus-circle me-2"></i>Submit
-                        </button>
+                <form id="medForm">
+                    <div class="row align-items-end g-3">
+                        <div class="col-12 col-md-8 col-lg-9">
+                            <label for="filter" class="form-label">Search Medications</label>
+                            <input type="text" 
+                                   id="filter" 
+                                   name="selectedMed" 
+                                   class="form-control form-control-lg"
+                                   placeholder="Type to search medications..."
+                                   autocomplete="off"
+                                   autofocus>
+                        </div>
+                        <div class="col-12 col-md-4 col-lg-3">
+                            <button type="submit" class="btn btn-primary btn-lg w-100">
+                                <i class="bi bi-plus-circle me-2"></i>Submit
+                            </button>
+                        </div>
                     </div>
                 </form>
 
-                @if (selectedMeds != null && selectedMeds.Count > 0)
-                {
-                    <div class="selected-meds-section">
-                        <label class="selected-meds-label">
-                            <i class="bi bi-clipboard-check me-2"></i>Selected Medications:
-                        </label>
-                        <textarea readonly class="form-control" rows="3">@string.Join(", ", selectedMeds)</textarea>
-                    </div>
-                }
+                <div id="selectedMedsSection" class="selected-meds-section mt-4 @(selectedMeds.Count == 0 ? "d-none" : "")">
+                    <label class="selected-meds-label">
+                        <i class="bi bi-clipboard-check me-2"></i>Selected Medications (<span id="medCount">@selectedMeds.Count</span>):
+                    </label>
+                    <textarea readonly id="selectedMedsText" class="form-control" rows="4">@string.Join(", ", selectedMeds)</textarea>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Instructions Section -->
-    <div class="col-lg-4">
-        <div class="dashboard-card">
+    <div class="col-12 col-xl-4">
+        <div class="dashboard-card h-100">
             <div class="dashboard-card-header instructions-header">
                 <i class="bi bi-info-circle"></i>
-                Instructions
+                Quick Reference
             </div>
             <div class="dashboard-card-body">
-                <ul class="instructions-list">
-                    <li>Type at least <strong>two characters</strong> to see suggestions.</li>
-                    <li>Select a medication by:
-                        <ul>
-                            <li>Clicking a suggestion</li>
-                            <li>Pressing <strong>Enter</strong></li>
-                            <li>Clicking <strong>Submit</strong></li>
-                        </ul>
-                    </li>
-                    <li>Add a new medication: <code>+MedicationName</code></li>
-                    <li>Remove a medication: <code>-MedicationName</code></li>
-                    <li>Clear selections: type <code>cls</code></li>
+                <ul class="instructions-list mb-0">
+                    <li>Type at least <strong>2 characters</strong> to see suggestions</li>
+                    <li>Press <strong>Enter</strong> or click <strong>Submit</strong> to add</li>
+                    <li>Add new medication: <code>+MedicationName</code></li>
+                    <li>Remove medication: <code>-MedicationName</code></li>
+                    <li>Clear all selections: <code>cls</code></li>
                 </ul>
             </div>
         </div>
@@ -87,6 +79,7 @@
         $(document).ready(function () {
             var meds = @Html.Raw(Json.Serialize(Model));
             var isAutocompleteOpen = false;
+            var antiForgeryToken = $('input[name="__RequestVerificationToken"]').val();
             
             $('#filter').autocomplete({
                 source: function (request, response) {
@@ -106,7 +99,7 @@
                 select: function(event, ui) {
                     $('#filter').val(ui.item.value);
                     setTimeout(function() {
-                        $('form').submit();
+                        submitMedication();
                     }, 50);
                     return false;
                 }
@@ -114,28 +107,82 @@
 
             $('#filter').on('keydown', function (e) {
                 if (e.which === 13) {
+                    e.preventDefault();
                     if (isAutocompleteOpen) {
                         return;
                     }
-                    e.preventDefault();
-                    var inputVal = $('#filter').val();
-                    if (inputVal.length >= 2) {
-                        $('form').submit();
-                    } else {
-                        alert('Please enter at least two characters.');
-                    }
+                    submitMedication();
                 }
             });
 
-            $('form').on('submit', function (e) {
-                var inputVal = $('#filter').val();
-                if (inputVal.length < 2) {
-                    e.preventDefault();
-                    alert('Please enter at least two characters.');
-                    $('#filter').focus();
-                    return false;
-                }
+            $('#medForm').on('submit', function (e) {
+                e.preventDefault();
+                submitMedication();
             });
+
+            function submitMedication() {
+                var inputVal = $('#filter').val().trim();
+                
+                // Silently ignore if input is empty (can happen after successful submission clears the field)
+                if (inputVal.length === 0) {
+                    return;
+                }
+                
+                if (inputVal.length < 2) {
+                    showMessage('Please enter at least two characters.', false);
+                    $('#filter').focus();
+                    return;
+                }
+
+                $.ajax({
+                    url: '@Url.Action("AddMedication", "MedList")',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ selectedMed: inputVal }),
+                    headers: {
+                        'RequestVerificationToken': antiForgeryToken
+                    },
+                    success: function(response) {
+                        showMessage(response.message, response.success);
+                        
+                        if (response.success) {
+                            // Update selected medications display
+                            if (response.selectedMeds && response.selectedMeds.length > 0) {
+                                $('#selectedMedsText').val(response.selectedMeds.join(', '));
+                                $('#medCount').text(response.selectedMeds.length);
+                                $('#selectedMedsSection').removeClass('d-none');
+                            } else {
+                                $('#selectedMedsSection').addClass('d-none');
+                                $('#selectedMedsText').val('');
+                                $('#medCount').text('0');
+                            }
+                            
+                            // Update autocomplete source if med list changed
+                            if (response.medList) {
+                                meds = response.medList;
+                            }
+                            
+                            // Clear and refocus input
+                            $('#filter').val('').focus();
+                        }
+                    },
+                    error: function() {
+                        showMessage('An error occurred. Please try again.', false);
+                    }
+                });
+            }
+
+            function showMessage(message, success) {
+                var alert = $('#messageAlert');
+                alert.removeClass('d-none alert-success alert-danger')
+                     .addClass(success ? 'alert-success' : 'alert-danger');
+                $('#messageText').text(message);
+                
+                // Auto-hide after 3 seconds
+                setTimeout(function() {
+                    alert.addClass('d-none');
+                }, 3000);
+            }
 
             $('#filter').focus();
         });
