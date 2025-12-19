@@ -25,23 +25,14 @@
                 </div>
                 
                 <form id="medForm">
-                    <div class="row align-items-end g-3">
-                        <div class="col-12 col-md-8 col-lg-9">
-                            <label for="filter" class="form-label">Search Medications</label>
-                            <input type="text" 
-                                   id="filter" 
-                                   name="selectedMed" 
-                                   class="form-control form-control-lg"
-                                   placeholder="Type to search medications..."
-                                   autocomplete="off"
-                                   autofocus>
-                        </div>
-                        <div class="col-12 col-md-4 col-lg-3">
-                            <button type="submit" class="btn btn-primary btn-lg w-100">
-                                <i class="bi bi-plus-circle me-2"></i>Submit
-                            </button>
-                        </div>
-                    </div>
+                    <label for="filter" class="form-label">Search Medications</label>
+                    <input type="text" 
+                           id="filter" 
+                           name="selectedMed" 
+                           class="form-control form-control-lg"
+                           placeholder="Type to search medications... (press Enter to add)"
+                           autocomplete="off"
+                           autofocus>
                 </form>
 
                 <div id="selectedMedsSection" class="selected-meds-section mt-4 @(selectedMeds.Count == 0 ? "d-none" : "")">
@@ -64,7 +55,7 @@
             <div class="dashboard-card-body">
                 <ul class="instructions-list mb-0">
                     <li>Type at least <strong>2 characters</strong> to see suggestions</li>
-                    <li>Press <strong>Enter</strong> or click <strong>Submit</strong> to add</li>
+                    <li>Press <strong>Enter</strong> to add medication</li>
                     <li>Add new medication: <code>+MedicationName</code></li>
                     <li>Remove medication: <code>-MedicationName</code></li>
                     <li>Clear all selections: <code>cls</code></li>
