@@ -138,11 +138,23 @@ body {
     border-radius: 6px;
 }
 
-/* Add dark background to logo in light mode so waveform is visible */
-[data-theme="light"] .sidebar-logo,
-:root:not([data-theme]) .sidebar-logo {
-    background-color: #1a1d29;
-    padding: 2px;
+/* Show/hide logos based on theme */
+[data-theme="dark"] .sidebar-logo-dark {
+    display: block;
+}
+
+[data-theme="dark"] .sidebar-logo-light {
+    display: none;
+}
+
+[data-theme="light"] .sidebar-logo-dark,
+:root:not([data-theme]) .sidebar-logo-dark {
+    display: none;
+}
+
+[data-theme="light"] .sidebar-logo-light,
+:root:not([data-theme]) .sidebar-logo-light {
+    display: block;
 }
 
 .sidebar-title {
