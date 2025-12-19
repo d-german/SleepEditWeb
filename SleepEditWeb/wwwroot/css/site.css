@@ -135,6 +135,14 @@ body {
     width: 32px;
     height: 32px;
     object-fit: contain;
+    border-radius: 6px;
+}
+
+/* Add dark background to logo in light mode so waveform is visible */
+[data-theme="light"] .sidebar-logo,
+:root:not([data-theme]) .sidebar-logo {
+    background-color: #1a1d29;
+    padding: 2px;
 }
 
 .sidebar-title {
