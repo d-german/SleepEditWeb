@@ -22,13 +22,18 @@
             <div class="dashboard-card-body">
                 <form id="medForm">
                     <label for="filter" class="form-label">Search Medications</label>
-                    <input type="text" 
-                           id="filter" 
-                           name="selectedMed" 
-                           class="form-control form-control-lg"
-                           placeholder="Type to search medications... (press Enter to add)"
-                           autocomplete="off"
-                           autofocus>
+                    <div class="input-group">
+                        <input type="text" 
+                               id="filter" 
+                               name="selectedMed" 
+                               class="form-control form-control-lg"
+                               placeholder="Type to search medications... (press Enter to add)"
+                               autocomplete="off"
+                               autofocus>
+                        <button type="button" id="infoBtn" class="btn btn-outline-info btn-lg" title="Look up drug information" disabled>
+                            <i class="bi bi-info-circle"></i>
+                        </button>
+                    </div>
                 </form>
 
                 <div id="selectedMedsSection" class="selected-meds-section mt-4 @(selectedMeds.Count == 0 ? "d-none" : "")">
@@ -66,6 +71,32 @@
                     <li>Remove medication: <code>-MedicationName</code></li>
                     <li>Clear all selections: <code>cls</code></li>
                 </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Drug Info Modal -->
+<div class="modal fade" id="drugInfoModal" tabindex="-1" aria-labelledby="drugInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="drugInfoModalLabel">
+                    <i class="bi bi-capsule me-2"></i>Drug Information
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="drugInfoContent">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Looking up drug information...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <small class="text-muted me-auto">Source: <a href="https://open.fda.gov" target="_blank">OpenFDA</a></small>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -181,6 +212,71 @@
                         showMessage('Failed to copy to clipboard', false);
                     });
                 }
+            });
+
+            // Enable/disable info button based on input
+            $('#filter').on('input', function() {
+                var val = $(this).val().trim();
+                // Disable if empty or starts with +/- (add/remove commands)
+                var isCommand = val.startsWith('+') || val.startsWith('-');
+                $('#infoBtn').prop('disabled', val.length < 2 || isCommand);
+            });
+
+            // Drug info lookup
+            $('#infoBtn').click(function() {
+                var drugName = $('#filter').val().trim();
+                if (drugName.length < 2) return;
+
+                var modal = new bootstrap.Modal(document.getElementById('drugInfoModal'));
+                $('#drugInfoModalLabel').html('<i class="bi bi-capsule me-2"></i>' + drugName);
+                $('#drugInfoContent').html(
+                    '<div class="text-center py-4">' +
+                    '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>' +
+                    '<p class="mt-2 text-muted">Looking up drug information...</p></div>'
+                );
+                modal.show();
+
+                $.ajax({
+                    url: '@Url.Action("DrugInfo", "MedList")',
+                    type: 'GET',
+                    data: { name: drugName },
+                    success: function(info) {
+                        var html = '';
+                        if (info.found) {
+                            html = '<div class="drug-info">';
+                            if (info.genericName) {
+                                html += '<p class="text-muted mb-3"><strong>Generic Name:</strong> ' + info.genericName + '</p>';
+                            }
+                            if (info.manufacturer) {
+                                html += '<p class="text-muted mb-3"><strong>Manufacturer:</strong> ' + info.manufacturer + '</p>';
+                            }
+                            if (info.purpose) {
+                                html += '<div class="mb-3"><h6 class="text-primary"><i class="bi bi-bullseye me-1"></i>Purpose</h6><p>' + info.purpose + '</p></div>';
+                            }
+                            if (info.uses) {
+                                html += '<div class="mb-3"><h6 class="text-success"><i class="bi bi-check-circle me-1"></i>Uses</h6><p>' + info.uses + '</p></div>';
+                            }
+                            if (info.warnings) {
+                                html += '<div class="mb-3"><h6 class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Warnings</h6><p class="small">' + info.warnings + '</p></div>';
+                            }
+                            if (info.dosage) {
+                                html += '<div class="mb-3"><h6 class="text-info"><i class="bi bi-clock me-1"></i>Dosage</h6><p>' + info.dosage + '</p></div>';
+                            }
+                            html += '</div>';
+                        } else {
+                            html = '<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>' + 
+                                   (info.errorMessage || 'No information found for this medication.') + '</div>' +
+                                   '<p>Try searching on <a href="https://www.drugs.com/search.php?searchterm=' + encodeURIComponent(drugName) + '" target="_blank">Drugs.com</a> or ' +
+                                   '<a href="https://www.google.com/search?q=' + encodeURIComponent(drugName + ' medication') + '" target="_blank">Google</a>.</p>';
+                        }
+                        $('#drugInfoContent').html(html);
+                    },
+                    error: function() {
+                        $('#drugInfoContent').html(
+                            '<div class="alert alert-danger"><i class="bi bi-exclamation-circle me-2"></i>Failed to load drug information. Please try again.</div>'
+                        );
+                    }
+                });
             });
         });
     </script>

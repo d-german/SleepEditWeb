@@ -1,5 +1,6 @@
 using SleepEditWeb.Controllers;
 using SleepEditWeb.Data;
+using SleepEditWeb.Services;
 
 namespace SleepEditWeb;
 
@@ -15,6 +16,9 @@ public class Program
 		
 		// Register LiteDB medication repository as singleton (thread-safe, single connection per app lifetime)
 		builder.Services.AddSingleton<IMedicationRepository, LiteDbMedicationRepository>();
+		
+		// Register drug info service for OpenFDA lookups
+		builder.Services.AddHttpClient<IDrugInfoService, OpenFdaDrugInfoService>();
 
 		builder.Services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
 		builder.Services.AddSession(options =>

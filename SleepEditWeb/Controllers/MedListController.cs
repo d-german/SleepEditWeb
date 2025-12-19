@@ -1,15 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
 using SleepEditWeb.Data;
+using SleepEditWeb.Services;
 
 namespace SleepEditWeb.Controllers;
 
 public class MedListController : Controller
 {
     private readonly IMedicationRepository _repository;
+    private readonly IDrugInfoService _drugInfoService;
 
-    public MedListController(IMedicationRepository repository)
+    public MedListController(IMedicationRepository repository, IDrugInfoService drugInfoService)
     {
         _repository = repository;
+        _drugInfoService = drugInfoService;
     }
 
     // GET
@@ -110,6 +113,17 @@ public class MedListController : Controller
     public class MedRequest
     {
         public string? SelectedMed { get; set; }
+    }
+
+    // GET - Drug info lookup from OpenFDA
+    [HttpGet]
+    public async Task<IActionResult> DrugInfo(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest(new { error = "Drug name is required" });
+
+        var info = await _drugInfoService.GetDrugInfoAsync(name);
+        return Json(info);
     }
 
     // GET - Diagnostic endpoint to check database status

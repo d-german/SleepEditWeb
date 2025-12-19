@@ -619,3 +619,63 @@ textarea.form-control[readonly] {
 .text-muted {
     color: var(--main-text-muted) !important;
 }
+
+/* ==========================================
+   Modal Styles (Dark Mode Support)
+   ========================================== */
+[data-theme="dark"] .modal-content {
+    background-color: var(--card-bg);
+    border-color: var(--card-border);
+    color: var(--main-text);
+}
+
+[data-theme="dark"] .modal-header {
+    border-bottom-color: var(--card-border);
+    color: var(--main-text);
+}
+
+[data-theme="dark"] .modal-header .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+[data-theme="dark"] .modal-footer {
+    border-top-color: var(--card-border);
+}
+
+[data-theme="dark"] .modal-body {
+    color: var(--main-text);
+}
+
+[data-theme="dark"] .modal-body p {
+    color: var(--main-text);
+}
+
+[data-theme="dark"] .modal-body .text-muted {
+    color: var(--main-text-muted) !important;
+}
+
+/* Drug Info Modal Specific Styles */
+.drug-info h6 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.drug-info p {
+    line-height: 1.6;
+}
+
+[data-theme="dark"] .drug-info h6.text-primary {
+    color: #60a5fa !important;
+}
+
+[data-theme="dark"] .drug-info h6.text-success {
+    color: #4ade80 !important;
+}
+
+[data-theme="dark"] .drug-info h6.text-warning {
+    color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .drug-info h6.text-info {
+    color: #22d3ee !important;
+}
