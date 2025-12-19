@@ -140,24 +140,65 @@ public class MedListController : Controller
     private static string _loadedFrom = "not loaded";
     private static List<string> GetMedList()
     {
-        var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "medlist.txt");
-        // First, check file system (may have user additions from previous saves)
-        Console.WriteLine($"[MedList] Checking file system at: {filePath}");
-        if (System.IO.File.Exists(filePath))
+        // Use persistent volume path for user modifications
+        var persistentFilePath = Path.Combine("/app/Data", "medlist.txt");
+        var embeddedFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "medlist.txt");
+        
+        // First, check persistent volume (may have user additions from previous saves)
+        Console.WriteLine($"[MedList] Checking persistent volume at: {persistentFilePath}");
+        if (System.IO.File.Exists(persistentFilePath))
         {
             try
             {
-                var storedList = System.IO.File.ReadAllLines(filePath);
-                if (storedList.Length > 1) // More than just "No medications found!"
+                var storedList = System.IO.File.ReadAllLines(persistentFilePath);
+                if (storedList.Length > 0)
                 {
-                    Console.WriteLine($"[MedList] Loaded {storedList.Length} medications from file system");
-                    _loadedFrom = "file system";
+                    Console.WriteLine($"[MedList] Loaded {storedList.Length} medications from persistent volume");
+                    _loadedFrom = "persistent volume";
                     return storedList.ToList();
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MedList] Error reading file: {ex.Message}");
+                Console.WriteLine($"[MedList] Error reading from persistent volume: {ex.Message}");
+            }
+        }
+        
+        // Next, check embedded file system (initial deployment copy)
+        Console.WriteLine($"[MedList] Checking embedded file at: {embeddedFilePath}");
+        // Check embedded file copy (from initial deployment)
+        if (System.IO.File.Exists(embeddedFilePath))
+        {
+            try
+            {
+                var storedList = System.IO.File.ReadAllLines(embeddedFilePath);
+                if (storedList.Length > 0)
+                {
+                    Console.WriteLine($"[MedList] Loaded {storedList.Length} medications from embedded file");
+                    _loadedFrom = "embedded file";
+                    
+                    // Copy to persistent volume for future modifications
+                    try
+                    {
+                        var persistentDir = Path.GetDirectoryName(persistentFilePath);
+                        if (persistentDir != null && !Directory.Exists(persistentDir))
+                        {
+                            Directory.CreateDirectory(persistentDir);
+                        }
+                        System.IO.File.WriteAllLines(persistentFilePath, storedList);
+                        Console.WriteLine($"[MedList] Copied to persistent volume: {persistentFilePath}");
+                    }
+                    catch (Exception copyEx)
+                    {
+                        Console.WriteLine($"[MedList] Could not copy to persistent volume: {copyEx.Message}");
+                    }
+                    
+                    return storedList.ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MedList] Error reading embedded file: {ex.Message}");
             }
         }
         // Fall back to embedded resource (initial deployment)
@@ -184,7 +225,8 @@ public class MedListController : Controller
     /// </summary>
     private static bool SaveMedListToFile()
     {
-        var filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "medlist.txt");
+        // Always save to persistent volume
+        var filePath = Path.Combine("/app/Data", "medlist.txt");
         try
         {
             // Ensure directory exists
