@@ -9,25 +9,22 @@ RUN dotnet restore
 # Copy everything else and build
 COPY SleepEditWeb/. .
 
-RUN dotnet publish -c Release -o /app/publish
-
-# Explicitly ensure Resources is in publish output
-RUN cp -r Resources /app/publish/Resources 2>/dev/null || true
+# Publish and explicitly copy Resources to ensure it's included
+RUN dotnet publish -c Release -o /app/publish && \
+    mkdir -p /app/publish/Resources && \
+    cp Resources/medlist.txt /app/publish/Resources/medlist.txt && \
+    echo "=== Publish folder contents ===" && \
+    ls -la /app/publish/Resources/
 
 # Runtime stage  
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-# Copy published output (should include Resources)
-COPY --from=build /app/publish .
+# Copy everything from publish
+COPY --from=build /app/publish/ /app/
 
-# Verify at build time
-RUN echo "=== Build verification ===" && \
-    ls -la /app/ && \
-    echo "=== Resources folder ===" && \
-    ls -la /app/Resources/ && \
-    echo "=== medlist.txt check ===" && \
-    head -5 /app/Resources/medlist.txt
+# Verify the file is there
+RUN ls -la /app/Resources/ && cat /app/Resources/medlist.txt | head -3
 
 # Expose port 8000 (Koyeb default)
 ENV ASPNETCORE_URLS=http://+:8000
