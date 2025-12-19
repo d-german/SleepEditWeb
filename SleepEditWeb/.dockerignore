@@ -1,0 +1,13 @@
+**/.git
+**/.gitignore
+**/.vs
+**/.vscode
+**/.idea
+**/bin
+**/obj
+**/*.user
+**/*.md
+**/Dockerfile*
+**/.dockerignore
+**/.github
+**/.serena
