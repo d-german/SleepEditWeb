@@ -10,14 +10,18 @@ RUN dotnet restore
 COPY SleepEditWeb/. .
 RUN dotnet publish -c Release -o /app/publish
 
+# Debug: List what's in the publish output
+RUN ls -la /app/publish/Resources/ || echo "Resources folder not found in publish"
+
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-# Create directory for persistent data
-RUN mkdir -p /app/Resources
-
+# Copy published output (includes Resources/medlist.txt)
 COPY --from=build /app/publish .
+
+# Debug: Verify the file was copied
+RUN ls -la /app/Resources/ || echo "Resources folder not found"
 
 # Expose port 8000 (Koyeb default)
 ENV ASPNETCORE_URLS=http://+:8000
