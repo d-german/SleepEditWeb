@@ -199,8 +199,6 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
     /// </summary>
     public string LoadedFrom => _loadedFrom;
 
-    #region IMedicationRepository Implementation - Query Operations
-
     public IEnumerable<string> GetAllMedicationNames()
     {
         var medications = _database.GetCollection<Medication>(MedicationsCollection);
@@ -230,10 +228,6 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         var medications = _database.GetCollection<Medication>(MedicationsCollection);
         return medications.Exists(m => m.Name.ToLower() == name.ToLower());
     }
-
-    #endregion
-
-    #region IMedicationRepository Implementation - CRUD Operations
 
     public Result AddUserMedication(string name)
     {
@@ -277,10 +271,6 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         Console.WriteLine($"[LiteDB] Removed user medication: {name}");
         return Result.Success();
     }
-
-    #endregion
-
-    #region IMedicationRepository Implementation - Admin Operations
 
     public MedicationBackup ExportAll()
     {
@@ -360,10 +350,6 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         };
     }
 
-    #endregion
-
-    #region IMedicationRepository Implementation - Maintenance Operations
-
     public Result Reseed()
     {
         return Result.Try(() => 
@@ -388,10 +374,6 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         }, ex => $"Clear failed: {ex.Message}").Bind(r => r);
     }
 
-    #endregion
-
-    #region IDisposable Implementation
-
     public void Dispose()
     {
         if (_disposed) return;
@@ -400,6 +382,4 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         _disposed = true;
         Console.WriteLine("[LiteDB] Database connection closed");
     }
-
-    #endregion
 }

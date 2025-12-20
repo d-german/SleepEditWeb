@@ -125,8 +125,6 @@ public sealed class OpenFdaDrugInfoService : IDrugInfoService
     }
 }
 
-#region OpenFDA JSON Models
-
 internal sealed class OpenFdaResponse
 {
     [JsonPropertyName("results")]
@@ -162,5 +160,3 @@ internal sealed class OpenFdaDetails
     [JsonPropertyName("manufacturer_name")]
     public List<string>? ManufacturerName { get; set; }
 }
-
-#endregion

@@ -9,8 +9,6 @@ namespace SleepEditWeb.Data;
 /// </summary>
 public interface IMedicationRepository
 {
-    #region Query Operations
-
     /// <summary>
     /// Gets all medication names in the database.
     /// </summary>
@@ -26,10 +24,6 @@ public interface IMedicationRepository
     /// </summary>
     bool MedicationExists(string name);
 
-    #endregion
-
-    #region CRUD Operations
-
     /// <summary>
     /// Adds a user medication if it doesn't already exist.
     /// </summary>
@@ -41,10 +35,6 @@ public interface IMedicationRepository
     /// </summary>
     /// <returns>Result indicating success or reason for failure.</returns>
     Result RemoveUserMedication(string name);
-
-    #endregion
-
-    #region Admin Operations
 
     /// <summary>
     /// Gets the path to the database file.
@@ -71,10 +61,6 @@ public interface IMedicationRepository
     /// </summary>
     MedicationStats GetStats();
 
-    #endregion
-
-    #region Maintenance Operations
-
     /// <summary>
     /// Resets database to original seed data.
     /// </summary>
@@ -84,6 +70,4 @@ public interface IMedicationRepository
     /// Removes all user-added medications, keeps system meds.
     /// </summary>
     Result ClearUserMedications();
-
-    #endregion
 }
