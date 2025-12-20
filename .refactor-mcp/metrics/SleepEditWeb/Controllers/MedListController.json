@@ -1,0 +1,61 @@
+{
+  "linesOfCode": 157,
+  "numberOfClasses": 2,
+  "numberOfPublicMethods": 4,
+  "numberOfPrivateMethods": 2,
+  "classes": [
+    {
+      "name": "MedListController",
+      "linesOfCode": 150,
+      "methods": [
+        {
+          "name": "Index",
+          "linesOfCode": 9,
+          "parameterCount": 0,
+          "cyclomaticComplexity": 2,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "AddMedication",
+          "linesOfCode": 30,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 4,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "GetSelectedMedsFromSession",
+          "linesOfCode": 5,
+          "parameterCount": 0,
+          "cyclomaticComplexity": 2,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "DrugInfo",
+          "linesOfCode": 9,
+          "parameterCount": 1,
+          "cyclomaticComplexity": 2,
+          "maxNestingDepth": 1
+        },
+        {
+          "name": "DiagnosticInfo",
+          "linesOfCode": 22,
+          "parameterCount": 0,
+          "cyclomaticComplexity": 1,
+          "maxNestingDepth": 0
+        },
+        {
+          "name": "HandleAddition",
+          "linesOfCode": 49,
+          "parameterCount": 0,
+          "cyclomaticComplexity": 8,
+          "maxNestingDepth": 4
+        }
+      ]
+    },
+    {
+      "name": "MedRequest",
+      "linesOfCode": 4,
+      "methods": []
+    }
+  ]
+}

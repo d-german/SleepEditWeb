@@ -46,6 +46,11 @@ public interface IMedicationRepository
     #region Admin Operations
 
     /// <summary>
+    /// Gets the path to the database file.
+    /// </summary>
+    string DatabasePath { get; }
+
+    /// <summary>
     /// Exports all medications for backup.
     /// </summary>
     MedicationBackup ExportAll();

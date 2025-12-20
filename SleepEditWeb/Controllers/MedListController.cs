@@ -21,7 +21,7 @@ public class MedListController : Controller
         var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
         var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
         ViewBag.SelectedMeds = selectedMedsList;
-        
+
         var medList = _repository.GetAllMedicationNames().ToList();
         return View(medList);
     }
@@ -39,61 +39,17 @@ public class MedListController : Controller
             return Json(new { success = false, message = "Invalid input. Please try again.", selectedMeds = GetSelectedMedsFromSession() });
         }
 
-        // Determine action based on special character
         selectedMed = selectedMed.Trim();
         var isAddition = selectedMed.StartsWith("+");
         var isRemoval = selectedMed.StartsWith("-");
-
-        // Get clean medication name without special character
         var cleanMed = isAddition || isRemoval ? selectedMed[1..].Trim() : selectedMed;
 
-        string message;
-
-        // Handle addition to the MedList (master list)
-        if (isAddition)
+        string message = (isAddition, isRemoval) switch
         {
-            if (_repository.AddUserMedication(cleanMed))
-            {
-                message = $"Medication '{cleanMed}' has been added to the master list.";
-            }
-            else
-            {
-                message = $"Medication '{cleanMed}' already exists in the list.";
-            }
-        }
-        // Handle removal from the MedList (master list - user meds only)
-        else if (isRemoval)
-        {
-            if (_repository.RemoveUserMedication(cleanMed))
-            {
-                message = $"Medication '{cleanMed}' has been removed from the master list.";
-            }
-            else
-            {
-                // Could be system med or not found
-                var exists = _repository.MedicationExists(cleanMed);
-                message = exists 
-                    ? $"Medication '{cleanMed}' is a system medication and cannot be removed."
-                    : $"Medication '{cleanMed}' does not exist in the list.";
-            }
-        }
-        // No special character: Add medication to user's session list
-        else
-        {
-            if (selectedMed.Equals("cls", StringComparison.CurrentCultureIgnoreCase))
-            {
-                HttpContext.Session.Remove("SelectedMeds");
-                message = "Selected medications cleared.";
-            }
-            else
-            {
-                var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
-                var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
-                selectedMedsList.Add(cleanMed);
-                HttpContext.Session.SetString("SelectedMeds", string.Join(",", selectedMedsList));
-                message = $"Added: {cleanMed}";
-            }
-        }
+            (true, _) => PerformMasterListAddition(cleanMed),
+            (_, true) => PerformMasterListRemoval(cleanMed),
+            _ => UpdateUserSessionList(selectedMed, cleanMed)
+        };
 
         return Json(new
         {
@@ -102,6 +58,41 @@ public class MedListController : Controller
             selectedMeds = GetSelectedMedsFromSession(),
             medList = _repository.GetAllMedicationNames()
         });
+    }
+
+    private string PerformMasterListAddition(string medicationName)
+    {
+        return _repository.AddUserMedication(medicationName)
+            ? $"Medication '{medicationName}' has been added to the master list."
+            : $"Medication '{medicationName}' already exists in the list.";
+    }
+
+    private string PerformMasterListRemoval(string medicationName)
+    {
+        if (_repository.RemoveUserMedication(medicationName))
+        {
+            return $"Medication '{medicationName}' has been removed from the master list.";
+        }
+
+        return _repository.MedicationExists(medicationName)
+            ? $"Medication '{medicationName}' is a system medication and cannot be removed."
+            : $"Medication '{medicationName}' does not exist in the list.";
+    }
+
+    private string UpdateUserSessionList(string rawInput, string medicationName)
+    {
+        if (rawInput.Equals("cls", StringComparison.CurrentCultureIgnoreCase))
+        {
+            HttpContext.Session.Remove("SelectedMeds");
+            return "Selected medications cleared.";
+        }
+
+        var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
+        var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
+        selectedMedsList.Add(medicationName);
+        HttpContext.Session.SetString("SelectedMeds", string.Join(",", selectedMedsList));
+        
+        return $"Added: {medicationName}";
     }
 
     private List<string> GetSelectedMedsFromSession()
@@ -131,13 +122,10 @@ public class MedListController : Controller
     public IActionResult DiagnosticInfo()
     {
         var stats = _repository.GetStats();
-        
-        // Get database path if repository is LiteDbMedicationRepository
-        var databasePath = (_repository as LiteDbMedicationRepository)?.DatabasePath ?? "unknown";
-        
+
         var info = new
         {
-            DatabasePath = databasePath,
+            DatabasePath = _repository.DatabasePath,
             TotalMedicationCount = stats.TotalCount,
             SystemMedicationCount = stats.SystemMedCount,
             UserMedicationCount = stats.UserMedCount,
