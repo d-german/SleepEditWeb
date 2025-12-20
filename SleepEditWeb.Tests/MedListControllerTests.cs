@@ -245,8 +245,7 @@ public class MedListControllerTests
         // Assert
         Assert.That(result, Is.Not.Null);
         Assert.That(GetPropertyValue(result.Value, "found"), Is.True);
-        var info = GetPropertyValue(result.Value, "info");
-        Assert.That(GetPropertyValue(info, "Name"), Is.EqualTo(drugName));
+        Assert.That(GetPropertyValue(result.Value, "name"), Is.EqualTo(drugName));
     }
 
     [Test]

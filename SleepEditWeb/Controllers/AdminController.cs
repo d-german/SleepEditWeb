@@ -122,13 +122,12 @@ public class AdminController : Controller
                     ? Result.Failure<string>(replaceResult.Error) 
                     : Result.Success($"Database replaced with {backup.Medications.Count} medications from backup.");
             }
-            else // merge
-            {
-                var mergeResult = _repository.ImportMerge(backup.Medications);
-                return mergeResult.IsFailure 
-                    ? Result.Failure<string>(mergeResult.Error) 
-                    : Result.Success("Backup merged successfully. New medications added, existing preserved.");
-            }
+
+            // merge
+            var mergeResult = _repository.ImportMerge(backup.Medications);
+            return mergeResult.IsFailure
+                ? Result.Failure<string>(mergeResult.Error)
+                : Result.Success("Backup merged successfully. New medications added, existing preserved.");
         }, ex => 
         {
             return ex switch

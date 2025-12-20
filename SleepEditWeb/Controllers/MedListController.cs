@@ -128,7 +128,18 @@ public class MedListController : Controller
             return Json(new { found = false, errorMessage = error });
         }
 
-        return Json(new { found = true, info });
+        return Json(new 
+        { 
+            found = true,
+            name = info.Name,
+            genericName = info.GenericName,
+            purpose = info.Purpose,
+            uses = info.Uses,
+            warnings = info.Warnings,
+            dosage = info.Dosage,
+            manufacturer = info.Manufacturer,
+            source = info.Source
+        });
     }
 
     // GET - Diagnostic endpoint to check database status
