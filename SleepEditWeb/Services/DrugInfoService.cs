@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CSharpFunctionalExtensions;
 
 namespace SleepEditWeb.Services;
 
@@ -8,7 +9,7 @@ namespace SleepEditWeb.Services;
 /// </summary>
 public interface IDrugInfoService
 {
-    Task<DrugInfo?> GetDrugInfoAsync(string drugName);
+    Task<Result<DrugInfo>> GetDrugInfoAsync(string drugName);
 }
 
 /// <summary>
@@ -24,8 +25,6 @@ public sealed class DrugInfo
     public string? Dosage { get; init; }
     public string? Manufacturer { get; init; }
     public string Source { get; init; } = "OpenFDA";
-    public bool Found { get; init; }
-    public string? ErrorMessage { get; init; }
 }
 
 /// <summary>
@@ -44,47 +43,31 @@ public sealed class OpenFdaDrugInfoService : IDrugInfoService
         _logger = logger;
     }
 
-    public async Task<DrugInfo?> GetDrugInfoAsync(string drugName)
+    public async Task<Result<DrugInfo>> GetDrugInfoAsync(string drugName)
     {
         if (string.IsNullOrWhiteSpace(drugName))
-            return null;
+            return Result.Failure<DrugInfo>("Drug name is required.");
 
-        try
+        return await Result.Try(async () => 
         {
             // Try brand name first, then generic name
             var result = await SearchByBrandNameAsync(drugName) 
                          ?? await SearchByGenericNameAsync(drugName);
 
-            if (result != null)
-                return result;
-
-            return new DrugInfo
-            {
-                Name = drugName,
-                Found = false,
-                ErrorMessage = "No FDA drug label information found for this medication."
-            };
-        }
-        catch (HttpRequestException ex)
+            return result != null 
+                ? Result.Success(result) 
+                : Result.Failure<DrugInfo>($"No FDA drug label information found for '{drugName}'.");
+        }, ex => 
         {
-            _logger.LogWarning(ex, "Failed to fetch drug info for {DrugName}", drugName);
-            return new DrugInfo
+            if (ex is HttpRequestException)
             {
-                Name = drugName,
-                Found = false,
-                ErrorMessage = "Unable to connect to FDA database. Please try again later."
-            };
-        }
-        catch (Exception ex)
-        {
+                _logger.LogWarning(ex, "Failed to fetch drug info for {DrugName}", drugName);
+                return "Unable to connect to FDA database. Please try again later.";
+            }
+            
             _logger.LogError(ex, "Error fetching drug info for {DrugName}", drugName);
-            return new DrugInfo
-            {
-                Name = drugName,
-                Found = false,
-                ErrorMessage = "An error occurred while looking up drug information."
-            };
-        }
+            return "An error occurred while looking up drug information.";
+        }).Bind(r => r);
     }
 
     private async Task<DrugInfo?> SearchByBrandNameAsync(string drugName)
@@ -126,7 +109,6 @@ public sealed class OpenFdaDrugInfoService : IDrugInfoService
             Warnings = CleanText(result.Warnings?.FirstOrDefault()),
             Dosage = CleanText(result.DosageAndAdministration?.FirstOrDefault()),
             Manufacturer = openfda?.ManufacturerName?.FirstOrDefault(),
-            Found = true,
             Source = "OpenFDA"
         };
     }

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SleepEditWeb.Data;
 using SleepEditWeb.Services;
+using CSharpFunctionalExtensions;
 
 namespace SleepEditWeb.Controllers;
 
@@ -19,10 +20,10 @@ public class MedListController : Controller
     public IActionResult Index()
     {
         var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
-        var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
+        List<string> selectedMedsList = selectedMeds != null ? [..selectedMeds.Split(',')] : [];
         ViewBag.SelectedMeds = selectedMedsList;
 
-        var medList = _repository.GetAllMedicationNames().ToList();
+        List<string> medList = [.._repository.GetAllMedicationNames()];
         return View(medList);
     }
 
@@ -31,12 +32,25 @@ public class MedListController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult AddMedication([FromBody] MedRequest request)
     {
+        var result = ValidateAndProcessMedication(request);
+        var (_, isFailure, message, error) = result;
+
+        return Json(new
+        {
+            success = !isFailure,
+            message = isFailure ? error : message,
+            selectedMeds = GetSelectedMedsFromSession(),
+            medList = (List<string>)[.._repository.GetAllMedicationNames()]
+        });
+    }
+
+    private Result<string> ValidateAndProcessMedication(MedRequest request)
+    {
         var selectedMed = request?.SelectedMed;
 
-        // Trim and validate input
         if (string.IsNullOrWhiteSpace(selectedMed))
         {
-            return Json(new { success = false, message = "Invalid input. Please try again.", selectedMeds = GetSelectedMedsFromSession() });
+            return Result.Failure<string>("Invalid input. Please try again.");
         }
 
         selectedMed = selectedMed.Trim();
@@ -44,39 +58,32 @@ public class MedListController : Controller
         var isRemoval = selectedMed.StartsWith("-");
         var cleanMed = isAddition || isRemoval ? selectedMed[1..].Trim() : selectedMed;
 
-        string message = (isAddition, isRemoval) switch
+        return (isAddition, isRemoval) switch
         {
             (true, _) => PerformMasterListAddition(cleanMed),
             (_, true) => PerformMasterListRemoval(cleanMed),
-            _ => UpdateUserSessionList(selectedMed, cleanMed)
+            _ => Result.Success(UpdateUserSessionList(selectedMed, cleanMed))
         };
-
-        return Json(new
-        {
-            success = true,
-            message,
-            selectedMeds = GetSelectedMedsFromSession(),
-            medList = _repository.GetAllMedicationNames()
-        });
     }
 
-    private string PerformMasterListAddition(string medicationName)
+    private Result<string> PerformMasterListAddition(string medicationName)
     {
-        return _repository.AddUserMedication(medicationName)
-            ? $"Medication '{medicationName}' has been added to the master list."
-            : $"Medication '{medicationName}' already exists in the list.";
+        var result = _repository.AddUserMedication(medicationName);
+        var (_, isFailure, error) = result;
+
+        return isFailure 
+            ? Result.Failure<string>(error) 
+            : Result.Success($"Medication '{medicationName}' has been added to the master list.");
     }
 
-    private string PerformMasterListRemoval(string medicationName)
+    private Result<string> PerformMasterListRemoval(string medicationName)
     {
-        if (_repository.RemoveUserMedication(medicationName))
-        {
-            return $"Medication '{medicationName}' has been removed from the master list.";
-        }
+        var result = _repository.RemoveUserMedication(medicationName);
+        var (_, isFailure, error) = result;
 
-        return _repository.MedicationExists(medicationName)
-            ? $"Medication '{medicationName}' is a system medication and cannot be removed."
-            : $"Medication '{medicationName}' does not exist in the list.";
+        return isFailure 
+            ? Result.Failure<string>(error) 
+            : Result.Success($"Medication '{medicationName}' has been removed from the master list.");
     }
 
     private string UpdateUserSessionList(string rawInput, string medicationName)
@@ -88,7 +95,7 @@ public class MedListController : Controller
         }
 
         var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
-        var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
+        List<string> selectedMedsList = selectedMeds != null ? [..selectedMeds.Split(',')] : [];
         selectedMedsList.Add(medicationName);
         HttpContext.Session.SetString("SelectedMeds", string.Join(",", selectedMedsList));
         
@@ -98,7 +105,7 @@ public class MedListController : Controller
     private List<string> GetSelectedMedsFromSession()
     {
         var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
-        return selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
+        return selectedMeds != null ? [..selectedMeds.Split(',')] : [];
     }
 
     public class MedRequest
@@ -113,8 +120,15 @@ public class MedListController : Controller
         if (string.IsNullOrWhiteSpace(name))
             return BadRequest(new { error = "Drug name is required" });
 
-        var info = await _drugInfoService.GetDrugInfoAsync(name);
-        return Json(info);
+        var result = await _drugInfoService.GetDrugInfoAsync(name);
+        var (_, isFailure, info, error) = result;
+
+        if (isFailure)
+        {
+            return Json(new { found = false, errorMessage = error });
+        }
+
+        return Json(new { found = true, info });
     }
 
     // GET - Diagnostic endpoint to check database status
@@ -132,7 +146,7 @@ public class MedListController : Controller
             SeedVersion = stats.SeedVersion,
             LastSeeded = stats.LastSeeded,
             LoadedFrom = stats.LoadedFrom,
-            FirstFiveMeds = _repository.GetAllMedicationNames().Take(5).ToList()
+            FirstFiveMeds = (List<string>)[.._repository.GetAllMedicationNames().Take(5)]
         };
 
         return Json(info);

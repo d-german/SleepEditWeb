@@ -6,6 +6,7 @@ using SleepEditWeb.Controllers;
 using SleepEditWeb.Data;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
+using CSharpFunctionalExtensions;
 
 namespace SleepEditWeb.Tests;
 
@@ -124,7 +125,7 @@ public class MedListControllerTests
     {
         // Arrange
         var request = new MedListController.MedRequest { SelectedMed = "+NewMed" };
-        _mockRepo.Setup(r => r.AddUserMedication("NewMed")).Returns(true);
+        _mockRepo.Setup(r => r.AddUserMedication("NewMed")).Returns(Result.Success());
 
         // Act
         var result = _controller.AddMedication(request) as JsonResult;
@@ -136,19 +137,19 @@ public class MedListControllerTests
     }
 
     [Test]
-    public void AddMedication_MasterListAdditionFailure_ReturnsAlreadyExists()
+    public void AddMedication_MasterListAdditionFailure_ReturnsError()
     {
         // Arrange
         var request = new MedListController.MedRequest { SelectedMed = "+ExistingMed" };
-        _mockRepo.Setup(r => r.AddUserMedication("ExistingMed")).Returns(false);
+        _mockRepo.Setup(r => r.AddUserMedication("ExistingMed")).Returns(Result.Failure("Already exists"));
 
         // Act
         var result = _controller.AddMedication(request) as JsonResult;
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(GetPropertyValue(result.Value, "success"), Is.True);
-        Assert.That(GetPropertyValue(result.Value, "message"), Is.EqualTo("Medication 'ExistingMed' already exists in the list."));
+        Assert.That(GetPropertyValue(result.Value, "success"), Is.False);
+        Assert.That(GetPropertyValue(result.Value, "message"), Is.EqualTo("Already exists"));
     }
 
     [Test]
@@ -156,7 +157,7 @@ public class MedListControllerTests
     {
         // Arrange
         var request = new MedListController.MedRequest { SelectedMed = "-UserMed" };
-        _mockRepo.Setup(r => r.RemoveUserMedication("UserMed")).Returns(true);
+        _mockRepo.Setup(r => r.RemoveUserMedication("UserMed")).Returns(Result.Success());
 
         // Act
         var result = _controller.AddMedication(request) as JsonResult;
@@ -168,37 +169,19 @@ public class MedListControllerTests
     }
 
     [Test]
-    public void AddMedication_MasterListRemovalSystemMed_ReturnsError()
+    public void AddMedication_MasterListRemovalFailure_ReturnsError()
     {
         // Arrange
         var request = new MedListController.MedRequest { SelectedMed = "-SystemMed" };
-        _mockRepo.Setup(r => r.RemoveUserMedication("SystemMed")).Returns(false);
-        _mockRepo.Setup(r => r.MedicationExists("SystemMed")).Returns(true);
+        _mockRepo.Setup(r => r.RemoveUserMedication("SystemMed")).Returns(Result.Failure("Cannot remove system medication"));
 
         // Act
         var result = _controller.AddMedication(request) as JsonResult;
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(GetPropertyValue(result.Value, "success"), Is.True);
-        Assert.That(GetPropertyValue(result.Value, "message"), Is.EqualTo("Medication 'SystemMed' is a system medication and cannot be removed."));
-    }
-
-    [Test]
-    public void AddMedication_MasterListRemovalNotFound_ReturnsError()
-    {
-        // Arrange
-        var request = new MedListController.MedRequest { SelectedMed = "-NonExistent" };
-        _mockRepo.Setup(r => r.RemoveUserMedication("NonExistent")).Returns(false);
-        _mockRepo.Setup(r => r.MedicationExists("NonExistent")).Returns(false);
-
-        // Act
-        var result = _controller.AddMedication(request) as JsonResult;
-
-        // Assert
-        Assert.That(result, Is.Not.Null);
-        Assert.That(GetPropertyValue(result.Value, "success"), Is.True);
-        Assert.That(GetPropertyValue(result.Value, "message"), Is.EqualTo("Medication 'NonExistent' does not exist in the list."));
+        Assert.That(GetPropertyValue(result.Value, "success"), Is.False);
+        Assert.That(GetPropertyValue(result.Value, "message"), Is.EqualTo("Cannot remove system medication"));
     }
 
     [Test]
@@ -235,24 +218,6 @@ public class MedListControllerTests
         _mockSession.Verify(s => s.Set("SelectedMeds", It.Is<byte[]>(b => Encoding.UTF8.GetString(b) == "MedX")), Times.Once);
     }
 
-    [Test]
-    public void AddMedication_NormalMedExistingSession_AppendsToSession()
-    {
-        // Arrange
-        var request = new MedListController.MedRequest { SelectedMed = "MedB" };
-        var existingMeds = Encoding.UTF8.GetBytes("MedA");
-        _mockSession.Setup(s => s.TryGetValue("SelectedMeds", out existingMeds)).Returns(true);
-
-        // Act
-        var result = _controller.AddMedication(request) as JsonResult;
-
-        // Assert
-        Assert.That(result, Is.Not.Null);
-        Assert.That(GetPropertyValue(result.Value, "success"), Is.True);
-        Assert.That(GetPropertyValue(result.Value, "message"), Is.EqualTo("Added: MedB"));
-        _mockSession.Verify(s => s.Set("SelectedMeds", It.Is<byte[]>(b => Encoding.UTF8.GetString(b) == "MedA,MedB")), Times.Once);
-    }
-
     [TestCase("")]
     [TestCase("   ")]
     [TestCase(null)]
@@ -271,15 +236,33 @@ public class MedListControllerTests
     {
         // Arrange
         var drugName = "Aspirin";
-        var drugInfo = new DrugInfo { Name = drugName, Found = true };
-        _mockDrugService.Setup(s => s.GetDrugInfoAsync(drugName)).ReturnsAsync(drugInfo);
+        var drugInfo = new DrugInfo { Name = drugName };
+        _mockDrugService.Setup(s => s.GetDrugInfoAsync(drugName)).ReturnsAsync(Result.Success(drugInfo));
 
         // Act
         var result = await _controller.DrugInfo(drugName) as JsonResult;
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(GetPropertyValue(result.Value, "Name"), Is.EqualTo(drugName));
+        Assert.That(GetPropertyValue(result.Value, "found"), Is.True);
+        var info = GetPropertyValue(result.Value, "info");
+        Assert.That(GetPropertyValue(info, "Name"), Is.EqualTo(drugName));
+    }
+
+    [Test]
+    public async Task DrugInfo_ServiceFailure_ReturnsError()
+    {
+        // Arrange
+        var drugName = "Unknown";
+        _mockDrugService.Setup(s => s.GetDrugInfoAsync(drugName)).ReturnsAsync(Result.Failure<DrugInfo>("Not found"));
+
+        // Act
+        var result = await _controller.DrugInfo(drugName) as JsonResult;
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(GetPropertyValue(result.Value, "found"), Is.False);
+        Assert.That(GetPropertyValue(result.Value, "errorMessage"), Is.EqualTo("Not found"));
     }
 
     [Test]

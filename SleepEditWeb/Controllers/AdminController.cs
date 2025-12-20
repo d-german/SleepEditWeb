@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using SleepEditWeb.Data;
 using SleepEditWeb.Models;
+using CSharpFunctionalExtensions;
 
 namespace SleepEditWeb.Controllers;
 
@@ -83,7 +84,24 @@ public class AdminController : Controller
             return RedirectToAction(nameof(Index), new { secretKey });
         }
 
-        try
+        var result = await ProcessImportAsync(file, mode);
+        var (_, isFailure, successMessage, error) = result;
+
+        if (isFailure)
+        {
+            TempData["Error"] = error;
+        }
+        else
+        {
+            TempData["Success"] = successMessage;
+        }
+
+        return RedirectToAction(nameof(Index), new { secretKey });
+    }
+
+    private async Task<Result<string>> ProcessImportAsync(IFormFile file, string mode)
+    {
+        return await Result.Try(async () => 
         {
             using var stream = new StreamReader(file.OpenReadStream());
             var json = await stream.ReadToEndAsync();
@@ -94,31 +112,31 @@ public class AdminController : Controller
 
             if (backup?.Medications == null || backup.Medications.Count == 0)
             {
-                TempData["Error"] = "Invalid backup file or empty medication list.";
-                return RedirectToAction(nameof(Index), new { secretKey });
+                return Result.Failure<string>("Invalid backup file or empty medication list.");
             }
 
             if (mode == "replace")
             {
-                _repository.ImportReplace(backup.Medications);
-                TempData["Success"] = $"Database replaced with {backup.Medications.Count} medications from backup.";
+                var replaceResult = _repository.ImportReplace(backup.Medications);
+                return replaceResult.IsFailure 
+                    ? Result.Failure<string>(replaceResult.Error) 
+                    : Result.Success($"Database replaced with {backup.Medications.Count} medications from backup.");
             }
             else // merge
             {
-                _repository.ImportMerge(backup.Medications);
-                TempData["Success"] = "Backup merged successfully. New medications added, existing preserved.";
+                var mergeResult = _repository.ImportMerge(backup.Medications);
+                return mergeResult.IsFailure 
+                    ? Result.Failure<string>(mergeResult.Error) 
+                    : Result.Success("Backup merged successfully. New medications added, existing preserved.");
             }
-        }
-        catch (JsonException)
+        }, ex => 
         {
-            TempData["Error"] = "Invalid JSON format in backup file.";
-        }
-        catch (Exception ex)
-        {
-            TempData["Error"] = $"Import failed: {ex.Message}";
-        }
-
-        return RedirectToAction(nameof(Index), new { secretKey });
+            return ex switch
+            {
+                JsonException => "Invalid JSON format in backup file.",
+                _ => $"Import failed: {ex.Message}"
+            };
+        }).Bind(r => r);
     }
 
     /// <summary>
@@ -132,14 +150,16 @@ public class AdminController : Controller
         if (!IsValidKey(secretKey))
             return NotFound();
 
-        try
+        var result = _repository.Reseed();
+        var (_, isFailure, error) = result;
+
+        if (isFailure)
         {
-            _repository.Reseed();
-            TempData["Success"] = "Database reseeded successfully from embedded resource.";
+            TempData["Error"] = error;
         }
-        catch (Exception ex)
+        else
         {
-            TempData["Error"] = $"Reseed failed: {ex.Message}";
+            TempData["Success"] = "Database reseeded successfully from embedded resource.";
         }
 
         return RedirectToAction(nameof(Index), new { secretKey });
@@ -156,14 +176,16 @@ public class AdminController : Controller
         if (!IsValidKey(secretKey))
             return NotFound();
 
-        try
+        var result = _repository.ClearUserMedications();
+        var (_, isFailure, error) = result;
+
+        if (isFailure)
         {
-            _repository.ClearUserMedications();
-            TempData["Success"] = "All user-added medications have been cleared.";
+            TempData["Error"] = error;
         }
-        catch (Exception ex)
+        else
         {
-            TempData["Error"] = $"Clear failed: {ex.Message}";
+            TempData["Success"] = "All user-added medications have been cleared.";
         }
 
         return RedirectToAction(nameof(Index), new { secretKey });

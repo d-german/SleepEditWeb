@@ -1,6 +1,7 @@
 using System.Reflection;
 using LiteDB;
 using SleepEditWeb.Models;
+using CSharpFunctionalExtensions;
 
 namespace SleepEditWeb.Data;
 
@@ -203,10 +204,9 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
     public IEnumerable<string> GetAllMedicationNames()
     {
         var medications = _database.GetCollection<Medication>(MedicationsCollection);
-        return medications.FindAll()
+        return [..medications.FindAll()
             .OrderBy(m => m.Name)
-            .Select(m => m.Name)
-            .ToList();
+            .Select(m => m.Name)];
     }
 
     public IEnumerable<string> SearchMedications(string query)
@@ -217,10 +217,9 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         var medications = _database.GetCollection<Medication>(MedicationsCollection);
         var lowerQuery = query.ToLowerInvariant();
         
-        return medications.Find(m => m.Name.ToLower().StartsWith(lowerQuery))
+        return [..medications.Find(m => m.Name.ToLower().StartsWith(lowerQuery))
             .OrderBy(m => m.Name)
-            .Select(m => m.Name)
-            .ToList();
+            .Select(m => m.Name)];
     }
 
     public bool MedicationExists(string name)
@@ -236,13 +235,13 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
 
     #region IMedicationRepository Implementation - CRUD Operations
 
-    public bool AddUserMedication(string name)
+    public Result AddUserMedication(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return false;
+            return Result.Failure("Medication name cannot be empty.");
 
         if (MedicationExists(name))
-            return false;
+            return Result.Failure($"Medication '{name}' already exists in the database.");
 
         var medications = _database.GetCollection<Medication>(MedicationsCollection);
         var medication = new Medication
@@ -254,29 +253,29 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
 
         medications.Insert(medication);
         Console.WriteLine($"[LiteDB] Added user medication: {name}");
-        return true;
+        return Result.Success();
     }
 
-    public bool RemoveUserMedication(string name)
+    public Result RemoveUserMedication(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
-            return false;
+            return Result.Failure("Medication name cannot be empty.");
 
         var medications = _database.GetCollection<Medication>(MedicationsCollection);
         var medication = medications.FindOne(m => m.Name.ToLower() == name.ToLower());
 
         if (medication == null)
-            return false;
+            return Result.Failure($"Medication '{name}' not found.");
 
         if (medication.IsSystemMed)
         {
             Console.WriteLine($"[LiteDB] Cannot remove system medication: {name}");
-            return false;
+            return Result.Failure($"Medication '{name}' is a system medication and cannot be removed.");
         }
 
         medications.Delete(medication.Id);
         Console.WriteLine($"[LiteDB] Removed user medication: {name}");
-        return true;
+        return Result.Success();
     }
 
     #endregion
@@ -300,7 +299,7 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         };
     }
 
-    public void ImportReplace(List<Medication> medications)
+    public Result ImportReplace(List<Medication> medications)
     {
         var medsCollection = _database.GetCollection<Medication>(MedicationsCollection);
         
@@ -311,30 +310,35 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
             medsCollection.InsertBulk(medications);
             _database.Commit();
             Console.WriteLine($"[LiteDB] Import replace: {medications.Count} medications");
+            return Result.Success();
         }
-        catch
+        catch (Exception ex)
         {
             _database.Rollback();
-            throw;
+            return Result.Failure($"Import replace failed: {ex.Message}");
         }
     }
 
-    public void ImportMerge(List<Medication> medications)
+    public Result ImportMerge(List<Medication> medications)
     {
-        var medsCollection = _database.GetCollection<Medication>(MedicationsCollection);
-        var existingNames = new HashSet<string>(
-            medsCollection.FindAll().Select(m => m.Name),
-            StringComparer.OrdinalIgnoreCase);
-
-        var newMedications = medications
-            .Where(m => !existingNames.Contains(m.Name))
-            .ToList();
-
-        if (newMedications.Count > 0)
+        return Result.Try(() => 
         {
-            medsCollection.InsertBulk(newMedications);
-            Console.WriteLine($"[LiteDB] Import merge: added {newMedications.Count} new medications");
-        }
+            var medsCollection = _database.GetCollection<Medication>(MedicationsCollection);
+            var existingNames = new HashSet<string>(
+                medsCollection.FindAll().Select(m => m.Name),
+                StringComparer.OrdinalIgnoreCase);
+
+            var newMedications = medications
+                .Where(m => !existingNames.Contains(m.Name))
+                .ToList();
+
+            if (newMedications.Count > 0)
+            {
+                medsCollection.InsertBulk(newMedications);
+                Console.WriteLine($"[LiteDB] Import merge: added {newMedications.Count} new medications");
+            }
+            return Result.Success();
+        }, ex => $"Import merge failed: {ex.Message}").Bind(r => r);
     }
 
     public MedicationStats GetStats()
@@ -360,20 +364,28 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
 
     #region IMedicationRepository Implementation - Maintenance Operations
 
-    public void Reseed()
+    public Result Reseed()
     {
-        Console.WriteLine("[LiteDB] Reseed requested - clearing and reseeding database");
-        var medications = _database.GetCollection<Medication>(MedicationsCollection);
-        var metadata = _database.GetCollection<DatabaseMetadata>(MetadataCollection);
+        return Result.Try(() => 
+        {
+            Console.WriteLine("[LiteDB] Reseed requested - clearing and reseeding database");
+            var medications = _database.GetCollection<Medication>(MedicationsCollection);
+            var metadata = _database.GetCollection<DatabaseMetadata>(MetadataCollection);
 
-        SeedDatabase(medications, metadata);
+            SeedDatabase(medications, metadata);
+            return Result.Success();
+        }, ex => $"Reseed failed: {ex.Message}").Bind(r => r);
     }
 
-    public void ClearUserMedications()
+    public Result ClearUserMedications()
     {
-        var medications = _database.GetCollection<Medication>(MedicationsCollection);
-        var deleted = medications.DeleteMany(m => !m.IsSystemMed);
-        Console.WriteLine($"[LiteDB] Cleared {deleted} user-added medications");
+        return Result.Try(() => 
+        {
+            var medications = _database.GetCollection<Medication>(MedicationsCollection);
+            var deleted = medications.DeleteMany(m => !m.IsSystemMed);
+            Console.WriteLine($"[LiteDB] Cleared {deleted} user-added medications");
+            return Result.Success();
+        }, ex => $"Clear failed: {ex.Message}").Bind(r => r);
     }
 
     #endregion

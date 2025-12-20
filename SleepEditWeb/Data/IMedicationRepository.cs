@@ -1,3 +1,4 @@
+using CSharpFunctionalExtensions;
 using SleepEditWeb.Models;
 
 namespace SleepEditWeb.Data;
@@ -32,14 +33,14 @@ public interface IMedicationRepository
     /// <summary>
     /// Adds a user medication if it doesn't already exist.
     /// </summary>
-    /// <returns>True if added, false if already exists.</returns>
-    bool AddUserMedication(string name);
+    /// <returns>Result indicating success or reason for failure.</returns>
+    Result AddUserMedication(string name);
 
     /// <summary>
     /// Removes a user-added medication (cannot remove system meds).
     /// </summary>
-    /// <returns>True if removed, false if not found or is system med.</returns>
-    bool RemoveUserMedication(string name);
+    /// <returns>Result indicating success or reason for failure.</returns>
+    Result RemoveUserMedication(string name);
 
     #endregion
 
@@ -58,12 +59,12 @@ public interface IMedicationRepository
     /// <summary>
     /// Replaces all medications with imported data (destructive).
     /// </summary>
-    void ImportReplace(List<Medication> medications);
+    Result ImportReplace(List<Medication> medications);
 
     /// <summary>
     /// Merges imported medications (adds new, preserves existing).
     /// </summary>
-    void ImportMerge(List<Medication> medications);
+    Result ImportMerge(List<Medication> medications);
 
     /// <summary>
     /// Gets database statistics for admin dashboard.
@@ -77,12 +78,12 @@ public interface IMedicationRepository
     /// <summary>
     /// Resets database to original seed data.
     /// </summary>
-    void Reseed();
+    Result Reseed();
 
     /// <summary>
     /// Removes all user-added medications, keeps system meds.
     /// </summary>
-    void ClearUserMedications();
+    Result ClearUserMedications();
 
     #endregion
 }
