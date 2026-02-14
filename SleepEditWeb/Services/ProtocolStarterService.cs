@@ -50,32 +50,44 @@ public sealed class ProtocolStarterService : IProtocolStarterService
 
     private ProtocolDocument? TryCreateFromConfiguredProtocolFile()
     {
-        var protocolPath = _startupOptions.StartupProtocolPath;
-        if (string.IsNullOrWhiteSpace(protocolPath))
+        foreach (var protocolPath in GetStartupCandidatePaths())
         {
-            return null;
+            if (!File.Exists(protocolPath))
+            {
+                _logger.LogWarning("Protocol startup file not found at configured path: {Path}", protocolPath);
+                continue;
+            }
+
+            try
+            {
+                var xml = File.ReadAllText(protocolPath);
+                return _xmlService.Deserialize(xml);
+            }
+            catch (Exception ex) when (
+                ex is IOException or
+                UnauthorizedAccessException or
+                XmlException or
+                FormatException or
+                ArgumentException)
+            {
+                _logger.LogWarning(ex, "Failed to load protocol startup file from: {Path}", protocolPath);
+            }
         }
 
-        if (!File.Exists(protocolPath))
+        return null;
+    }
+
+    private IEnumerable<string> GetStartupCandidatePaths()
+    {
+        if (!string.IsNullOrWhiteSpace(_startupOptions.DefaultProtocolPath))
         {
-            _logger.LogWarning("Protocol startup file not found at configured path: {Path}", protocolPath);
-            return null;
+            yield return _startupOptions.DefaultProtocolPath;
         }
 
-        try
+        if (!string.IsNullOrWhiteSpace(_startupOptions.StartupProtocolPath) &&
+            !_startupOptions.StartupProtocolPath.Equals(_startupOptions.DefaultProtocolPath, StringComparison.OrdinalIgnoreCase))
         {
-            var xml = File.ReadAllText(protocolPath);
-            return _xmlService.Deserialize(xml);
-        }
-        catch (Exception ex) when (
-            ex is IOException or
-            UnauthorizedAccessException or
-            XmlException or
-            FormatException or
-            ArgumentException)
-        {
-            _logger.LogWarning(ex, "Failed to load protocol startup file from: {Path}", protocolPath);
-            return null;
+            yield return _startupOptions.StartupProtocolPath;
         }
     }
 

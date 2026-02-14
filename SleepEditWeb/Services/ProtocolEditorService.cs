@@ -27,6 +27,8 @@ public interface IProtocolEditorService
 
     ProtocolEditorSnapshot Reset();
 
+    ProtocolEditorSnapshot ImportXml(string xml);
+
     string ExportXml();
 }
 
@@ -216,6 +218,21 @@ public sealed class ProtocolEditorService : IProtocolEditorService
     {
         _sessionStore.Reset();
         return _sessionStore.Load();
+    }
+
+    public ProtocolEditorSnapshot ImportXml(string xml)
+    {
+        var document = _xmlService.Deserialize(xml);
+        var next = new ProtocolEditorSnapshot
+        {
+            Document = document,
+            UndoHistory = [],
+            RedoHistory = [],
+            LastUpdatedUtc = DateTimeOffset.UtcNow
+        };
+
+        _sessionStore.Save(next);
+        return next;
     }
 
     public string ExportXml()

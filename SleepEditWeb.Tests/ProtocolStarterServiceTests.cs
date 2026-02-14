@@ -70,4 +70,75 @@ public class ProtocolStarterServiceTests
         Assert.That(result.Text, Is.EqualTo("Saint Luke's Protocol"));
         Assert.That(result.Sections.Any(section => section.Text == "Diagnostic Polysomnogram:"), Is.True);
     }
+
+    [Test]
+    public void Create_PrefersDefaultProtocolPath_OverStartupProtocolPath()
+    {
+        // Arrange
+        var defaultPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-default.xml");
+        var startupPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-startup.xml");
+
+        File.WriteAllText(defaultPath, """
+<?xml version="1.0"?>
+<Protocol>
+  <Id>-1</Id>
+  <LinkId>-1</LinkId>
+  <LinkText></LinkText>
+  <text>Default Protocol</text>
+  <Section>
+    <Id>1</Id>
+    <LinkId>-1</LinkId>
+    <LinkText></LinkText>
+    <text>Default Section</text>
+  </Section>
+</Protocol>
+""");
+
+        File.WriteAllText(startupPath, """
+<?xml version="1.0"?>
+<Protocol>
+  <Id>-1</Id>
+  <LinkId>-1</LinkId>
+  <LinkText></LinkText>
+  <text>Startup Protocol</text>
+  <Section>
+    <Id>1</Id>
+    <LinkId>-1</LinkId>
+    <LinkText></LinkText>
+    <text>Startup Section</text>
+  </Section>
+</Protocol>
+""");
+
+        try
+        {
+            var service = new ProtocolStarterService(
+                new ProtocolXmlService(),
+                Options.Create(new ProtocolEditorStartupOptions
+                {
+                    DefaultProtocolPath = defaultPath,
+                    StartupProtocolPath = startupPath
+                }),
+                NullLogger<ProtocolStarterService>.Instance);
+
+            // Act
+            var result = service.Create();
+
+            // Assert
+            Assert.That(result.Text, Is.EqualTo("Default Protocol"));
+            Assert.That(result.Sections[0].Text, Is.EqualTo("Default Section"));
+        }
+        finally
+        {
+            if (File.Exists(defaultPath))
+            {
+                File.Delete(defaultPath);
+            }
+
+            if (File.Exists(startupPath))
+            {
+                File.Delete(startupPath);
+            }
+        }
+    }
 }

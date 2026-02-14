@@ -2,7 +2,7 @@
 
 ## Entry Points
 
-- Landing page route: `/` (default now maps to `ProtocolEditor/Index`).
+- Landing page route: `/` (default maps to `SleepNoteEditor/Index`).
 - Direct route: `/ProtocolEditor`.
 - XML export endpoint: `/ProtocolEditor/ExportXml`.
 
@@ -24,6 +24,9 @@
 ## Tree Interaction
 
 - Click any node to load its details in the right pane.
+- Right-click any node to open a context menu with `Select Link...` and `Clear Link`.
+- Link picker flow: right-click source node -> `Select Link...` -> choose a target node in the modal list; the source node's `Link Id` and `Link Text` are filled automatically from that target.
+- Clear-link flow: right-click source node -> `Clear Link` to clear the source node link values.
 - Drag and drop behavior:
   - Section nodes reorder at protocol root.
   - Subsection nodes can move between valid parents.
@@ -32,7 +35,7 @@
 ## Detail Panels
 
 - Statement text is editable.
-- Link fields (`Link Id`, `Link Text`) are editable.
+- Link fields (`Link Id`, `Link Text`) are editable as a manual fallback when not using the context-menu link picker.
 - SubText entries support add/remove operations.
 
 ## Validation Status

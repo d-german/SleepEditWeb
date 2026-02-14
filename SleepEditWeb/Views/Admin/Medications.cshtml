@@ -29,145 +29,176 @@
     </div>
 }
 
-<div class="row g-4">
-    <!-- Statistics Section -->
-    <div class="col-12">
-        <div class="dashboard-card">
-            <div class="dashboard-card-header">
-                <i class="bi bi-bar-chart"></i>
-                Database Statistics
-            </div>
-            <div class="dashboard-card-body">
-                <div class="row g-3">
-                    <div class="col-6 col-md-3">
-                        <div class="stat-card">
-                            <div class="stat-value">@Model.TotalCount.ToString("N0")</div>
-                            <div class="stat-label">Total Medications</div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="stat-card">
-                            <div class="stat-value text-primary">@Model.SystemMedCount.ToString("N0")</div>
-                            <div class="stat-label">System Medications</div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="stat-card">
-                            <div class="stat-value text-success">@Model.UserMedCount.ToString("N0")</div>
-                            <div class="stat-label">User-Added</div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-md-3">
-                        <div class="stat-card">
-                            <div class="stat-value text-info">v@(Model.SeedVersion)</div>
-                            <div class="stat-label">Seed Version</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="mt-3 text-muted small">
-                    <i class="bi bi-database me-1"></i>
-                    Loaded from: @Model.LoadedFrom
-                    @if (Model.LastSeeded.HasValue)
-                    {
-                        <span class="ms-3">
-                            <i class="bi bi-clock me-1"></i>
-                            Last seeded: @Model.LastSeeded.Value.ToString("yyyy-MM-dd HH:mm:ss") UTC
-                        </span>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
+<ul class="nav nav-tabs admin-tabs mb-3" id="adminTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="admin-medications-tab" data-bs-toggle="tab" data-bs-target="#admin-medications-pane" type="button" role="tab" aria-controls="admin-medications-pane" aria-selected="true">
+            <i class="bi bi-database me-1"></i>Medication Database
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="admin-protocol-tab" data-bs-toggle="tab" data-bs-target="#admin-protocol-pane" type="button" role="tab" aria-controls="admin-protocol-pane" aria-selected="false">
+            <i class="bi bi-diagram-3 me-1"></i>Protocol Editor
+        </button>
+    </li>
+</ul>
 
-    <!-- Backup Section -->
-    <div class="col-12 col-lg-6">
-        <div class="dashboard-card h-100">
-            <div class="dashboard-card-header">
-                <i class="bi bi-download"></i>
-                Backup Database
+<div class="tab-content admin-tab-content" id="adminTabsContent">
+    <div class="tab-pane fade show active" id="admin-medications-pane" role="tabpanel" aria-labelledby="admin-medications-tab" tabindex="0">
+        <div class="row g-4">
+            <!-- Statistics Section -->
+            <div class="col-12">
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <i class="bi bi-bar-chart"></i>
+                        Database Statistics
+                    </div>
+                    <div class="dashboard-card-body">
+                        <div class="row g-3">
+                            <div class="col-6 col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-value">@Model.TotalCount.ToString("N0")</div>
+                                    <div class="stat-label">Total Medications</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-value text-primary">@Model.SystemMedCount.ToString("N0")</div>
+                                    <div class="stat-label">System Medications</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-value text-success">@Model.UserMedCount.ToString("N0")</div>
+                                    <div class="stat-label">User-Added</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <div class="stat-card">
+                                    <div class="stat-value text-info">v@(Model.SeedVersion)</div>
+                                    <div class="stat-label">Seed Version</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-muted small">
+                            <i class="bi bi-database me-1"></i>
+                            Loaded from: @Model.LoadedFrom
+                            @if (Model.LastSeeded.HasValue)
+                            {
+                                <span class="ms-3">
+                                    <i class="bi bi-clock me-1"></i>
+                                    Last seeded: @Model.LastSeeded.Value.ToString("yyyy-MM-dd HH:mm:ss") UTC
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="dashboard-card-body">
-                <p class="text-muted mb-3">
-                    Export all medications to a JSON file for backup or migration purposes.
-                </p>
-                <a href="@Url.Action("Export", "Admin", new { secretKey })" 
-                   class="btn btn-primary">
-                    <i class="bi bi-file-earmark-arrow-down me-2"></i>Export Medications
+
+            <!-- Backup Section -->
+            <div class="col-12 col-lg-6">
+                <div class="dashboard-card h-100">
+                    <div class="dashboard-card-header">
+                        <i class="bi bi-download"></i>
+                        Backup Database
+                    </div>
+                    <div class="dashboard-card-body">
+                        <p class="text-muted mb-3">
+                            Export all medications to a JSON file for backup or migration purposes.
+                        </p>
+                        <a href="@Url.Action("Export", "Admin", new { secretKey })"
+                           class="btn btn-primary">
+                            <i class="bi bi-file-earmark-arrow-down me-2"></i>Export Medications
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Restore Section -->
+            <div class="col-12 col-lg-6">
+                <div class="dashboard-card h-100">
+                    <div class="dashboard-card-header">
+                        <i class="bi bi-upload"></i>
+                        Restore from Backup
+                    </div>
+                    <div class="dashboard-card-body">
+                        <form asp-action="Import" asp-route-secretKey="@secretKey" method="post" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label">Select backup file</label>
+                                <input type="file" name="file" class="form-control" accept=".json" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Import mode</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="mode" id="modeMerge" value="merge" checked>
+                                    <label class="form-check-label" for="modeMerge">
+                                        <strong>Merge</strong> - Add new medications only, preserve existing
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="mode" id="modeReplace" value="replace">
+                                    <label class="form-check-label text-danger" for="modeReplace">
+                                        <strong>Replace</strong> - Clear database and restore from backup (destructive!)
+                                    </label>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-warning" onclick="return confirmImport()">
+                                <i class="bi bi-file-earmark-arrow-up me-2"></i>Import Backup
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Maintenance Section -->
+            <div class="col-12">
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header text-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        Maintenance Operations
+                    </div>
+                    <div class="dashboard-card-body">
+                        <p class="text-muted mb-4">
+                            <strong>Warning:</strong> These operations modify the database and cannot be easily undone.
+                            Make sure to export a backup first!
+                        </p>
+                        <div class="d-flex flex-wrap gap-3">
+                            <form asp-action="ClearUserMeds" asp-route-secretKey="@secretKey" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-danger" onclick="return confirmClearUserMeds()">
+                                    <i class="bi bi-trash me-2"></i>Clear User Medications
+                                </button>
+                            </form>
+                        </div>
+                        <div class="mt-3 small text-muted">
+                            <ul class="mb-0">
+                                <li><strong>Clear User Meds:</strong> Removes only user-added medications (@Model.UserMedCount), keeps system medications</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Back to App -->
+            <div class="col-12">
+                <a href="@Url.Action("Index", "MedList")" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Medication List
                 </a>
             </div>
         </div>
     </div>
-
-    <!-- Restore Section -->
-    <div class="col-12 col-lg-6">
-        <div class="dashboard-card h-100">
-            <div class="dashboard-card-header">
-                <i class="bi bi-upload"></i>
-                Restore from Backup
-            </div>
-            <div class="dashboard-card-body">
-                <form asp-action="Import" asp-route-secretKey="@secretKey" method="post" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label class="form-label">Select backup file</label>
-                        <input type="file" name="file" class="form-control" accept=".json" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Import mode</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="mode" id="modeMerge" value="merge" checked>
-                            <label class="form-check-label" for="modeMerge">
-                                <strong>Merge</strong> - Add new medications only, preserve existing
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="mode" id="modeReplace" value="replace">
-                            <label class="form-check-label text-danger" for="modeReplace">
-                                <strong>Replace</strong> - Clear database and restore from backup (destructive!)
-                            </label>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn btn-warning" onclick="return confirmImport()">
-                        <i class="bi bi-file-earmark-arrow-up me-2"></i>Import Backup
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Maintenance Section -->
-    <div class="col-12">
+    <div class="tab-pane fade" id="admin-protocol-pane" role="tabpanel" aria-labelledby="admin-protocol-tab" tabindex="0">
         <div class="dashboard-card">
-            <div class="dashboard-card-header text-danger">
-                <i class="bi bi-exclamation-triangle"></i>
-                Maintenance Operations
+            <div class="dashboard-card-header">
+                <i class="bi bi-diagram-3"></i>
+                Protocol Editor
             </div>
-            <div class="dashboard-card-body">
-                <p class="text-muted mb-4">
-                    <strong>Warning:</strong> These operations modify the database and cannot be easily undone. 
-                    Make sure to export a backup first!
-                </p>
-                <div class="d-flex flex-wrap gap-3">
-                    <form asp-action="ClearUserMeds" asp-route-secretKey="@secretKey" method="post" class="d-inline">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-outline-danger" onclick="return confirmClearUserMeds()">
-                            <i class="bi bi-trash me-2"></i>Clear User Medications
-                        </button>
-                    </form>
-                </div>
-                <div class="mt-3 small text-muted">
-                    <ul class="mb-0">
-                        <li><strong>Clear User Meds:</strong> Removes only user-added medications (@Model.UserMedCount), keeps system medications</li>
-                    </ul>
-                </div>
+            <div class="dashboard-card-body p-0 admin-protocol-embed-body">
+                <iframe class="admin-protocol-embed-frame"
+                        src="@Url.Action("Index", "ProtocolEditor", new { embed = 1 })"
+                        title="Protocol Editor"
+                        loading="lazy"></iframe>
             </div>
         </div>
-    </div>
-
-    <!-- Back to App -->
-    <div class="col-12">
-        <a href="@Url.Action("Index", "MedList")" class="btn btn-secondary">
-            <i class="bi bi-arrow-left me-2"></i>Back to Medication List
-        </a>
     </div>
 </div>
 
@@ -214,5 +245,17 @@
         font-size: 0.85rem;
         color: var(--muted-text);
         margin-top: 0.25rem;
+    }
+
+    .admin-protocol-embed-body {
+        overflow: hidden;
+    }
+
+    .admin-protocol-embed-frame {
+        width: 100%;
+        min-height: calc(100vh - 230px);
+        border: 0;
+        display: block;
+        background: var(--main-bg);
     }
 </style>

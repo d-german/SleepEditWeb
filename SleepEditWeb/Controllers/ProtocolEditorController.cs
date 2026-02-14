@@ -1,4 +1,5 @@
 using System.Text;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -10,6 +11,8 @@ namespace SleepEditWeb.Controllers;
 [Route("ProtocolEditor")]
 public sealed class ProtocolEditorController : Controller
 {
+    private const long MaxImportXmlBytes = 2 * 1024 * 1024;
+
     private readonly IProtocolEditorService _service;
     private readonly ProtocolEditorFeatureOptions _featureOptions;
     private readonly ProtocolEditorStartupOptions _startupOptions;
@@ -274,6 +277,151 @@ public sealed class ProtocolEditorController : Controller
         }
     }
 
+    [HttpPost("SetDefaultProtocol")]
+    [ValidateAntiForgeryToken]
+    public IActionResult SetDefaultProtocol()
+    {
+        if (!IsEnabled())
+        {
+            return NotFound();
+        }
+
+        var defaultPath = ResolveDefaultPath();
+        if (string.IsNullOrWhiteSpace(defaultPath))
+        {
+            return BadRequest(new { error = "No default protocol path is configured." });
+        }
+
+        try
+        {
+            var directory = Path.GetDirectoryName(defaultPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                System.IO.Directory.CreateDirectory(directory);
+            }
+
+            var xml = _service.ExportXml();
+            System.IO.File.WriteAllText(defaultPath, xml, Encoding.UTF8);
+
+            var snapshot = _service.Load();
+            return Json(new
+            {
+                document = snapshot.Document,
+                undoCount = snapshot.UndoHistory.Count,
+                redoCount = snapshot.RedoHistory.Count,
+                lastUpdatedUtc = snapshot.LastUpdatedUtc,
+                defaultPath
+            });
+        }
+        catch (Exception ex) when (
+            ex is IOException or
+            UnauthorizedAccessException or
+            NotSupportedException or
+            ArgumentException)
+        {
+            _logger.LogWarning(ex, "Failed to set default protocol XML at path: {Path}", defaultPath);
+            return StatusCode(500, new { error = "Failed to set default protocol." });
+        }
+    }
+
+    [HttpPost("ImportXml")]
+    [ValidateAntiForgeryToken]
+    public IActionResult ImportXml([FromBody] ImportXmlRequest? request)
+    {
+        if (!IsEnabled())
+        {
+            return NotFound();
+        }
+
+        var importPath = ResolveImportPath(request);
+        if (string.IsNullOrWhiteSpace(importPath))
+        {
+            return BadRequest(new { error = "No XML import path is configured." });
+        }
+
+        if (!System.IO.File.Exists(importPath))
+        {
+            return BadRequest(new { error = "Import XML file was not found.", path = importPath });
+        }
+
+        try
+        {
+            var xml = System.IO.File.ReadAllText(importPath, Encoding.UTF8);
+            var snapshot = _service.ImportXml(xml);
+            return Json(new
+            {
+                document = snapshot.Document,
+                undoCount = snapshot.UndoHistory.Count,
+                redoCount = snapshot.RedoHistory.Count,
+                lastUpdatedUtc = snapshot.LastUpdatedUtc,
+                loadedPath = importPath
+            });
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogWarning(ex, "Invalid protocol XML format at path: {Path}", importPath);
+            return BadRequest(new { error = "Invalid XML format for protocol import." });
+        }
+        catch (Exception ex) when (
+            ex is IOException or
+            UnauthorizedAccessException or
+            NotSupportedException or
+            ArgumentException)
+        {
+            _logger.LogWarning(ex, "Failed to import protocol XML from path: {Path}", importPath);
+            return StatusCode(500, new { error = "Failed to import XML from the configured path." });
+        }
+    }
+
+    [HttpPost("ImportXmlUpload")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ImportXmlUpload(IFormFile? file)
+    {
+        if (!IsEnabled())
+        {
+            return NotFound();
+        }
+
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { error = "No XML file was uploaded." });
+        }
+
+        if (file.Length > MaxImportXmlBytes)
+        {
+            return BadRequest(new { error = "Uploaded XML file is too large." });
+        }
+
+        try
+        {
+            var xml = await ReadUploadedXmlAsync(file);
+            var snapshot = _service.ImportXml(xml);
+            var savedPath = WriteXmlToResolvedPath(xml, file.FileName);
+            return Json(new
+            {
+                document = snapshot.Document,
+                undoCount = snapshot.UndoHistory.Count,
+                redoCount = snapshot.RedoHistory.Count,
+                lastUpdatedUtc = snapshot.LastUpdatedUtc,
+                savedPath
+            });
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogWarning(ex, "Invalid uploaded protocol XML.");
+            return BadRequest(new { error = "Invalid XML format for protocol import." });
+        }
+        catch (Exception ex) when (
+            ex is IOException or
+            UnauthorizedAccessException or
+            NotSupportedException or
+            ArgumentException)
+        {
+            _logger.LogWarning(ex, "Failed to import uploaded protocol XML.");
+            return StatusCode(500, new { error = "Failed to import uploaded XML." });
+        }
+    }
+
     private bool IsEnabled()
     {
         return _featureOptions.ProtocolEditorEnabled;
@@ -284,6 +432,73 @@ public sealed class ProtocolEditorController : Controller
         return string.IsNullOrWhiteSpace(_startupOptions.SaveProtocolPath)
             ? _startupOptions.StartupProtocolPath
             : _startupOptions.SaveProtocolPath;
+    }
+
+    private string ResolveDefaultPath()
+    {
+        if (!string.IsNullOrWhiteSpace(_startupOptions.DefaultProtocolPath))
+        {
+            return _startupOptions.DefaultProtocolPath;
+        }
+
+        var savePath = ResolveSavePath();
+        if (!string.IsNullOrWhiteSpace(savePath))
+        {
+            return savePath;
+        }
+
+        return Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
+    }
+
+    private static async Task<string> ReadUploadedXmlAsync(IFormFile file)
+    {
+        using var stream = file.OpenReadStream();
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return await reader.ReadToEndAsync();
+    }
+
+    private string WriteXmlToResolvedPath(string xml, string? uploadedFileName)
+    {
+        var savePath = ResolveUploadedFileSavePath(uploadedFileName);
+        var directory = Path.GetDirectoryName(savePath);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            System.IO.Directory.CreateDirectory(directory);
+        }
+
+        System.IO.File.WriteAllText(savePath, xml, Encoding.UTF8);
+        return savePath;
+    }
+
+    private string ResolveUploadedFileSavePath(string? uploadedFileName)
+    {
+        var configuredPath = ResolveSavePath();
+        if (!string.IsNullOrWhiteSpace(configuredPath))
+        {
+            return configuredPath;
+        }
+
+        var safeFileName = string.IsNullOrWhiteSpace(uploadedFileName)
+            ? "protocol-upload.xml"
+            : Path.GetFileName(uploadedFileName);
+
+        if (!safeFileName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
+        {
+            safeFileName = $"{safeFileName}.xml";
+        }
+
+        var fallbackDirectory = Path.Combine(AppContext.BaseDirectory, "Data", "protocols");
+        return Path.Combine(fallbackDirectory, safeFileName);
+    }
+
+    private string ResolveImportPath(ImportXmlRequest? request)
+    {
+        if (!string.IsNullOrWhiteSpace(request?.Path))
+        {
+            return request.Path;
+        }
+
+        return ResolveSavePath();
     }
 
     private static object ToStateResponse(ProtocolEditorSnapshot snapshot)
@@ -300,6 +515,11 @@ public sealed class ProtocolEditorController : Controller
     public sealed class AddSectionRequest
     {
         public string? Text { get; init; }
+    }
+
+    public sealed class ImportXmlRequest
+    {
+        public string? Path { get; init; }
     }
 
     public sealed class AddChildRequest

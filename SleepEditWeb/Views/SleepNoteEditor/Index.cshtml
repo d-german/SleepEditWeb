@@ -15,6 +15,9 @@
         <button type="button" id="openMedToolBtn" class="btn btn-primary">
             <i class="bi bi-capsule me-1"></i>Medication Tool
         </button>
+        <button type="button" id="openProtocolViewerBtn" class="btn btn-outline-primary">
+            <i class="bi bi-diagram-3 me-1"></i>Protocol Viewer
+        </button>
         <button type="button" id="printEditorBtn" class="btn btn-outline-secondary">
             <i class="bi bi-printer me-1"></i>Print
         </button>
@@ -60,6 +63,7 @@
                 <ol class="instructions-list mb-0">
                     <li>Use the editor for free typing and formatting.</li>
                     <li>Open Medication Tool and search medications.</li>
+                    <li>Open Protocol Viewer to insert protocol-driven selections.</li>
                     <li>Choose insertion mode: Insert, Replace Section, or Copy.</li>
                     <li>Click Done to apply narrative and keep editing.</li>
                 </ol>
@@ -152,6 +156,25 @@
     </div>
 </div>
 
+<div class="modal fade" id="protocolViewerModal" tabindex="-1" aria-labelledby="protocolViewerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen protocol-viewer-modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="protocolViewerModalLabel">
+                    <i class="bi bi-diagram-3 me-2"></i>Protocol Viewer
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden">
+                <iframe id="protocolViewerFrame"
+                        title="Protocol Viewer"
+                        class="w-100 h-100 border-0 protocol-viewer-frame"
+                        loading="lazy"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
     (function() {
@@ -169,9 +192,12 @@
         const unknownText = document.getElementById('unknownMedsText');
         const drugInfoContent = document.getElementById('drugInfoContent');
         const drugInfoTitle = document.getElementById('drugInfoModalLabel');
+        const protocolViewerFrame = document.getElementById('protocolViewerFrame');
+        const protocolViewerUrl = '@Url.Action("Index", "ProtocolViewer", new { embed = 1 })';
 
         const medModal = new bootstrap.Modal(document.getElementById('medToolModal'));
         const drugInfoModal = new bootstrap.Modal(document.getElementById('drugInfoModal'));
+        const protocolViewerModal = new bootstrap.Modal(document.getElementById('protocolViewerModal'));
         let selectedMeds = initialSelections.map(item => item.name);
 
         document.getElementById('openMedToolBtn').addEventListener('click', () => {
@@ -180,10 +206,12 @@
             updateInfoButtonState();
             searchInput.focus();
         });
+        document.getElementById('openProtocolViewerBtn').addEventListener('click', openProtocolViewer);
 
         document.getElementById('saveEditorBtn').addEventListener('click', saveEditorContent);
         document.getElementById('printEditorBtn').addEventListener('click', printEditorContent);
         medInfoBtn.addEventListener('click', showDrugInformation);
+        window.addEventListener('message', onProtocolViewerMessage);
 
         document.querySelectorAll('.format-btn').forEach(button => {
             button.addEventListener('click', () => {
@@ -526,6 +554,32 @@
             printableWindow.print();
             printableWindow.close();
             setStatus('Print dialog opened');
+        }
+
+        function openProtocolViewer() {
+            protocolViewerFrame.src = protocolViewerUrl;
+            protocolViewerModal.show();
+        }
+
+        async function onProtocolViewerMessage(event) {
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+
+            const data = event.data || {};
+            if (data.type === 'protocolViewer:cancel') {
+                protocolViewerModal.hide();
+                return;
+            }
+
+            if (data.type !== 'protocolViewer:done' || typeof data.content !== 'string') {
+                return;
+            }
+
+            insertTextAtCursor((data.content || '') + '\n');
+            protocolViewerModal.hide();
+            await saveEditorContent();
+            setStatus('Protocol content inserted');
         }
 
         function debounce(callback, wait) {

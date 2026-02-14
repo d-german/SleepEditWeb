@@ -4,7 +4,7 @@
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString()?.ToLowerInvariant();
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString()?.ToLowerInvariant();
     var isSleepNoteEditorEnabled = Configuration.GetValue("Features:SleepNoteEditorEnabled", true);
-    var isProtocolEditorEnabled = Configuration.GetValue("Features:ProtocolEditorEnabled", true);
+    var isEmbedded = string.Equals(Context.Request.Query["embed"], "1", StringComparison.Ordinal);
 }
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
@@ -23,69 +23,71 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 <body>
-    <div class="app-container">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <img src="~/favicon-32x32.png" alt="SleepEdit Logo" class="sidebar-logo sidebar-logo-dark">
-                <img src="~/logo-light.png" alt="SleepEdit Logo" class="sidebar-logo sidebar-logo-light">
-                <span class="sidebar-title">SleepEdit</span>
-            </div>
-
-            <div class="sidebar-section-label">WORKFLOWS</div>
-
-            <nav class="sidebar-nav">
-                @if (isSleepNoteEditorEnabled)
-                {
-                    <a href="@Url.Action("Index", "SleepNoteEditor")"
-                       class="sidebar-nav-item @(currentController == "sleepnoteeditor" ? "active" : "")">
-                        <i class="bi bi-journal-medical"></i>
-                        <span>Sleep Note Editor</span>
-                    </a>
-                }
-
-                @if (isProtocolEditorEnabled)
-                {
-                    <a href="@Url.Action("Index", "ProtocolEditor")"
-                       class="sidebar-nav-item @(currentController == "protocoleditor" ? "active" : "")">
-                        <i class="bi bi-diagram-3"></i>
-                        <span>Protocol Editor</span>
-                    </a>
-                }
-
-                <a href="@Url.Action("Index", "Admin", new { secretKey = "medAdmin2025xK9!" })"
-                   class="sidebar-nav-item @(currentController == "admin" ? "active" : "")">
-                    <i class="bi bi-gear"></i>
-                    <span>Admin</span>
-                </a>
-            </nav>
-        </aside>
-
-        <header class="mobile-header d-md-none">
-            <button class="sidebar-toggle" id="sidebarToggle">
-                <i class="bi bi-list"></i>
-            </button>
-            <span class="mobile-title">SleepEdit</span>
-            <button id="themeToggleMobile" class="theme-toggle" title="Toggle theme">
-                <i class="bi bi-moon-fill theme-icon-dark"></i>
-                <i class="bi bi-sun-fill theme-icon-light"></i>
-            </button>
-        </header>
-
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
+    @if (isEmbedded)
+    {
         <main class="main-content">
-            <div class="content-topbar">
-                <div class="topbar-spacer"></div>
-                <button id="themeToggle" class="theme-toggle-topbar" title="Toggle theme">
-                    <i class="bi bi-moon-fill theme-icon-dark"></i>
-                    <i class="bi bi-sun-fill theme-icon-light"></i>
-                </button>
-            </div>
             <div class="content-wrapper">
                 @RenderBody()
             </div>
         </main>
-    </div>
+    }
+    else
+    {
+        <div class="app-container">
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <img src="~/favicon-32x32.png" alt="SleepEdit Logo" class="sidebar-logo sidebar-logo-dark">
+                    <img src="~/logo-light.png" alt="SleepEdit Logo" class="sidebar-logo sidebar-logo-light">
+                    <span class="sidebar-title">SleepEdit</span>
+                </div>
+
+                <div class="sidebar-section-label">WORKFLOWS</div>
+
+                <nav class="sidebar-nav">
+                    @if (isSleepNoteEditorEnabled)
+                    {
+                        <a href="@Url.Action("Index", "SleepNoteEditor")"
+                           class="sidebar-nav-item @(currentController == "sleepnoteeditor" ? "active" : "")">
+                            <i class="bi bi-journal-medical"></i>
+                            <span>Sleep Note Editor</span>
+                        </a>
+                    }
+
+                    <a href="@Url.Action("Index", "Admin", new { secretKey = "medAdmin2025xK9!" })"
+                       class="sidebar-nav-item @(currentController == "admin" ? "active" : "")">
+                        <i class="bi bi-gear"></i>
+                        <span>Admin</span>
+                    </a>
+                </nav>
+            </aside>
+
+            <header class="mobile-header d-md-none">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="bi bi-list"></i>
+                </button>
+                <span class="mobile-title">SleepEdit</span>
+                <button id="themeToggleMobile" class="theme-toggle" title="Toggle theme">
+                    <i class="bi bi-moon-fill theme-icon-dark"></i>
+                    <i class="bi bi-sun-fill theme-icon-light"></i>
+                </button>
+            </header>
+
+            <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+            <main class="main-content">
+                <div class="content-topbar">
+                    <div class="topbar-spacer"></div>
+                    <button id="themeToggle" class="theme-toggle-topbar" title="Toggle theme">
+                        <i class="bi bi-moon-fill theme-icon-dark"></i>
+                        <i class="bi bi-sun-fill theme-icon-light"></i>
+                    </button>
+                </div>
+                <div class="content-wrapper">
+                    @RenderBody()
+                </div>
+            </main>
+        </div>
+    }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/jquery-ui-1.13.3/jquery-ui.min.js"></script>

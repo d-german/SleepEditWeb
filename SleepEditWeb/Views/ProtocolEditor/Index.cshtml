@@ -18,10 +18,13 @@
         <button type="button" id="undoBtn" class="btn btn-outline-secondary">Undo</button>
         <button type="button" id="redoBtn" class="btn btn-outline-secondary">Redo</button>
         <button type="button" id="resetBtn" class="btn btn-outline-secondary">Reset</button>
+        <button type="button" id="importXmlBtn" class="btn btn-outline-primary">Import XML</button>
         <button type="button" id="saveXmlBtn" class="btn btn-outline-primary">Save XML</button>
+        <button type="button" id="setDefaultProtocolBtn" class="btn btn-outline-primary">Set As Default</button>
         <button type="button" id="exportXmlBtn" class="btn btn-primary">Export XML</button>
     </div>
 </div>
+<input id="importXmlFileInput" type="file" accept=".xml,text/xml,application/xml" class="d-none" />
 
 <div class="row g-3 protocol-editor-shell">
     <div class="col-12 col-xl-4">
@@ -95,6 +98,28 @@
     </div>
 </div>
 
+<div id="nodeContextMenu" class="dropdown-menu shadow-sm" style="position: fixed; display: none; z-index: 1080;">
+    <button type="button" id="contextMenuSelectLinkBtn" class="dropdown-item">Select Link...</button>
+    <button type="button" id="contextMenuClearLinkBtn" class="dropdown-item text-danger">Clear Link</button>
+</div>
+
+<div class="modal fade" id="linkPickerModal" tabindex="-1" aria-labelledby="linkPickerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="linkPickerModalLabel">Select Link Node</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="linkPickerSourceLabel" class="small text-muted mb-2"></div>
+                <label for="linkPickerSearchInput" class="form-label">Search</label>
+                <input id="linkPickerSearchInput" type="text" class="form-control mb-3 protocol-link-picker-search" placeholder="Filter by node text or id" />
+                <div id="linkPickerTree" class="rounded p-2 protocol-link-picker-tree"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="protocolEditorStatus" class="small text-muted mt-3">Ready</div>
 
 @section Scripts {
@@ -109,6 +134,14 @@
         const linkTextInput = document.getElementById('linkTextInput');
         const subTextInput = document.getElementById('subTextInput');
         const subTextList = document.getElementById('subTextList');
+        const importXmlFileInput = document.getElementById('importXmlFileInput');
+        const nodeContextMenu = document.getElementById('nodeContextMenu');
+        const contextMenuSelectLinkBtn = document.getElementById('contextMenuSelectLinkBtn');
+        const contextMenuClearLinkBtn = document.getElementById('contextMenuClearLinkBtn');
+        const linkPickerModalEl = document.getElementById('linkPickerModal');
+        const linkPickerSourceLabel = document.getElementById('linkPickerSourceLabel');
+        const linkPickerSearchInput = document.getElementById('linkPickerSearchInput');
+        const linkPickerTree = document.getElementById('linkPickerTree');
 
         let state = {
             document: @Html.Raw(Json.Serialize(Model.InitialDocument)),
@@ -118,6 +151,9 @@
         };
         let selectedNodeId = null;
         let dragNodeId = null;
+        let contextMenuNodeId = null;
+        let linkPickerSourceNodeId = null;
+        let linkPickerModal = null;
 
         document.getElementById('addSectionBtn').addEventListener('click', onAddSection);
         document.getElementById('addChildBtn').addEventListener('click', onAddChild);
@@ -125,19 +161,32 @@
         document.getElementById('undoBtn').addEventListener('click', () => postState('Undo', {}));
         document.getElementById('redoBtn').addEventListener('click', () => postState('Redo', {}));
         document.getElementById('resetBtn').addEventListener('click', onReset);
+        document.getElementById('importXmlBtn').addEventListener('click', onImportXml);
+        importXmlFileInput.addEventListener('change', onImportXmlSelected);
         document.getElementById('saveXmlBtn').addEventListener('click', onSaveXml);
+        document.getElementById('setDefaultProtocolBtn').addEventListener('click', onSetDefaultProtocol);
         document.getElementById('exportXmlBtn').addEventListener('click', onExportXml);
         document.getElementById('addSubTextBtn').addEventListener('click', onAddSubText);
         document.getElementById('removeSubTextBtn').addEventListener('click', onRemoveSubText);
+        contextMenuSelectLinkBtn.addEventListener('click', onContextMenuSelectLink);
+        contextMenuClearLinkBtn.addEventListener('click', onContextMenuClearLink);
+        linkPickerSearchInput.addEventListener('input', renderLinkPickerTargets);
 
         nodeTextInput.addEventListener('blur', commitNodeUpdate);
         linkIdInput.addEventListener('blur', commitNodeUpdate);
         linkTextInput.addEventListener('blur', commitNodeUpdate);
         document.addEventListener('keydown', onKeydown);
+        document.addEventListener('click', onDocumentClick);
+        document.addEventListener('scroll', closeNodeMenu, true);
 
         initialize();
 
         async function initialize() {
+            linkPickerModal = createLinkPickerModal();
+            if (linkPickerModalEl) {
+                linkPickerModalEl.addEventListener('shown.bs.modal', () => linkPickerSearchInput.focus());
+                linkPickerModalEl.addEventListener('hidden.bs.modal', resetLinkPickerState);
+            }
             await refreshState();
             renderAll();
         }
@@ -165,6 +214,7 @@
         }
 
         function renderAll() {
+            ensureContextNodeExists();
             renderTree();
             renderDetails();
             setStatus(`Undo: ${state.undoCount} | Redo: ${state.redoCount}`);
@@ -198,6 +248,10 @@
                 selectedNodeId = node.id;
                 renderAll();
             });
+            button.addEventListener('contextmenu', event => {
+                event.preventDefault();
+                openNodeMenu(node.id, event.clientX, event.clientY);
+            });
             button.addEventListener('dragstart', event => onDragStart(event, node.id));
             button.addEventListener('dragover', onDragOver);
             button.addEventListener('dragenter', event => onDragEnter(event, button));
@@ -217,6 +271,226 @@
             }
 
             return item;
+        }
+
+        function ensureContextNodeExists() {
+            if (contextMenuNodeId != null && !findNodeById(state.document.sections, contextMenuNodeId)) {
+                closeNodeMenu();
+            }
+
+            if (linkPickerSourceNodeId != null && !findNodeById(state.document.sections, linkPickerSourceNodeId)) {
+                closeLinkPicker();
+            }
+        }
+
+        function createLinkPickerModal() {
+            if (!window.bootstrap || !window.bootstrap.Modal) {
+                return null;
+            }
+
+            return new window.bootstrap.Modal(linkPickerModalEl);
+        }
+
+        function onDocumentClick(event) {
+            if (nodeContextMenu.contains(event.target)) {
+                return;
+            }
+
+            closeNodeMenu();
+        }
+
+        function openNodeMenu(nodeId, x, y) {
+            contextMenuNodeId = nodeId;
+            nodeContextMenu.style.left = `${x}px`;
+            nodeContextMenu.style.top = `${y}px`;
+            nodeContextMenu.style.display = 'block';
+        }
+
+        function closeNodeMenu() {
+            contextMenuNodeId = null;
+            nodeContextMenu.style.display = 'none';
+        }
+
+        async function onContextMenuSelectLink() {
+            if (contextMenuNodeId == null) {
+                return;
+            }
+
+            openLinkPicker(contextMenuNodeId);
+            closeNodeMenu();
+        }
+
+        async function onContextMenuClearLink() {
+            if (contextMenuNodeId == null) {
+                return;
+            }
+
+            await clearNodeLink(contextMenuNodeId);
+            closeNodeMenu();
+        }
+
+        function openLinkPicker(sourceNodeId) {
+            linkPickerSourceNodeId = sourceNodeId;
+            linkPickerSearchInput.value = '';
+            renderLinkPickerSource();
+            renderLinkPickerTargets();
+
+            if (linkPickerModal) {
+                linkPickerModal.show();
+                return;
+            }
+
+            setStatus('Link picker modal is unavailable.');
+            resetLinkPickerState();
+        }
+
+        function closeLinkPicker() {
+            resetLinkPickerState();
+            if (linkPickerModal) {
+                linkPickerModal.hide();
+            }
+        }
+
+        function resetLinkPickerState() {
+            linkPickerSourceNodeId = null;
+            linkPickerTree.innerHTML = '';
+            linkPickerSourceLabel.textContent = '';
+        }
+
+        function renderLinkPickerSource() {
+            const source = getLinkPickerSourceNode();
+            if (!source) {
+                linkPickerSourceLabel.textContent = 'Source node not found.';
+                return;
+            }
+
+            linkPickerSourceLabel.textContent = `Source: #${source.id} ${source.text || '(empty)'}`;
+        }
+
+        function renderLinkPickerTargets() {
+            linkPickerTree.innerHTML = '';
+            const source = getLinkPickerSourceNode();
+            if (!source) {
+                return;
+            }
+
+            const filter = (linkPickerSearchInput.value || '').trim().toLowerCase();
+            const flatNodes = flattenNodes(state.document.sections);
+            const candidates = flatNodes.filter(entry => isCandidateTarget(source.id, entry.node, filter));
+            if (!candidates.length) {
+                linkPickerTree.textContent = 'No matching nodes available.';
+                return;
+            }
+
+            const list = document.createElement('div');
+            list.className = 'list-group protocol-link-picker-list';
+            candidates.forEach(entry => list.appendChild(buildLinkTargetButton(entry)));
+            linkPickerTree.appendChild(list);
+        }
+
+        function getLinkPickerSourceNode() {
+            if (linkPickerSourceNodeId == null) {
+                return null;
+            }
+
+            return findNodeById(state.document.sections, linkPickerSourceNodeId);
+        }
+
+        function flattenNodes(nodes, depth = 0, output = []) {
+            nodes.forEach(node => {
+                output.push({ node, depth });
+                flattenNodes(node.children || [], depth + 1, output);
+            });
+            return output;
+        }
+
+        function isCandidateTarget(sourceId, node, filter) {
+            if (node.id === sourceId || isDescendantLink(sourceId, node.id)) {
+                return false;
+            }
+
+            return matchesLinkFilter(node, filter);
+        }
+
+        function isDescendantLink(sourceId, targetId) {
+            const source = findNodeById(state.document.sections, sourceId);
+            if (!source) {
+                return false;
+            }
+
+            return findNodeById(source.children || [], targetId) != null;
+        }
+
+        function matchesLinkFilter(node, filter) {
+            if (!filter) {
+                return true;
+            }
+
+            const text = (node.text || '').toLowerCase();
+            return text.includes(filter) || String(node.id).includes(filter);
+        }
+
+        function buildLinkTargetButton(entry) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'list-group-item list-group-item-action protocol-link-picker-item';
+            button.style.paddingLeft = `${10 + entry.depth * 14}px`;
+            button.textContent = `#${entry.node.id} ${entry.node.text || '(empty)'}`;
+            button.addEventListener('click', async () => {
+                await selectLinkTarget(entry.node.id);
+            });
+            return button;
+        }
+
+        async function selectLinkTarget(targetNodeId) {
+            const source = getLinkPickerSourceNode();
+            if (!source) {
+                return;
+            }
+
+            if (source.id === targetNodeId || isDescendantLink(source.id, targetNodeId)) {
+                setStatus('Invalid link target selected.');
+                return;
+            }
+
+            const target = findNodeById(state.document.sections, targetNodeId);
+            if (!target) {
+                setStatus('Target node not found.');
+                return;
+            }
+
+            const updated = await updateNodeLink(source.id, target.id, target.text || '');
+            if (!updated) {
+                return;
+            }
+
+            closeLinkPicker();
+            setStatus(`Linked #${source.id} to #${target.id}.`);
+        }
+
+        async function clearNodeLink(sourceNodeId) {
+            const updated = await updateNodeLink(sourceNodeId, -1, '');
+            if (!updated) {
+                return;
+            }
+
+            setStatus(`Cleared link for #${sourceNodeId}.`);
+        }
+
+        async function updateNodeLink(sourceNodeId, linkId, linkText) {
+            const source = findNodeById(state.document.sections, sourceNodeId);
+            if (!source) {
+                setStatus('Source node not found.');
+                return false;
+            }
+
+            selectedNodeId = source.id;
+            return await postState('UpdateNode', {
+                nodeId: source.id,
+                text: source.text || '',
+                linkId,
+                linkText: linkText || ''
+            });
         }
 
         function renderDetails() {
@@ -564,6 +838,42 @@
             window.open('@Url.Action("ExportXml", "ProtocolEditor")', '_blank');
         }
 
+        function onImportXml() {
+            importXmlFileInput.click();
+        }
+
+        async function onImportXmlSelected() {
+            const file = importXmlFileInput.files && importXmlFileInput.files[0];
+            if (!file) {
+                return;
+            }
+
+            const payload = new FormData();
+            payload.append('file', file);
+
+            const response = await fetch('/ProtocolEditor/ImportXmlUpload', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': token
+                },
+                body: payload
+            });
+
+            if (!response.ok) {
+                const errorPayload = await response.json().catch(() => null);
+                setStatus(errorPayload?.error || 'Request failed: ImportXmlUpload');
+                importXmlFileInput.value = '';
+                return;
+            }
+
+            const next = await response.json();
+            state = next;
+            ensureSelection();
+            renderAll();
+            setStatus(`Imported XML and saved to ${next.savedPath || 'server storage'}`);
+            importXmlFileInput.value = '';
+        }
+
         async function onSaveXml() {
             const response = await fetch('/ProtocolEditor/SaveXml', {
                 method: 'POST',
@@ -585,7 +895,36 @@
             setStatus(`Saved XML to ${payload.savedPath || 'configured path'}`);
         }
 
+        async function onSetDefaultProtocol() {
+            const response = await fetch('/ProtocolEditor/SetDefaultProtocol', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': token
+                }
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                setStatus(payload?.error || 'Request failed: SetDefaultProtocol');
+                return;
+            }
+
+            const payload = await response.json();
+            state = payload;
+            ensureSelection();
+            renderAll();
+            setStatus(`Set default protocol at ${payload.defaultPath || 'configured path'}`);
+        }
+
         async function onKeydown(event) {
+            if (event.key === 'Escape') {
+                closeNodeMenu();
+                if (linkPickerModal) {
+                    linkPickerModal.hide();
+                }
+                return;
+            }
+
             if (!event.ctrlKey) {
                 return;
             }
@@ -614,12 +953,13 @@
 
             if (!response.ok) {
                 setStatus(`Request failed: ${action}`);
-                return;
+                return false;
             }
 
             state = await response.json();
             ensureSelection();
             renderAll();
+            return true;
         }
 
         function setStatus(message) {
