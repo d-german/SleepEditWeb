@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using SleepEditWeb.Data;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
@@ -40,6 +42,9 @@ public class Program
 			options.Cookie.IsEssential = true;
 		});
 
+		ConfigureDataProtection(builder);
+		ConfigureForwardedHeaders(builder);
+
 		var app = builder.Build();
 
 		if (!app.Environment.IsDevelopment())
@@ -48,6 +53,7 @@ public class Program
 			app.UseHsts();
 		}
 
+		app.UseForwardedHeaders();
 		app.UseSession();
 		app.UseHttpsRedirection();
 		app.UseStaticFiles();
@@ -59,5 +65,34 @@ public class Program
 			pattern: "{controller=SleepNoteEditor}/{action=Index}/{id?}");
 
 		app.Run();
+	}
+
+
+	private static void ConfigureDataProtection(WebApplicationBuilder builder)
+	{
+		var configuredKeyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
+		var keyRingPath = string.IsNullOrWhiteSpace(configuredKeyRingPath)
+			? Path.Combine(AppContext.BaseDirectory, "Data", "keys")
+			: configuredKeyRingPath;
+
+		Directory.CreateDirectory(keyRingPath);
+
+		var dataProtectionBuilder = builder.Services.AddDataProtection();
+		dataProtectionBuilder.SetApplicationName("SleepEditWeb");
+		dataProtectionBuilder.PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
+	}
+
+	private static void ConfigureForwardedHeaders(WebApplicationBuilder builder)
+	{
+		builder.Services.Configure<ForwardedHeadersOptions>(options =>
+		{
+			options.ForwardedHeaders =
+				ForwardedHeaders.XForwardedFor |
+				ForwardedHeaders.XForwardedProto;
+
+			// Allow reverse-proxy forwarded headers in hosted environments with dynamic proxy addresses.
+			options.KnownNetworks.Clear();
+			options.KnownProxies.Clear();
+		});
 	}
 }

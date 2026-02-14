@@ -289,7 +289,7 @@ public sealed class ProtocolEditorController : Controller
             var directory = Path.GetDirectoryName(savePath);
             if (!string.IsNullOrWhiteSpace(directory))
             {
-                System.IO.Directory.CreateDirectory(directory);
+                Directory.CreateDirectory(directory);
             }
 
             var xml = _service.ExportXml();
@@ -340,7 +340,7 @@ public sealed class ProtocolEditorController : Controller
             var directory = Path.GetDirectoryName(defaultPath);
             if (!string.IsNullOrWhiteSpace(directory))
             {
-                System.IO.Directory.CreateDirectory(directory);
+                Directory.CreateDirectory(directory);
             }
 
             var xml = _service.ExportXml();
@@ -533,7 +533,7 @@ public sealed class ProtocolEditorController : Controller
         var directory = Path.GetDirectoryName(savePath);
         if (!string.IsNullOrWhiteSpace(directory))
         {
-            System.IO.Directory.CreateDirectory(directory);
+            Directory.CreateDirectory(directory);
         }
 
         System.IO.File.WriteAllText(savePath, xml, Encoding.UTF8);
