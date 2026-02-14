@@ -900,13 +900,22 @@ textarea.form-control[readonly] {
 }
 
 .protocol-viewer-tabs {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+    max-height: 5.5rem;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .protocol-viewer-tabs .nav-item {
     flex: 0 0 auto;
+}
+
+.protocol-viewer-tabs .nav-link {
+    max-width: 220px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .protocol-node-host {
@@ -921,6 +930,7 @@ textarea.form-control[readonly] {
 .protocol-node-row {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
     padding: 0.22rem 0.25rem;
     border-radius: 0.3rem;
@@ -928,11 +938,13 @@ textarea.form-control[readonly] {
 
 .protocol-node-label {
     margin: 0;
-    flex: 1;
+    flex: 0 1 auto;
 }
 
 .protocol-node-subtext {
     max-width: 320px;
+    width: auto;
+    flex: 0 0 auto;
 }
 
 .protocol-viewer-link {
