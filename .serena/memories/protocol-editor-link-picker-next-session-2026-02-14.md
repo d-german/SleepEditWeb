@@ -1,35 +1,50 @@
-## Latest Completed Work (2026-02-14)
+## Additional Audit & Fixes (Follow-up after hosted default mismatch)
 
-### Task Manager status
-- Completed `db3b3319-6f42-47c3-858c-0dd24684d4d4` (test coverage for logging-critical error/fallback paths).
-- Completed `572d43cc-6204-44db-8e4f-006925843eb8` (deployment/logging/config verification runbook).
-- Current queue: no pending and no in_progress tasks.
+### Context
+User reported that protocol edits appeared locally but not on hosted. Root issue was fallback file mismatch and additional consistency concerns.
 
-### New/updated tests
-File: `SleepEditWeb.Tests/ProtocolEditorControllerTests.cs`
-Added tests:
-- `SaveXml_WhenExportFails_ReturnsServerErrorPayload`
-- `SetDefaultProtocol_WhenExportFails_ReturnsServerErrorPayload`
-- `ImportXml_WhenServiceThrowsFormatException_ReturnsBadRequestInvalidFormat`
-- `ImportXmlUpload_WhenFileTooLarge_ReturnsBadRequest`
-Existing fallback tests for empty configured paths remain in place.
+### New fixes applied
 
-### Documentation added
-File: `docs/protocol-editor-deployment-runbook.md`
-Includes:
-- Exact config keys and env var names for ProtocolEditor paths/feature flags
-- Example production values for appsettings/env vars
-- Save/default/startup path resolution order
-- Filesystem permissions and persistence assumptions
-- Multi-instance caveats (shared storage requirement)
-- Endpoint troubleshooting matrix (400/500 causes + checks)
-- Post-deploy smoke tests
-- Hosting-platform log verification checklist with expected log message patterns
+1. **Startup candidate precedence adjusted**
+- File: `SleepEditWeb/Services/ProtocolStarterService.cs`
+- `GetStartupCandidatePaths()` now orders candidates:
+  1) `DefaultProtocolPath`
+  2) `SaveProtocolPath`
+  3) `StartupProtocolPath`
+  4) fallback `default-protocol.xml`
+  5) fallback `protocol.xml`
+- This prevents stale startup file preference over explicitly configured save path when default path is not set.
+
+2. **Upload import no longer clobbers default fallback file**
+- File: `SleepEditWeb/Controllers/ProtocolEditorController.cs`
+- `ResolveUploadedFileSavePath()` now uses `SaveProtocolPath` only when explicitly configured.
+- Without configured save path, upload now writes to `Data/protocols/<uploaded-file-name>.xml`.
+- Avoids accidental overwrite of `default-protocol.xml` during upload imports.
+
+3. **Protocol editor fetch hardening (network failure visibility)**
+- File: `SleepEditWeb/Views/ProtocolEditor/Index.cshtml`
+- Added `try/catch` around:
+  - `refreshState`
+  - `onImportXmlSelected`
+  - `onSaveXml`
+  - `onSetDefaultProtocol`
+  - `postState`
+- UI now shows explicit status on network/reachability failures instead of silently failing.
+
+### Added regression tests
+
+- File: `SleepEditWeb.Tests/ProtocolStarterServiceTests.cs`
+  - `Create_PrefersSaveProtocolPath_OverStartupProtocolPath_WhenDefaultIsNotConfigured`
+
+- File: `SleepEditWeb.Tests/ProtocolEditorControllerTests.cs`
+  - `ImportXmlUpload_WithoutConfiguredSavePath_UsesUploadedFileNameFallbackPath`
+
+### Documentation updates
+
+- File: `docs/protocol-editor-deployment-runbook.md`
+  - Updated startup candidate precedence.
+  - Added explicit `ImportXmlUpload` save-path behavior notes.
 
 ### Validation
 - `dotnet test SleepEditWeb.sln` passed.
-- Test totals after additions: 48 passed, 0 failed.
-
-### Important context carried forward
-- Production save/default issues were addressed earlier via deterministic fallback paths and aligned startup candidate paths.
-- Logging instrumentation and policy docs are already in place across controllers/services.
+- Test count now: 50 passing.

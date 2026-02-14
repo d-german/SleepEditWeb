@@ -72,10 +72,15 @@ When values are empty, runtime fallback behavior is:
    - fallback: `<AppContext.BaseDirectory>/Data/protocols/default-protocol.xml`
 3. Protocol Viewer startup load candidates use:
    - `DefaultProtocolPath`
-   - `StartupProtocolPath`
    - `SaveProtocolPath`
+   - `StartupProtocolPath`
    - fallback: `<AppContext.BaseDirectory>/Data/protocols/default-protocol.xml`
    - fallback: `<AppContext.BaseDirectory>/Data/protocols/protocol.xml`
+
+Upload behavior:
+
+- `ImportXmlUpload` writes to `SaveProtocolPath` when explicitly configured.
+- If no explicit save path is configured, upload writes to `<AppContext.BaseDirectory>/Data/protocols/<uploaded-file-name>.xml` to avoid clobbering `default-protocol.xml`.
 
 ## Filesystem Requirements
 

@@ -552,10 +552,9 @@ public sealed class ProtocolEditorController : Controller
 
     private string ResolveUploadedFileSavePath(string? uploadedFileName)
     {
-        var configuredPath = ResolveSavePath();
-        if (!string.IsNullOrWhiteSpace(configuredPath))
+        if (!string.IsNullOrWhiteSpace(_startupOptions.SaveProtocolPath))
         {
-            return configuredPath;
+            return _startupOptions.SaveProtocolPath;
         }
 
         var safeFileName = string.IsNullOrWhiteSpace(uploadedFileName)

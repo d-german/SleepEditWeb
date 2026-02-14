@@ -141,4 +141,76 @@ public class ProtocolStarterServiceTests
             }
         }
     }
+
+
+    [Test]
+    public void Create_PrefersSaveProtocolPath_OverStartupProtocolPath_WhenDefaultIsNotConfigured()
+    {
+        // Arrange
+        var savePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-save.xml");
+        var startupPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-startup.xml");
+
+        File.WriteAllText(savePath, """
+<?xml version="1.0"?>
+<Protocol>
+  <Id>-1</Id>
+  <LinkId>-1</LinkId>
+  <LinkText></LinkText>
+  <text>Save Protocol</text>
+  <Section>
+    <Id>1</Id>
+    <LinkId>-1</LinkId>
+    <LinkText></LinkText>
+    <text>Save Section</text>
+  </Section>
+</Protocol>
+""");
+
+        File.WriteAllText(startupPath, """
+<?xml version="1.0"?>
+<Protocol>
+  <Id>-1</Id>
+  <LinkId>-1</LinkId>
+  <LinkText></LinkText>
+  <text>Startup Protocol</text>
+  <Section>
+    <Id>1</Id>
+    <LinkId>-1</LinkId>
+    <LinkText></LinkText>
+    <text>Startup Section</text>
+  </Section>
+</Protocol>
+""");
+
+        try
+        {
+            var service = new ProtocolStarterService(
+                new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
+                Options.Create(new ProtocolEditorStartupOptions
+                {
+                    SaveProtocolPath = savePath,
+                    StartupProtocolPath = startupPath
+                }),
+                NullLogger<ProtocolStarterService>.Instance);
+
+            // Act
+            var result = service.Create();
+
+            // Assert
+            Assert.That(result.Text, Is.EqualTo("Save Protocol"));
+            Assert.That(result.Sections[0].Text, Is.EqualTo("Save Section"));
+        }
+        finally
+        {
+            if (File.Exists(savePath))
+            {
+                File.Delete(savePath);
+            }
+
+            if (File.Exists(startupPath))
+            {
+                File.Delete(startupPath);
+            }
+        }
+    }
 }

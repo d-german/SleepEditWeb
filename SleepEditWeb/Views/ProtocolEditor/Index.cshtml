@@ -192,14 +192,18 @@
         }
 
         async function refreshState() {
-            const response = await fetch('@Url.Action("State", "ProtocolEditor")');
-            if (!response.ok) {
-                setStatus('Unable to load protocol state.');
-                return;
-            }
+            try {
+                const response = await fetch('@Url.Action("State", "ProtocolEditor")');
+                if (!response.ok) {
+                    setStatus('Unable to load protocol state.');
+                    return;
+                }
 
-            state = await response.json();
-            ensureSelection();
+                state = await response.json();
+                ensureSelection();
+            } catch (error) {
+                setStatus('Unable to reach server while loading protocol state.');
+            }
         }
 
         function ensureSelection() {
@@ -851,69 +855,81 @@
             const payload = new FormData();
             payload.append('file', file);
 
-            const response = await fetch('/ProtocolEditor/ImportXmlUpload', {
-                method: 'POST',
-                headers: {
-                    'RequestVerificationToken': token
-                },
-                body: payload
-            });
+            try {
+                const response = await fetch('/ProtocolEditor/ImportXmlUpload', {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': token
+                    },
+                    body: payload
+                });
 
-            if (!response.ok) {
-                const errorPayload = await response.json().catch(() => null);
-                setStatus(errorPayload?.error || 'Request failed: ImportXmlUpload');
+                if (!response.ok) {
+                    const errorPayload = await response.json().catch(() => null);
+                    setStatus(errorPayload?.error || 'Request failed: ImportXmlUpload');
+                    return;
+                }
+
+                const next = await response.json();
+                state = next;
+                ensureSelection();
+                renderAll();
+                setStatus(`Imported XML and saved to ${next.savedPath || 'server storage'}`);
+            } catch (error) {
+                setStatus('Unable to reach server while importing XML.');
+            } finally {
                 importXmlFileInput.value = '';
-                return;
             }
-
-            const next = await response.json();
-            state = next;
-            ensureSelection();
-            renderAll();
-            setStatus(`Imported XML and saved to ${next.savedPath || 'server storage'}`);
-            importXmlFileInput.value = '';
         }
 
         async function onSaveXml() {
-            const response = await fetch('/ProtocolEditor/SaveXml', {
-                method: 'POST',
-                headers: {
-                    'RequestVerificationToken': token
+            try {
+                const response = await fetch('/ProtocolEditor/SaveXml', {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': token
+                    }
+                });
+
+                if (!response.ok) {
+                    const payload = await response.json().catch(() => null);
+                    setStatus(payload?.error || 'Request failed: SaveXml');
+                    return;
                 }
-            });
 
-            if (!response.ok) {
-                const payload = await response.json().catch(() => null);
-                setStatus(payload?.error || 'Request failed: SaveXml');
-                return;
+                const payload = await response.json();
+                state = payload;
+                ensureSelection();
+                renderAll();
+                setStatus(`Saved XML to ${payload.savedPath || 'configured path'}`);
+            } catch (error) {
+                setStatus('Unable to reach server while saving XML.');
             }
-
-            const payload = await response.json();
-            state = payload;
-            ensureSelection();
-            renderAll();
-            setStatus(`Saved XML to ${payload.savedPath || 'configured path'}`);
         }
 
         async function onSetDefaultProtocol() {
-            const response = await fetch('/ProtocolEditor/SetDefaultProtocol', {
-                method: 'POST',
-                headers: {
-                    'RequestVerificationToken': token
+            try {
+                const response = await fetch('/ProtocolEditor/SetDefaultProtocol', {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': token
+                    }
+                });
+
+                if (!response.ok) {
+                    const payload = await response.json().catch(() => null);
+                    setStatus(payload?.error || 'Request failed: SetDefaultProtocol');
+                    return;
                 }
-            });
 
-            if (!response.ok) {
-                const payload = await response.json().catch(() => null);
-                setStatus(payload?.error || 'Request failed: SetDefaultProtocol');
-                return;
+                const payload = await response.json();
+                state = payload;
+                ensureSelection();
+                renderAll();
+                setStatus(`Set default protocol at ${payload.defaultPath || 'configured path'}`);
+            } catch (error) {
+                setStatus('Unable to reach server while setting default protocol.');
             }
-
-            const payload = await response.json();
-            state = payload;
-            ensureSelection();
-            renderAll();
-            setStatus(`Set default protocol at ${payload.defaultPath || 'configured path'}`);
         }
 
         async function onKeydown(event) {
@@ -942,25 +958,30 @@
         }
 
         async function postState(action, payload) {
-            const response = await fetch(`/ProtocolEditor/${action}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
-                },
-                body: JSON.stringify(payload || {})
-            });
+            try {
+                const response = await fetch(`/ProtocolEditor/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': token
+                    },
+                    body: JSON.stringify(payload || {})
+                });
 
-            if (!response.ok) {
-                const payload = await response.json().catch(() => null);
-                setStatus(payload?.error || `Request failed: ${action}`);
+                if (!response.ok) {
+                    const payload = await response.json().catch(() => null);
+                    setStatus(payload?.error || `Request failed: ${action}`);
+                    return false;
+                }
+
+                state = await response.json();
+                ensureSelection();
+                renderAll();
+                return true;
+            } catch (error) {
+                setStatus(`Unable to reach server while processing ${action}.`);
                 return false;
             }
-
-            state = await response.json();
-            ensureSelection();
-            renderAll();
-            return true;
         }
 
         function setStatus(message) {

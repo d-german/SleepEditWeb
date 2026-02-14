@@ -87,8 +87,8 @@ public sealed class ProtocolStarterService : IProtocolStarterService
         var candidates = new[]
         {
             _startupOptions.DefaultProtocolPath,
-            _startupOptions.StartupProtocolPath,
             _startupOptions.SaveProtocolPath,
+            _startupOptions.StartupProtocolPath,
             Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml"),
             Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "protocol.xml")
         };

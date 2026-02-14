@@ -180,6 +180,57 @@ public class ProtocolEditorControllerTests
         Assert.That(GetPropertyValue(result!.Value, "error"), Is.EqualTo("Uploaded XML file is too large."));
     }
 
+
+    [Test]
+    public async Task ImportXmlUpload_WithoutConfiguredSavePath_UsesUploadedFileNameFallbackPath()
+    {
+        // Arrange
+        var service = CreateServiceMock();
+        var snapshot = new ProtocolEditorSnapshot
+        {
+            Document = new ProtocolDocument
+            {
+                Id = -1,
+                LinkId = -1,
+                LinkText = string.Empty,
+                Text = "Imported Protocol",
+                Sections = []
+            },
+            UndoHistory = [],
+            RedoHistory = [],
+            LastUpdatedUtc = DateTimeOffset.UtcNow
+        };
+        service.Setup(x => x.ImportXml(It.IsAny<string>())).Returns(snapshot);
+
+        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
+        var fileName = $"{Guid.NewGuid():N}-import.xml";
+        var xmlContent = System.Text.Encoding.UTF8.GetBytes("<Protocol><Id>-1</Id><LinkId>-1</LinkId><LinkText></LinkText><text>Imported</text></Protocol>");
+        await using var stream = new MemoryStream(xmlContent);
+        IFormFile file = new FormFile(stream, 0, xmlContent.Length, "file", fileName);
+
+        var expectedPath = Path.Combine(AppContext.BaseDirectory, "Data", "protocols", fileName);
+        var defaultPath = Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
+
+        try
+        {
+            // Act
+            var result = await controller.ImportXmlUpload(file) as JsonResult;
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(GetPropertyValue(result!.Value, "savedPath"), Is.EqualTo(expectedPath));
+            Assert.That(expectedPath, Is.Not.EqualTo(defaultPath));
+            Assert.That(File.Exists(expectedPath), Is.True);
+        }
+        finally
+        {
+            if (File.Exists(expectedPath))
+            {
+                File.Delete(expectedPath);
+            }
+        }
+    }
+
     private static ProtocolEditorController CreateController(
         IProtocolEditorService service,
         ProtocolEditorStartupOptions startupOptions)
