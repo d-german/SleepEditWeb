@@ -4,7 +4,8 @@
 
 - Landing page route: `/` (default maps to `SleepNoteEditor/Index`).
 - Direct route: `/ProtocolEditor`.
-- XML export endpoint: `/ProtocolEditor/ExportXml`.
+- Admin route: `/Admin/Medications?secretKey=<key>` with `Protocol Editor` as the first tab.
+- Protocol export endpoint (transport remains XML): `/ProtocolEditor/ExportXml`.
 
 ## Starter Content
 
@@ -19,7 +20,10 @@
 - `Remove`: removes selected node and clears inbound link references.
 - `Undo` / `Redo`: restore/reapply prior mutations.
 - `Reset`: reloads hardcoded starter protocol.
-- `Export XML`: opens generated XML output in a new tab.
+- `Import Protocol`: uploads protocol content from file (XML transport currently).
+- `Save Protocol`: persists current protocol to configured save target.
+- `Set As Default`: persists current protocol to configured default/startup target.
+- `Export Protocol`: opens generated protocol output in a new tab (XML transport currently).
 
 ## Tree Interaction
 
@@ -31,6 +35,17 @@
   - Section nodes reorder at protocol root.
   - Subsection nodes can move between valid parents.
   - Invalid drop targets are blocked.
+- New drag affordance and hierarchy cues:
+  - Nodes display a visible drag handle.
+  - Active drag source uses dashed styling.
+  - Drop targets show stronger highlight feedback.
+  - Section rows use stronger visual emphasis than child rows.
+- Add-section visibility:
+  - After `Add Section`, the created section is auto-selected and scrolled into view.
+- Section collapse:
+  - Top-level sections include collapse/expand toggles.
+  - Collapse state persists in browser localStorage (`protocolEditor.collapsedSections`).
+  - If a selected child becomes hidden by collapsing, selection is moved to the section node.
 
 ## Detail Panels
 
@@ -41,8 +56,22 @@
 ## Validation Status
 
 - Build: `dotnet build SleepEditWeb.sln` passes.
-- Tests: `dotnet test SleepEditWeb.sln` passes.
+- Tests: `dotnet test SleepEditWeb.sln` passes (53 tests).
 - Protocol test coverage includes:
   - XML serialization/deserialization hierarchy and field order.
   - Mutation paths and invalid move handling.
   - Undo/redo determinism.
+  - Route contract stability for protocol editor endpoints.
+  - Admin tab order and active-pane markup expectations.
+  - User-facing protocol wording while retaining XML endpoint contracts.
+
+## QA Matrix (Current)
+
+- Completed by automated/regression checks:
+  - Admin tab order and active-pane expectations.
+  - Protocol editor label wording and endpoint contract stability.
+  - Protocol editor build/test regression suite.
+- Manual browser validation still recommended before release:
+  - Admin embedded protocol editor tab interactions.
+  - Drag/drop visual affordance usability in both themes.
+  - Section collapse/expand persistence and add-section auto-scroll behavior.

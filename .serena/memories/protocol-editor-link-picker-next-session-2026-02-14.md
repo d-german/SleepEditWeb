@@ -1,50 +1,30 @@
-## Additional Audit & Fixes (Follow-up after hosted default mismatch)
+# Protocol/Admin UX continuation checkpoint (2026-02-14)
 
-### Context
-User reported that protocol edits appeared locally but not on hosted. Root issue was fallback file mismatch and additional consistency concerns.
+## Branch
+- `feat/admin-protocol-ux-updates`
 
-### New fixes applied
+## Completion status
+- Task Manager shows **no pending** and **no in_progress** tasks for this scope.
+- Full test suite passes on this branch: `dotnet test SleepEditWeb.sln` => **53 passed, 0 failed**.
 
-1. **Startup candidate precedence adjusted**
-- File: `SleepEditWeb/Services/ProtocolStarterService.cs`
-- `GetStartupCandidatePaths()` now orders candidates:
-  1) `DefaultProtocolPath`
-  2) `SaveProtocolPath`
-  3) `StartupProtocolPath`
-  4) fallback `default-protocol.xml`
-  5) fallback `protocol.xml`
-- This prevents stale startup file preference over explicitly configured save path when default path is not set.
+## Final implemented scope in this branch
+- Admin tabs reordered: Protocol Editor first/active, Medications second.
+- Protocol editor user-facing wording changed from XML-centric labels to protocol-centric labels while preserving backend route contracts.
+- Protocol tree UX improved:
+  - stronger section hierarchy styling,
+  - drag affordance and clearer drop target feedback,
+  - section collapse/expand with localStorage persistence.
+- Add Section visibility fixed: newly created section is selected and auto-scrolled into view in the tree.
+- Added regression tests for admin/protocol UX contracts and route template stability.
+- Updated protocol usage docs and QA matrix notes.
 
-2. **Upload import no longer clobbers default fallback file**
-- File: `SleepEditWeb/Controllers/ProtocolEditorController.cs`
-- `ResolveUploadedFileSavePath()` now uses `SaveProtocolPath` only when explicitly configured.
-- Without configured save path, upload now writes to `Data/protocols/<uploaded-file-name>.xml`.
-- Avoids accidental overwrite of `default-protocol.xml` during upload imports.
+## Files modified in this scope
+- `SleepEditWeb/Views/Admin/Medications.cshtml`
+- `SleepEditWeb/Views/ProtocolEditor/Index.cshtml`
+- `SleepEditWeb/wwwroot/css/site.css`
+- `SleepEditWeb.Tests/ProtocolEditorUiContractsTests.cs`
+- `docs/protocol-editor-usage.md`
 
-3. **Protocol editor fetch hardening (network failure visibility)**
-- File: `SleepEditWeb/Views/ProtocolEditor/Index.cshtml`
-- Added `try/catch` around:
-  - `refreshState`
-  - `onImportXmlSelected`
-  - `onSaveXml`
-  - `onSetDefaultProtocol`
-  - `postState`
-- UI now shows explicit status on network/reachability failures instead of silently failing.
-
-### Added regression tests
-
-- File: `SleepEditWeb.Tests/ProtocolStarterServiceTests.cs`
-  - `Create_PrefersSaveProtocolPath_OverStartupProtocolPath_WhenDefaultIsNotConfigured`
-
-- File: `SleepEditWeb.Tests/ProtocolEditorControllerTests.cs`
-  - `ImportXmlUpload_WithoutConfiguredSavePath_UsesUploadedFileNameFallbackPath`
-
-### Documentation updates
-
-- File: `docs/protocol-editor-deployment-runbook.md`
-  - Updated startup candidate precedence.
-  - Added explicit `ImportXmlUpload` save-path behavior notes.
-
-### Validation
-- `dotnet test SleepEditWeb.sln` passed.
-- Test count now: 50 passing.
+## Notes for next session
+- Branch is ready for review/PR from a functional and automated-test standpoint.
+- Manual browser QA remains recommended for long-protocol ergonomics (large tab sets, deep-tree collapse patterns) in target deployment environment.

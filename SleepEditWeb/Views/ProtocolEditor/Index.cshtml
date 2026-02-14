@@ -18,10 +18,11 @@
         <button type="button" id="undoBtn" class="btn btn-outline-secondary">Undo</button>
         <button type="button" id="redoBtn" class="btn btn-outline-secondary">Redo</button>
         <button type="button" id="resetBtn" class="btn btn-outline-secondary">Reset</button>
-        <button type="button" id="importXmlBtn" class="btn btn-outline-primary">Import XML</button>
-        <button type="button" id="saveXmlBtn" class="btn btn-outline-primary">Save XML</button>
+        <button type="button" id="toggleAllSectionsBtn" class="btn btn-outline-secondary">Collapse Sections</button>
+        <button type="button" id="importXmlBtn" class="btn btn-outline-primary">Import Protocol</button>
+        <button type="button" id="saveXmlBtn" class="btn btn-outline-primary">Save Protocol</button>
         <button type="button" id="setDefaultProtocolBtn" class="btn btn-outline-primary">Set As Default</button>
-        <button type="button" id="exportXmlBtn" class="btn btn-primary">Export XML</button>
+        <button type="button" id="exportXmlBtn" class="btn btn-primary">Export Protocol</button>
     </div>
 </div>
 <input id="importXmlFileInput" type="file" accept=".xml,text/xml,application/xml" class="d-none" />
@@ -142,6 +143,7 @@
         const linkPickerSourceLabel = document.getElementById('linkPickerSourceLabel');
         const linkPickerSearchInput = document.getElementById('linkPickerSearchInput');
         const linkPickerTree = document.getElementById('linkPickerTree');
+        const toggleAllSectionsBtn = document.getElementById('toggleAllSectionsBtn');
 
         let state = {
             document: @Html.Raw(Json.Serialize(Model.InitialDocument)),
@@ -154,6 +156,11 @@
         let contextMenuNodeId = null;
         let linkPickerSourceNodeId = null;
         let linkPickerModal = null;
+        let pendingScrollToNodeId = null;
+        const collapseStorageKey = 'protocolEditor.collapsedSections';
+        const linkPickerCollapseStorageKey = 'protocolEditor.linkPickerCollapsedSections';
+        let collapsedSectionIds = loadCollapsedIdSet(collapseStorageKey);
+        let collapsedLinkPickerSectionIds = loadCollapsedIdSet(linkPickerCollapseStorageKey);
 
         document.getElementById('addSectionBtn').addEventListener('click', onAddSection);
         document.getElementById('addChildBtn').addEventListener('click', onAddChild);
@@ -161,6 +168,7 @@
         document.getElementById('undoBtn').addEventListener('click', () => postState('Undo', {}));
         document.getElementById('redoBtn').addEventListener('click', () => postState('Redo', {}));
         document.getElementById('resetBtn').addEventListener('click', onReset);
+        toggleAllSectionsBtn.addEventListener('click', onToggleAllSections);
         document.getElementById('importXmlBtn').addEventListener('click', onImportXml);
         importXmlFileInput.addEventListener('change', onImportXmlSelected);
         document.getElementById('saveXmlBtn').addEventListener('click', onSaveXml);
@@ -221,11 +229,13 @@
             ensureContextNodeExists();
             renderTree();
             renderDetails();
+            updateToggleAllSectionsButton();
             setStatus(`Undo: ${state.undoCount} | Redo: ${state.redoCount}`);
         }
 
         function renderTree() {
             treeHost.innerHTML = '';
+            reconcileCollapsedSections();
 
             const root = document.createElement('ul');
             root.className = 'protocol-tree-root';
@@ -236,17 +246,51 @@
 
             treeHost.appendChild(root);
             attachRootDropZone(root);
+            scrollPendingNodeIntoView();
         }
 
         function buildNode(node, depth) {
+            const nodeKind = normalizeKind(node.kind);
+            const isSectionNode = nodeKind === 'section' && depth === 0;
+            const isCollapsedSection = isSectionNode && collapsedSectionIds.has(node.id);
             const item = document.createElement('li');
-            item.className = 'protocol-tree-item';
+            item.className = `protocol-tree-item ${isSectionNode ? 'protocol-tree-item-section' : ''} ${isCollapsedSection ? 'is-collapsed' : ''}`;
+
+            const row = document.createElement('div');
+            row.className = 'protocol-tree-row';
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = `protocol-tree-toggle ${isSectionNode ? '' : 'is-hidden'}`.trim();
+            toggle.setAttribute('aria-label', isCollapsedSection ? 'Expand section' : 'Collapse section');
+            toggle.textContent = isCollapsedSection ? '▸' : '▾';
+            if (isSectionNode) {
+                toggle.addEventListener('click', event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    toggleSectionCollapsed(node.id);
+                    renderAll();
+                });
+            }
+            row.appendChild(toggle);
 
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = `protocol-tree-node ${selectedNodeId === node.id ? 'is-selected' : ''}`;
-            button.textContent = node.text || '(empty)';
+            button.className = `protocol-tree-node protocol-tree-node-${nodeKind || 'node'} ${selectedNodeId === node.id ? 'is-selected' : ''}`;
             button.style.paddingLeft = `${10 + depth * 14}px`;
+            button.dataset.nodeId = String(node.id);
+            button.title = 'Drag to reorder';
+
+            const dragHandle = document.createElement('span');
+            dragHandle.className = 'protocol-tree-drag-handle';
+            dragHandle.textContent = '⋮⋮';
+
+            const label = document.createElement('span');
+            label.className = 'protocol-tree-node-label';
+            label.textContent = node.text || '(empty)';
+
+            button.appendChild(dragHandle);
+            button.appendChild(label);
             button.draggable = true;
             button.addEventListener('click', () => {
                 selectedNodeId = node.id;
@@ -265,9 +309,10 @@
                 dragNodeId = null;
                 clearDropIndicators();
             });
-            item.appendChild(button);
+            row.appendChild(button);
+            item.appendChild(row);
 
-            if (node.children && node.children.length) {
+            if (node.children && node.children.length && !isCollapsedSection) {
                 const childList = document.createElement('ul');
                 childList.className = 'protocol-tree-children';
                 node.children.forEach(child => childList.appendChild(buildNode(child, depth + 1)));
@@ -275,6 +320,215 @@
             }
 
             return item;
+        }
+
+        function queueScrollToNode(nodeId) {
+            pendingScrollToNodeId = nodeId;
+        }
+
+        function scrollPendingNodeIntoView() {
+            if (pendingScrollToNodeId == null || selectedNodeId !== pendingScrollToNodeId) {
+                pendingScrollToNodeId = null;
+                return;
+            }
+
+            const nodeButton = treeHost.querySelector(`.protocol-tree-node[data-node-id="${pendingScrollToNodeId}"]`);
+            pendingScrollToNodeId = null;
+            if (!nodeButton) {
+                return;
+            }
+
+            scrollNodeIntoContainerView(nodeButton, treeHost);
+        }
+
+        function scrollNodeIntoContainerView(node, fallbackContainer) {
+            const container = findScrollableAncestor(node, fallbackContainer);
+            if (!container) {
+                return;
+            }
+
+            const nodeRect = node.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const padding = 8;
+
+            if (nodeRect.top < containerRect.top) {
+                container.scrollTop += nodeRect.top - containerRect.top - padding;
+                return;
+            }
+
+            if (nodeRect.bottom > containerRect.bottom) {
+                container.scrollTop += nodeRect.bottom - containerRect.bottom + padding;
+            }
+        }
+
+        function findScrollableAncestor(element, fallback) {
+            let current = element?.parentElement || null;
+            while (current) {
+                const style = window.getComputedStyle(current);
+                const overflowY = style.overflowY;
+                const canScrollY = (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
+                    && current.scrollHeight > current.clientHeight;
+                if (canScrollY) {
+                    return current;
+                }
+
+                current = current.parentElement;
+            }
+
+            return fallback || null;
+        }
+
+        function loadCollapsedIdSet(storageKey) {
+            try {
+                const raw = localStorage.getItem(storageKey);
+                if (!raw) {
+                    return new Set();
+                }
+
+                const parsed = JSON.parse(raw);
+                if (!Array.isArray(parsed)) {
+                    return new Set();
+                }
+
+                return new Set(
+                    parsed
+                        .map(item => Number(item))
+                        .filter(item => Number.isFinite(item)));
+            } catch {
+                return new Set();
+            }
+        }
+
+        function saveCollapsedIdSet(storageKey, ids) {
+            try {
+                localStorage.setItem(storageKey, JSON.stringify(Array.from(ids)));
+            } catch {
+                // Ignore storage failures; collapse behavior still works for current session.
+            }
+        }
+
+        function reconcileCollapsedSections() {
+            const validSectionIds = new Set(
+                state.document.sections
+                    .map(section => Number(section.id))
+                    .filter(id => Number.isFinite(id)));
+
+            const next = new Set();
+            collapsedSectionIds.forEach(id => {
+                if (validSectionIds.has(id)) {
+                    next.add(id);
+                }
+            });
+
+            if (next.size !== collapsedSectionIds.size) {
+                collapsedSectionIds = next;
+                saveCollapsedIdSet(collapseStorageKey, collapsedSectionIds);
+            }
+        }
+
+        function toggleSectionCollapsed(sectionId) {
+            if (collapsedSectionIds.has(sectionId)) {
+                collapsedSectionIds.delete(sectionId);
+                saveCollapsedIdSet(collapseStorageKey, collapsedSectionIds);
+                return;
+            }
+
+            collapsedSectionIds.add(sectionId);
+            const section = findNodeById(state.document.sections, sectionId);
+            if (section && isDescendantNode(section.children || [], selectedNodeId)) {
+                selectedNodeId = sectionId;
+            }
+            saveCollapsedIdSet(collapseStorageKey, collapsedSectionIds);
+        }
+
+        function onToggleAllSections() {
+            const sections = state.document.sections || [];
+            if (!sections.length) {
+                return;
+            }
+
+            if (areAllSectionsCollapsed(sections)) {
+                collapsedSectionIds = new Set();
+                saveCollapsedIdSet(collapseStorageKey, collapsedSectionIds);
+                renderAll();
+                return;
+            }
+
+            collapsedSectionIds = new Set(sections.map(section => section.id));
+            const owningSectionId = findOwningSectionId(selectedNodeId);
+            if (owningSectionId != null) {
+                selectedNodeId = owningSectionId;
+            }
+
+            saveCollapsedIdSet(collapseStorageKey, collapsedSectionIds);
+            renderAll();
+        }
+
+        function areAllSectionsCollapsed(sections) {
+            if (!sections.length) {
+                return false;
+            }
+
+            return sections.every(section => collapsedSectionIds.has(section.id));
+        }
+
+        function updateToggleAllSectionsButton() {
+            if (!toggleAllSectionsBtn) {
+                return;
+            }
+
+            const sections = state.document.sections || [];
+            toggleAllSectionsBtn.disabled = sections.length === 0;
+            toggleAllSectionsBtn.textContent = areAllSectionsCollapsed(sections)
+                ? 'Expand Sections'
+                : 'Collapse Sections';
+        }
+
+        function findOwningSectionId(nodeId) {
+            if (!Number.isFinite(Number(nodeId))) {
+                return null;
+            }
+
+            for (const section of state.document.sections || []) {
+                if (section.id === nodeId || isDescendantNode(section.children || [], nodeId)) {
+                    return section.id;
+                }
+            }
+
+            return null;
+        }
+
+        function reconcileLinkPickerCollapsedSections() {
+            const validSectionIds = new Set(
+                state.document.sections
+                    .map(section => Number(section.id))
+                    .filter(id => Number.isFinite(id)));
+
+            const next = new Set();
+            collapsedLinkPickerSectionIds.forEach(id => {
+                if (validSectionIds.has(id)) {
+                    next.add(id);
+                }
+            });
+
+            if (next.size !== collapsedLinkPickerSectionIds.size) {
+                collapsedLinkPickerSectionIds = next;
+                saveCollapsedIdSet(linkPickerCollapseStorageKey, collapsedLinkPickerSectionIds);
+            }
+        }
+
+        function isDescendantNode(nodes, targetId) {
+            if (!Number.isFinite(Number(targetId))) {
+                return false;
+            }
+
+            for (const node of nodes || []) {
+                if (node.id === targetId || isDescendantNode(node.children || [], targetId)) {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         function ensureContextNodeExists() {
@@ -379,17 +633,20 @@
             }
 
             const filter = (linkPickerSearchInput.value || '').trim().toLowerCase();
-            const flatNodes = flattenNodes(state.document.sections);
-            const candidates = flatNodes.filter(entry => isCandidateTarget(source.id, entry.node, filter));
-            if (!candidates.length) {
+            reconcileLinkPickerCollapsedSections();
+            const sections = state.document.sections || [];
+            const groups = sections
+                .map(section => buildLinkPickerSectionGroup(section, source.id, filter))
+                .filter(group => group != null);
+            if (!groups.length) {
                 linkPickerTree.textContent = 'No matching nodes available.';
                 return;
             }
 
-            const list = document.createElement('div');
-            list.className = 'list-group protocol-link-picker-list';
-            candidates.forEach(entry => list.appendChild(buildLinkTargetButton(entry)));
-            linkPickerTree.appendChild(list);
+            const container = document.createElement('div');
+            container.className = 'protocol-link-picker-sections';
+            groups.forEach(group => container.appendChild(group));
+            linkPickerTree.appendChild(container);
         }
 
         function getLinkPickerSourceNode() {
@@ -444,6 +701,72 @@
                 await selectLinkTarget(entry.node.id);
             });
             return button;
+        }
+
+        function buildLinkPickerSectionGroup(section, sourceId, filter) {
+            const entries = flattenNodes([section])
+                .filter(entry => isCandidateTarget(sourceId, entry.node, filter));
+            if (!entries.length) {
+                return null;
+            }
+
+            const canSelectSection = entries.some(entry => entry.node.id === section.id);
+            const childEntries = entries.filter(entry => entry.node.id !== section.id);
+            const isCollapsed = collapsedLinkPickerSectionIds.has(section.id);
+            const group = document.createElement('div');
+            group.className = 'list-group protocol-link-picker-list protocol-link-picker-section-group';
+            group.appendChild(buildLinkPickerSectionHeader(section, canSelectSection, isCollapsed));
+            if (!isCollapsed) {
+                childEntries.forEach(entry => group.appendChild(buildLinkTargetButton(entry)));
+            }
+
+            return group;
+        }
+
+        function buildLinkPickerSectionHeader(section, canSelectSection, isCollapsed) {
+            const header = document.createElement('div');
+            header.className = 'list-group-item protocol-link-picker-item protocol-link-picker-section-header';
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'protocol-link-picker-section-toggle';
+            toggle.setAttribute('aria-label', isCollapsed ? 'Expand section' : 'Collapse section');
+            toggle.textContent = isCollapsed ? '▸' : '▾';
+            toggle.addEventListener('click', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleLinkPickerSectionCollapsed(section.id);
+                renderLinkPickerTargets();
+            });
+            header.appendChild(toggle);
+
+            if (canSelectSection) {
+                const selectButton = document.createElement('button');
+                selectButton.type = 'button';
+                selectButton.className = 'protocol-link-picker-section-target';
+                selectButton.textContent = `#${section.id} ${section.text || '(empty)'}`;
+                selectButton.addEventListener('click', async () => {
+                    await selectLinkTarget(section.id);
+                });
+                header.appendChild(selectButton);
+                return header;
+            }
+
+            const label = document.createElement('span');
+            label.className = 'protocol-link-picker-section-label';
+            label.textContent = `#${section.id} ${section.text || '(empty)'}`;
+            header.appendChild(label);
+            return header;
+        }
+
+        function toggleLinkPickerSectionCollapsed(sectionId) {
+            if (collapsedLinkPickerSectionIds.has(sectionId)) {
+                collapsedLinkPickerSectionIds.delete(sectionId);
+            } else {
+                collapsedLinkPickerSectionIds.add(sectionId);
+            }
+
+            saveCollapsedIdSet(linkPickerCollapseStorageKey, collapsedLinkPickerSectionIds);
         }
 
         async function selectLinkTarget(targetNodeId) {
@@ -593,6 +916,10 @@
 
         function onDragStart(event, nodeId) {
             dragNodeId = nodeId;
+            const source = treeHost.querySelector(`.protocol-tree-node[data-node-id="${nodeId}"]`);
+            if (source) {
+                source.classList.add('is-dragging');
+            }
             event.dataTransfer.effectAllowed = 'move';
             event.dataTransfer.setData('text/plain', String(nodeId));
         }
@@ -733,8 +1060,8 @@
         }
 
         function clearDropIndicators() {
-            treeHost.querySelectorAll('.is-drop-target').forEach(element => {
-                element.classList.remove('is-drop-target');
+            treeHost.querySelectorAll('.is-drop-target, .is-dragging').forEach(element => {
+                element.classList.remove('is-drop-target', 'is-dragging');
             });
         }
 
@@ -757,11 +1084,21 @@
                 return;
             }
 
-            await postState('AddSection', { text });
-            const latest = state.document.sections[state.document.sections.length - 1];
-            if (latest) {
-                selectedNodeId = latest.id;
+            const sectionsBeforeAdd = state.document.sections || [];
+            const sectionIdsBeforeAdd = new Set(sectionsBeforeAdd.map(section => section.id));
+            const success = await postState('AddSection', { text }, { skipRender: true });
+            if (!success) {
+                return;
             }
+
+            const sectionsAfterAdd = state.document.sections || [];
+            const addedSection = sectionsAfterAdd.find(section => !sectionIdsBeforeAdd.has(section.id));
+            const sectionToSelect = addedSection || sectionsAfterAdd[sectionsAfterAdd.length - 1];
+            if (sectionToSelect) {
+                selectedNodeId = sectionToSelect.id;
+                queueScrollToNode(sectionToSelect.id);
+            }
+
             renderAll();
         }
 
@@ -866,7 +1203,7 @@
 
                 if (!response.ok) {
                     const errorPayload = await response.json().catch(() => null);
-                    setStatus(errorPayload?.error || 'Request failed: ImportXmlUpload');
+                    setStatus(errorPayload?.error || 'Request failed: Import Protocol');
                     return;
                 }
 
@@ -874,9 +1211,9 @@
                 state = next;
                 ensureSelection();
                 renderAll();
-                setStatus(`Imported XML and saved to ${next.savedPath || 'server storage'}`);
+                setStatus(`Imported protocol and saved to ${next.savedPath || 'server storage'}`);
             } catch (error) {
-                setStatus('Unable to reach server while importing XML.');
+                setStatus('Unable to reach server while importing protocol.');
             } finally {
                 importXmlFileInput.value = '';
             }
@@ -893,7 +1230,7 @@
 
                 if (!response.ok) {
                     const payload = await response.json().catch(() => null);
-                    setStatus(payload?.error || 'Request failed: SaveXml');
+                    setStatus(payload?.error || 'Request failed: Save Protocol');
                     return;
                 }
 
@@ -901,9 +1238,9 @@
                 state = payload;
                 ensureSelection();
                 renderAll();
-                setStatus(`Saved XML to ${payload.savedPath || 'configured path'}`);
+                setStatus(`Saved protocol to ${payload.savedPath || 'configured path'}`);
             } catch (error) {
-                setStatus('Unable to reach server while saving XML.');
+                setStatus('Unable to reach server while saving protocol.');
             }
         }
 
@@ -957,7 +1294,8 @@
             }
         }
 
-        async function postState(action, payload) {
+        async function postState(action, payload, options) {
+            const settings = options || {};
             try {
                 const response = await fetch(`/ProtocolEditor/${action}`, {
                     method: 'POST',
@@ -976,7 +1314,9 @@
 
                 state = await response.json();
                 ensureSelection();
-                renderAll();
+                if (!settings.skipRender) {
+                    renderAll();
+                }
                 return true;
             } catch (error) {
                 setStatus(`Unable to reach server while processing ${action}.`);

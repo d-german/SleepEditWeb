@@ -31,19 +31,19 @@
 
 <ul class="nav nav-tabs admin-tabs mb-3" id="adminTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="admin-medications-tab" data-bs-toggle="tab" data-bs-target="#admin-medications-pane" type="button" role="tab" aria-controls="admin-medications-pane" aria-selected="true">
-            <i class="bi bi-database me-1"></i>Medication Database
+        <button class="nav-link active" id="admin-protocol-tab" data-bs-toggle="tab" data-bs-target="#admin-protocol-pane" type="button" role="tab" aria-controls="admin-protocol-pane" aria-selected="true">
+            <i class="bi bi-diagram-3 me-1"></i>Protocol Editor
         </button>
     </li>
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="admin-protocol-tab" data-bs-toggle="tab" data-bs-target="#admin-protocol-pane" type="button" role="tab" aria-controls="admin-protocol-pane" aria-selected="false">
-            <i class="bi bi-diagram-3 me-1"></i>Protocol Editor
+        <button class="nav-link" id="admin-medications-tab" data-bs-toggle="tab" data-bs-target="#admin-medications-pane" type="button" role="tab" aria-controls="admin-medications-pane" aria-selected="false">
+            <i class="bi bi-database me-1"></i>Medication Database
         </button>
     </li>
 </ul>
 
 <div class="tab-content admin-tab-content" id="adminTabsContent">
-    <div class="tab-pane fade show active" id="admin-medications-pane" role="tabpanel" aria-labelledby="admin-medications-tab" tabindex="0">
+    <div class="tab-pane fade" id="admin-medications-pane" role="tabpanel" aria-labelledby="admin-medications-tab" tabindex="0">
         <div class="row g-4">
             <!-- Statistics Section -->
             <div class="col-12">
@@ -186,7 +186,7 @@
             </div>
         </div>
     </div>
-    <div class="tab-pane fade" id="admin-protocol-pane" role="tabpanel" aria-labelledby="admin-protocol-tab" tabindex="0">
+    <div class="tab-pane fade show active" id="admin-protocol-pane" role="tabpanel" aria-labelledby="admin-protocol-tab" tabindex="0">
         <div class="dashboard-card">
             <div class="dashboard-card-header">
                 <i class="bi bi-diagram-3"></i>
