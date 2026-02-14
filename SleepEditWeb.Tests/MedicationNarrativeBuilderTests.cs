@@ -1,4 +1,5 @@
 using SleepEditWeb.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SleepEditWeb.Tests;
 
@@ -10,7 +11,7 @@ public class MedicationNarrativeBuilderTests
     [SetUp]
     public void SetUp()
     {
-        _builder = new MedicationNarrativeBuilder();
+        _builder = new MedicationNarrativeBuilder(NullLogger<MedicationNarrativeBuilder>.Instance);
     }
 
     [Test]

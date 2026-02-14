@@ -16,10 +16,12 @@ public class AdminController : Controller
     private const string SecretKey = "medAdmin2025xK9!";
 
     private readonly IMedicationRepository _repository;
+    private readonly ILogger<AdminController> _logger;
 
-    public AdminController(IMedicationRepository repository)
+    public AdminController(IMedicationRepository repository, ILogger<AdminController> logger)
     {
         _repository = repository;
+        _logger = logger;
     }
 
     /// <summary>
@@ -39,8 +41,12 @@ public class AdminController : Controller
     public IActionResult Index(string secretKey)
     {
         if (!IsValidKey(secretKey))
+        {
+            _logger.LogWarning("Admin index denied due to invalid key.");
             return NotFound();
+        }
 
+        _logger.LogInformation("Admin index requested.");
         var stats = _repository.GetStats();
         ViewBag.SecretKey = secretKey;
         return View("Medications", stats);
@@ -54,8 +60,12 @@ public class AdminController : Controller
     public IActionResult Export(string secretKey)
     {
         if (!IsValidKey(secretKey))
+        {
+            _logger.LogWarning("Admin export denied due to invalid key.");
             return NotFound();
+        }
 
+        _logger.LogInformation("Admin export requested.");
         var backup = _repository.ExportAll();
         var json = JsonSerializer.Serialize(backup, new JsonSerializerOptions 
         { 
@@ -75,13 +85,19 @@ public class AdminController : Controller
     public async Task<IActionResult> Import(string secretKey, IFormFile file, string mode)
     {
         if (!IsValidKey(secretKey))
+        {
+            _logger.LogWarning("Admin import denied due to invalid key.");
             return NotFound();
+        }
 
         if (file == null || file.Length == 0)
         {
+            _logger.LogWarning("Admin import aborted because uploaded file was missing or empty.");
             TempData["Error"] = "Please select a backup file to import.";
             return RedirectToAction(nameof(Index), new { secretKey });
         }
+
+        _logger.LogInformation("Admin import requested. Mode: {Mode}, FileName: {FileName}, Size: {Size}", mode, file.FileName, file.Length);
 
         try
         {
@@ -94,6 +110,7 @@ public class AdminController : Controller
 
             if (backup?.Medications == null || backup.Medications.Count == 0)
             {
+                _logger.LogWarning("Admin import aborted because backup content was invalid or empty.");
                 TempData["Error"] = "Invalid backup file or empty medication list.";
                 return RedirectToAction(nameof(Index), new { secretKey });
             }
@@ -101,20 +118,24 @@ public class AdminController : Controller
             if (mode == "replace")
             {
                 _repository.ImportReplace(backup.Medications);
+                _logger.LogInformation("Admin import completed with replace mode. Count: {Count}", backup.Medications.Count);
                 TempData["Success"] = $"Database replaced with {backup.Medications.Count} medications from backup.";
             }
             else // merge
             {
                 _repository.ImportMerge(backup.Medications);
+                _logger.LogInformation("Admin import completed with merge mode. Count: {Count}", backup.Medications.Count);
                 TempData["Success"] = "Backup merged successfully. New medications added, existing preserved.";
             }
         }
-        catch (JsonException)
+        catch (JsonException ex)
         {
+            _logger.LogWarning(ex, "Admin import failed due to invalid JSON payload.");
             TempData["Error"] = "Invalid JSON format in backup file.";
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Admin import failed unexpectedly.");
             TempData["Error"] = $"Import failed: {ex.Message}";
         }
 
@@ -130,15 +151,21 @@ public class AdminController : Controller
     public IActionResult Reseed(string secretKey)
     {
         if (!IsValidKey(secretKey))
+        {
+            _logger.LogWarning("Admin reseed denied due to invalid key.");
             return NotFound();
+        }
 
+        _logger.LogInformation("Admin reseed requested.");
         try
         {
             _repository.Reseed();
+            _logger.LogInformation("Admin reseed completed successfully.");
             TempData["Success"] = "Database reseeded successfully from embedded resource.";
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Admin reseed failed.");
             TempData["Error"] = $"Reseed failed: {ex.Message}";
         }
 
@@ -154,15 +181,21 @@ public class AdminController : Controller
     public IActionResult ClearUserMeds(string secretKey)
     {
         if (!IsValidKey(secretKey))
+        {
+            _logger.LogWarning("Admin clear-user-meds denied due to invalid key.");
             return NotFound();
+        }
 
+        _logger.LogInformation("Admin clear-user-meds requested.");
         try
         {
             _repository.ClearUserMedications();
+            _logger.LogInformation("Admin clear-user-meds completed successfully.");
             TempData["Success"] = "All user-added medications have been cleared.";
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Admin clear-user-meds failed.");
             TempData["Error"] = $"Clear failed: {ex.Message}";
         }
 

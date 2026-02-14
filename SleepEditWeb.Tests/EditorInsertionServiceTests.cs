@@ -1,5 +1,6 @@
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SleepEditWeb.Tests;
 
@@ -11,7 +12,7 @@ public class EditorInsertionServiceTests
     [SetUp]
     public void SetUp()
     {
-        _service = new EditorInsertionService();
+        _service = new EditorInsertionService(NullLogger<EditorInsertionService>.Instance);
     }
 
     [Test]

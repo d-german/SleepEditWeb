@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
 using SleepEditWeb.Models;
 
 namespace SleepEditWeb.Services;
@@ -20,10 +21,17 @@ public sealed class ProtocolXmlService : IProtocolXmlService
     private const string LinkTextElement = "LinkText";
     private const string TextElement = "text";
     private const string SubTextElement = "SubText";
+    private readonly ILogger<ProtocolXmlService> _logger;
+
+    public ProtocolXmlService(ILogger<ProtocolXmlService> logger)
+    {
+        _logger = logger;
+    }
 
     public string Serialize(ProtocolDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
+        _logger.LogDebug("ProtocolXmlService.Serialize requested. SectionCount: {SectionCount}", document.Sections.Count);
 
         var root = new XElement(ProtocolElement);
         AddFields(root, document.Id, document.LinkId, document.LinkText, document.Text, []);
@@ -34,21 +42,26 @@ public sealed class ProtocolXmlService : IProtocolXmlService
         }
 
         var xmlDocument = new XDocument(new XDeclaration("1.0", "utf-8", null), root);
-        return xmlDocument.ToString();
+        var xml = xmlDocument.ToString();
+        _logger.LogDebug("ProtocolXmlService.Serialize completed. XmlLength: {Length}", xml.Length);
+        return xml;
     }
 
     public ProtocolDocument Deserialize(string xml)
     {
         if (string.IsNullOrWhiteSpace(xml))
         {
+            _logger.LogWarning("ProtocolXmlService.Deserialize rejected empty XML.");
             throw new ArgumentException("XML content is required.", nameof(xml));
         }
 
+        _logger.LogDebug("ProtocolXmlService.Deserialize requested. XmlLength: {Length}", xml.Length);
         var document = XDocument.Parse(xml);
         var root = document.Root;
 
         if (root == null || !root.Name.LocalName.Equals(ProtocolElement, StringComparison.Ordinal))
         {
+            _logger.LogWarning("ProtocolXmlService.Deserialize failed because root element was invalid.");
             throw new FormatException("XML root element must be Protocol.");
         }
 
@@ -57,7 +70,7 @@ public sealed class ProtocolXmlService : IProtocolXmlService
             .Select(section => ReadNode(section, ProtocolNodeKind.Section))
             .ToList();
 
-        return new ProtocolDocument
+        var result = new ProtocolDocument
         {
             Id = ReadInt(root, IdElement),
             LinkId = ReadInt(root, LinkIdElement),
@@ -65,6 +78,9 @@ public sealed class ProtocolXmlService : IProtocolXmlService
             Text = ReadString(root, TextElement),
             Sections = sections
         };
+
+        _logger.LogDebug("ProtocolXmlService.Deserialize completed. SectionCount: {SectionCount}", result.Sections.Count);
+        return result;
     }
 
     private static XElement WriteNode(ProtocolNodeModel node, bool isSection)

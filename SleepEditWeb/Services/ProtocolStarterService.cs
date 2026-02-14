@@ -28,15 +28,18 @@ public sealed class ProtocolStarterService : IProtocolStarterService
 
     public ProtocolDocument Create()
     {
+        _logger.LogInformation("Protocol starter create requested.");
         var configuredDocument = TryCreateFromConfiguredProtocolFile();
         if (configuredDocument != null)
         {
+            _logger.LogInformation("Protocol starter loaded document from configured path.");
             return configuredDocument;
         }
 
         var nextId = 1;
         var sections = BuildSections(ref nextId);
         WireReferenceLinks(sections);
+        _logger.LogInformation("Protocol starter created fallback document. SectionCount: {SectionCount}", sections.Count);
 
         return new ProtocolDocument
         {
@@ -61,6 +64,7 @@ public sealed class ProtocolStarterService : IProtocolStarterService
             try
             {
                 var xml = File.ReadAllText(protocolPath);
+                _logger.LogInformation("Protocol startup file loaded from path: {Path}", protocolPath);
                 return _xmlService.Deserialize(xml);
             }
             catch (Exception ex) when (
@@ -79,15 +83,24 @@ public sealed class ProtocolStarterService : IProtocolStarterService
 
     private IEnumerable<string> GetStartupCandidatePaths()
     {
-        if (!string.IsNullOrWhiteSpace(_startupOptions.DefaultProtocolPath))
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var candidates = new[]
         {
-            yield return _startupOptions.DefaultProtocolPath;
-        }
+            _startupOptions.DefaultProtocolPath,
+            _startupOptions.StartupProtocolPath,
+            _startupOptions.SaveProtocolPath,
+            Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml"),
+            Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "protocol.xml")
+        };
 
-        if (!string.IsNullOrWhiteSpace(_startupOptions.StartupProtocolPath) &&
-            !_startupOptions.StartupProtocolPath.Equals(_startupOptions.DefaultProtocolPath, StringComparison.OrdinalIgnoreCase))
+        foreach (var candidate in candidates)
         {
-            yield return _startupOptions.StartupProtocolPath;
+            if (string.IsNullOrWhiteSpace(candidate) || !seen.Add(candidate))
+            {
+                continue;
+            }
+
+            yield return candidate;
         }
     }
 

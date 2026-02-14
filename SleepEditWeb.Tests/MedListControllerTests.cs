@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SleepEditWeb.Controllers;
 using SleepEditWeb.Data;
@@ -28,7 +29,10 @@ public class MedListControllerTests
         var httpContext = new DefaultHttpContext();
         httpContext.Session = _mockSession.Object;
 
-        _controller = new MedListController(_mockRepo.Object, _mockDrugService.Object)
+        _controller = new MedListController(
+            _mockRepo.Object,
+            _mockDrugService.Object,
+            NullLogger<MedListController>.Instance)
         {
             ControllerContext = new ControllerContext
             {

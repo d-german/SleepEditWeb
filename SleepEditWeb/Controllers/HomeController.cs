@@ -15,17 +15,20 @@ public class HomeController : Controller
 
 	public IActionResult Index()
 	{
+		_logger.LogDebug("Home index requested.");
 		return View();
 	}
 
 	public IActionResult Privacy()
 	{
+		_logger.LogDebug("Home privacy page requested.");
 		return View();
 	}
 
 	[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
 	public IActionResult Error()
 	{
+		_logger.LogWarning("Home error page requested. TraceIdentifier: {TraceIdentifier}", HttpContext.TraceIdentifier);
 		return View(new ErrorViewModel
 		{
 			RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier

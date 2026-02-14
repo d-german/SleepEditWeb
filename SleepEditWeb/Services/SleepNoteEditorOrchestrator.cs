@@ -1,4 +1,5 @@
 using SleepEditWeb.Data;
+using Microsoft.Extensions.Logging;
 using SleepEditWeb.Models;
 
 namespace SleepEditWeb.Services;
@@ -40,21 +41,29 @@ public sealed class SleepNoteEditorOrchestrator : ISleepNoteEditorOrchestrator
     private readonly IMedicationNarrativeBuilder _narrativeBuilder;
     private readonly IEditorInsertionService _insertionService;
     private readonly ISleepNoteEditorSessionStore _sessionStore;
+    private readonly ILogger<SleepNoteEditorOrchestrator> _logger;
 
     public SleepNoteEditorOrchestrator(
         IMedicationRepository repository,
         IMedicationNarrativeBuilder narrativeBuilder,
         IEditorInsertionService insertionService,
-        ISleepNoteEditorSessionStore sessionStore)
+        ISleepNoteEditorSessionStore sessionStore,
+        ILogger<SleepNoteEditorOrchestrator> logger)
     {
         _repository = repository;
         _narrativeBuilder = narrativeBuilder;
         _insertionService = insertionService;
         _sessionStore = sessionStore;
+        _logger = logger;
     }
 
     public SleepNoteEditorCompletionResult Complete(SleepNoteEditorCompletionRequest request)
     {
+        _logger.LogInformation(
+            "SleepNoteEditorOrchestrator.Complete requested. SelectedCount: {Count}, Mode: {Mode}, CursorIndex: {CursorIndex}",
+            request.SelectedMedications.Count,
+            request.Mode,
+            request.CursorIndex);
         var knownMedicationNames = _repository
             .GetAllMedicationNames()
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -64,6 +73,10 @@ public sealed class SleepNoteEditorOrchestrator : ISleepNoteEditorOrchestrator
         var selected = BuildSelections(request.SelectedMedications, knownMedicationNames);
 
         PersistSnapshot(insertion.UpdatedContent, selected);
+        _logger.LogInformation(
+            "SleepNoteEditorOrchestrator.Complete completed. AppliedMode: {Mode}, UnknownCount: {UnknownCount}",
+            insertion.AppliedMode,
+            narrative.UnknownMedications.Count);
 
         return new SleepNoteEditorCompletionResult
         {

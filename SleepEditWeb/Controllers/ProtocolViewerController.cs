@@ -30,13 +30,16 @@ public sealed class ProtocolViewerController : Controller
 
     private readonly IProtocolStarterService _starterService;
     private readonly ProtocolEditorFeatureOptions _featureOptions;
+    private readonly ILogger<ProtocolViewerController> _logger;
 
     public ProtocolViewerController(
         IProtocolStarterService starterService,
-        IOptions<ProtocolEditorFeatureOptions> featureOptions)
+        IOptions<ProtocolEditorFeatureOptions> featureOptions,
+        ILogger<ProtocolViewerController> logger)
     {
         _starterService = starterService;
         _featureOptions = featureOptions.Value;
+        _logger = logger;
     }
 
     [HttpGet("")]
@@ -44,11 +47,14 @@ public sealed class ProtocolViewerController : Controller
     {
         if (!IsEnabled())
         {
+            _logger.LogWarning("ProtocolViewer index denied because feature is disabled.");
             return NotFound();
         }
 
+        _logger.LogInformation("ProtocolViewer index requested.");
         var initialDocument = _starterService.Create();
         var model = BuildViewModel(initialDocument, DateTime.UtcNow);
+        _logger.LogInformation("ProtocolViewer model created with {SectionCount} sections.", model.InitialDocument.Sections.Count);
         return View(model);
     }
 

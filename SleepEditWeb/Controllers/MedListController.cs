@@ -9,16 +9,22 @@ public class MedListController : Controller
 {
     private readonly IMedicationRepository _repository;
     private readonly IDrugInfoService _drugInfoService;
+    private readonly ILogger<MedListController> _logger;
 
-    public MedListController(IMedicationRepository repository, IDrugInfoService drugInfoService)
+    public MedListController(
+        IMedicationRepository repository,
+        IDrugInfoService drugInfoService,
+        ILogger<MedListController> logger)
     {
         _repository = repository;
         _drugInfoService = drugInfoService;
+        _logger = logger;
     }
 
     // GET
     public IActionResult Index()
     {
+        _logger.LogInformation("MedList index requested.");
         var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
         var selectedMedsList = selectedMeds != null
             ? selectedMeds.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToImmutableArray()
@@ -36,10 +42,12 @@ public class MedListController : Controller
     public IActionResult AddMedication([FromBody] MedRequest request)
     {
         var selectedMed = request?.SelectedMed;
+        _logger.LogInformation("AddMedication requested. RawInputPresent: {HasInput}", !string.IsNullOrWhiteSpace(selectedMed));
 
         // Trim and validate input
         if (string.IsNullOrWhiteSpace(selectedMed))
         {
+            _logger.LogWarning("AddMedication rejected because input was empty.");
             return Json(new { success = false, message = "Invalid input. Please try again.", selectedMeds = GetSelectedMedsFromSession() });
         }
 
@@ -54,6 +62,12 @@ public class MedListController : Controller
             (_, true) => PerformMasterListRemoval(cleanMed),
             _ => UpdateUserSessionList(selectedMed, cleanMed)
         };
+
+        _logger.LogInformation(
+            "AddMedication completed. Addition: {IsAddition}, Removal: {IsRemoval}, CleanNameLength: {Length}",
+            isAddition,
+            isRemoval,
+            cleanMed.Length);
 
         return Json(new
         {
@@ -115,9 +129,14 @@ public class MedListController : Controller
     public async Task<IActionResult> DrugInfo(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
+            _logger.LogWarning("DrugInfo rejected because drug name was empty.");
             return BadRequest(new { error = "Drug name is required" });
+        }
 
+        _logger.LogInformation("DrugInfo requested for name: {DrugName}", name);
         var info = await _drugInfoService.GetDrugInfoAsync(name);
+        _logger.LogInformation("DrugInfo completed for name: {DrugName}. Found: {Found}", name, info?.Found);
         return Json(info);
     }
 
@@ -125,6 +144,7 @@ public class MedListController : Controller
     [HttpGet]
     public IActionResult DiagnosticInfo()
     {
+        _logger.LogInformation("DiagnosticInfo requested.");
         var stats = _repository.GetStats();
 
         var info = new

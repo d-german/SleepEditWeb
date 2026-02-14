@@ -1,4 +1,5 @@
 using Moq;
+using Microsoft.Extensions.Logging.Abstractions;
 using SleepEditWeb.Data;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
@@ -26,7 +27,8 @@ public class SleepNoteEditorOrchestratorTests
             _repository.Object,
             _narrativeBuilder.Object,
             _insertionService.Object,
-            _sessionStore.Object);
+            _sessionStore.Object,
+            NullLogger<SleepNoteEditorOrchestrator>.Instance);
     }
 
     [Test]

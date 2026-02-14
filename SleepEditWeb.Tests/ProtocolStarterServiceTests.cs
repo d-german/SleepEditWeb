@@ -32,7 +32,7 @@ public class ProtocolStarterServiceTests
         try
         {
             var service = new ProtocolStarterService(
-                new ProtocolXmlService(),
+                new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
                 Options.Create(new ProtocolEditorStartupOptions { StartupProtocolPath = tempPath }),
                 NullLogger<ProtocolStarterService>.Instance);
 
@@ -59,7 +59,7 @@ public class ProtocolStarterServiceTests
         // Arrange
         var missingPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.xml");
         var service = new ProtocolStarterService(
-            new ProtocolXmlService(),
+            new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
             Options.Create(new ProtocolEditorStartupOptions { StartupProtocolPath = missingPath }),
             NullLogger<ProtocolStarterService>.Instance);
 
@@ -113,7 +113,7 @@ public class ProtocolStarterServiceTests
         try
         {
             var service = new ProtocolStarterService(
-                new ProtocolXmlService(),
+                new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
                 Options.Create(new ProtocolEditorStartupOptions
                 {
                     DefaultProtocolPath = defaultPath,

@@ -47,7 +47,12 @@ public sealed class OpenFdaDrugInfoService : IDrugInfoService
     public async Task<DrugInfo?> GetDrugInfoAsync(string drugName)
     {
         if (string.IsNullOrWhiteSpace(drugName))
+        {
+            _logger.LogWarning("Drug info lookup rejected because drug name was empty.");
             return null;
+        }
+
+        _logger.LogInformation("Drug info lookup requested for {DrugName}", drugName);
 
         try
         {
@@ -56,8 +61,12 @@ public sealed class OpenFdaDrugInfoService : IDrugInfoService
                          ?? await SearchByGenericNameAsync(drugName);
 
             if (result != null)
+            {
+                _logger.LogInformation("Drug info lookup completed successfully for {DrugName}", drugName);
                 return result;
+            }
 
+            _logger.LogInformation("Drug info lookup completed with no FDA label match for {DrugName}", drugName);
             return new DrugInfo
             {
                 Name = drugName,
@@ -106,7 +115,10 @@ public sealed class OpenFdaDrugInfoService : IDrugInfoService
         var response = await _httpClient.GetAsync(url);
         
         if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogDebug("OpenFDA request returned non-success status {StatusCode} for {DrugName}", response.StatusCode, drugName);
             return null;
+        }
 
         var json = await response.Content.ReadAsStringAsync();
         var fdaResponse = JsonSerializer.Deserialize<OpenFdaResponse>(json);

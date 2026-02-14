@@ -1,4 +1,5 @@
 using SleepEditWeb.Models;
+using Microsoft.Extensions.Logging;
 
 namespace SleepEditWeb.Services;
 
@@ -10,18 +11,33 @@ public interface IEditorInsertionService
 public sealed class EditorInsertionService : IEditorInsertionService
 {
     private const string MedicationsHeading = "Medications:";
+    private readonly ILogger<EditorInsertionService> _logger;
+
+    public EditorInsertionService(ILogger<EditorInsertionService> logger)
+    {
+        _logger = logger;
+    }
 
     public EditorInsertionResult Apply(string content, string narrative, EditorInsertionMode mode, int cursorIndex)
     {
         var safeContent = content ?? string.Empty;
         var safeNarrative = narrative?.Trim() ?? string.Empty;
+        _logger.LogDebug(
+            "Editor insertion requested. Mode: {Mode}, ContentLength: {ContentLength}, NarrativeLength: {NarrativeLength}, CursorIndex: {CursorIndex}",
+            mode,
+            safeContent.Length,
+            safeNarrative.Length,
+            cursorIndex);
 
-        return mode switch
+        var result = mode switch
         {
             EditorInsertionMode.InsertAtCursor => InsertAtCursor(safeContent, safeNarrative, cursorIndex),
             EditorInsertionMode.ReplaceMedicationSection => ReplaceMedicationSection(safeContent, safeNarrative),
             _ => CopyToClipboard(safeContent, safeNarrative)
         };
+
+        _logger.LogDebug("Editor insertion completed. AppliedMode: {Mode}", result.AppliedMode);
+        return result;
     }
 
     private static EditorInsertionResult InsertAtCursor(string content, string narrative, int cursorIndex)

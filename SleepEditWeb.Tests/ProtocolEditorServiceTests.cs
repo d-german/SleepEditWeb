@@ -15,10 +15,13 @@ public class ProtocolEditorServiceTests
     public void SetUp()
     {
         _sessionStore = new InMemoryProtocolEditorSessionStore(new ProtocolStarterService(
-            new ProtocolXmlService(),
+            new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
             Options.Create(new ProtocolEditorStartupOptions()),
             NullLogger<ProtocolStarterService>.Instance));
-        _service = new ProtocolEditorService(_sessionStore, new ProtocolXmlService());
+        _service = new ProtocolEditorService(
+            _sessionStore,
+            new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
+            NullLogger<ProtocolEditorService>.Instance);
     }
 
     [Test]

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 using SleepEditWeb.Models;
 
 namespace SleepEditWeb.Services;
@@ -36,22 +37,27 @@ public sealed class ProtocolEditorService : IProtocolEditorService
 {
     private readonly IProtocolEditorSessionStore _sessionStore;
     private readonly IProtocolXmlService _xmlService;
+    private readonly ILogger<ProtocolEditorService> _logger;
 
     public ProtocolEditorService(
         IProtocolEditorSessionStore sessionStore,
-        IProtocolXmlService xmlService)
+        IProtocolXmlService xmlService,
+        ILogger<ProtocolEditorService> logger)
     {
         _sessionStore = sessionStore;
         _xmlService = xmlService;
+        _logger = logger;
     }
 
     public ProtocolEditorSnapshot Load()
     {
+        _logger.LogDebug("ProtocolEditorService.Load requested.");
         return _sessionStore.Load();
     }
 
     public ProtocolEditorSnapshot AddSection(string text)
     {
+        _logger.LogInformation("ProtocolEditorService.AddSection requested. TextLength: {Length}", text.Length);
         return ApplyMutation(document =>
         {
             document.Sections.Add(CreateNode(document, text, ProtocolNodeKind.Section));
@@ -60,6 +66,7 @@ public sealed class ProtocolEditorService : IProtocolEditorService
 
     public ProtocolEditorSnapshot AddChild(int parentId, string text)
     {
+        _logger.LogInformation("ProtocolEditorService.AddChild requested. ParentId: {ParentId}, TextLength: {Length}", parentId, text.Length);
         return ApplyMutation(document =>
         {
             var parent = FindNode(document.Sections, parentId);
@@ -74,6 +81,7 @@ public sealed class ProtocolEditorService : IProtocolEditorService
 
     public ProtocolEditorSnapshot RemoveNode(int nodeId)
     {
+        _logger.LogInformation("ProtocolEditorService.RemoveNode requested. NodeId: {NodeId}", nodeId);
         return ApplyMutation(document =>
         {
             if (!TryDetachNode(document, nodeId, out var removed))
@@ -87,6 +95,7 @@ public sealed class ProtocolEditorService : IProtocolEditorService
 
     public ProtocolEditorSnapshot UpdateNode(int nodeId, string text, int linkId, string linkText)
     {
+        _logger.LogInformation("ProtocolEditorService.UpdateNode requested. NodeId: {NodeId}, LinkId: {LinkId}, TextLength: {Length}", nodeId, linkId, text.Length);
         return ApplyMutation(document =>
         {
             var node = FindNode(document.Sections, nodeId);
@@ -103,6 +112,11 @@ public sealed class ProtocolEditorService : IProtocolEditorService
 
     public ProtocolEditorSnapshot MoveNode(int nodeId, int parentId, int targetIndex)
     {
+        _logger.LogInformation(
+            "ProtocolEditorService.MoveNode requested. NodeId: {NodeId}, ParentId: {ParentId}, TargetIndex: {TargetIndex}",
+            nodeId,
+            parentId,
+            targetIndex);
         return ApplyMutation(document =>
         {
             var moving = FindNode(document.Sections, nodeId);
@@ -130,6 +144,7 @@ public sealed class ProtocolEditorService : IProtocolEditorService
 
     public ProtocolEditorSnapshot AddSubText(int nodeId, string value)
     {
+        _logger.LogInformation("ProtocolEditorService.AddSubText requested. NodeId: {NodeId}, ValueLength: {Length}", nodeId, value.Length);
         return ApplyMutation(document =>
         {
             var node = FindNode(document.Sections, nodeId);
@@ -144,6 +159,7 @@ public sealed class ProtocolEditorService : IProtocolEditorService
 
     public ProtocolEditorSnapshot RemoveSubText(int nodeId, string value)
     {
+        _logger.LogInformation("ProtocolEditorService.RemoveSubText requested. NodeId: {NodeId}, ValueLength: {Length}", nodeId, value.Length);
         return ApplyMutation(document =>
         {
             var node = FindNode(document.Sections, nodeId);
@@ -162,9 +178,11 @@ public sealed class ProtocolEditorService : IProtocolEditorService
 
     public ProtocolEditorSnapshot Undo()
     {
+        _logger.LogInformation("ProtocolEditorService.Undo requested.");
         var snapshot = _sessionStore.Load();
         if (snapshot.UndoHistory.Count == 0)
         {
+            _logger.LogDebug("ProtocolEditorService.Undo skipped because undo history was empty.");
             return snapshot;
         }
 
@@ -184,14 +202,17 @@ public sealed class ProtocolEditorService : IProtocolEditorService
         };
 
         _sessionStore.Save(next);
+        _logger.LogInformation("ProtocolEditorService.Undo completed.");
         return next;
     }
 
     public ProtocolEditorSnapshot Redo()
     {
+        _logger.LogInformation("ProtocolEditorService.Redo requested.");
         var snapshot = _sessionStore.Load();
         if (snapshot.RedoHistory.Count == 0)
         {
+            _logger.LogDebug("ProtocolEditorService.Redo skipped because redo history was empty.");
             return snapshot;
         }
 
@@ -211,17 +232,21 @@ public sealed class ProtocolEditorService : IProtocolEditorService
         };
 
         _sessionStore.Save(next);
+        _logger.LogInformation("ProtocolEditorService.Redo completed.");
         return next;
     }
 
     public ProtocolEditorSnapshot Reset()
     {
+        _logger.LogInformation("ProtocolEditorService.Reset requested.");
         _sessionStore.Reset();
+        _logger.LogInformation("ProtocolEditorService.Reset completed.");
         return _sessionStore.Load();
     }
 
     public ProtocolEditorSnapshot ImportXml(string xml)
     {
+        _logger.LogInformation("ProtocolEditorService.ImportXml requested. XmlLength: {Length}", xml.Length);
         var document = _xmlService.Deserialize(xml);
         var next = new ProtocolEditorSnapshot
         {
@@ -232,13 +257,17 @@ public sealed class ProtocolEditorService : IProtocolEditorService
         };
 
         _sessionStore.Save(next);
+        _logger.LogInformation("ProtocolEditorService.ImportXml completed successfully.");
         return next;
     }
 
     public string ExportXml()
     {
+        _logger.LogInformation("ProtocolEditorService.ExportXml requested.");
         var snapshot = _sessionStore.Load();
-        return _xmlService.Serialize(snapshot.Document);
+        var xml = _xmlService.Serialize(snapshot.Document);
+        _logger.LogInformation("ProtocolEditorService.ExportXml completed. XmlLength: {Length}", xml.Length);
+        return xml;
     }
 
     private ProtocolEditorSnapshot ApplyMutation(Action<ProtocolDocument> mutation)
@@ -265,6 +294,10 @@ public sealed class ProtocolEditorService : IProtocolEditorService
         };
 
         _sessionStore.Save(next);
+        _logger.LogDebug(
+            "ProtocolEditorService mutation saved. UndoCount: {UndoCount}, RedoCount: {RedoCount}",
+            next.UndoHistory.Count,
+            next.RedoHistory.Count);
         return next;
     }
 

@@ -1,61 +1,35 @@
-# Protocol Editor Next Session Handoff (2026-02-14)
+## Latest Completed Work (2026-02-14)
 
-## Why this memory
-User asked to preserve a concrete implementation plan for legacy-style node link selection due low remaining context.
+### Task Manager status
+- Completed `db3b3319-6f42-47c3-858c-0dd24684d4d4` (test coverage for logging-critical error/fallback paths).
+- Completed `572d43cc-6204-44db-8e4f-006925843eb8` (deployment/logging/config verification runbook).
+- Current queue: no pending and no in_progress tasks.
 
-## Current implemented state (already done)
-- Sleep Note Editor restored as default landing route.
-- Protocol Editor moved to secondary nav position.
-- Protocol Editor supports:
-  - Export XML
-  - Save XML to server path
-  - Import XML from server path
-  - Import XML from local browser file upload (`ImportXmlUpload` endpoint)
-  - Set current loaded protocol as default (`SetDefaultProtocol` endpoint/button)
-- Startup load now prefers `DefaultProtocolPath` then `StartupProtocolPath`.
-- Config keys under `ProtocolEditor`:
-  - `DefaultProtocolPath`
-  - `StartupProtocolPath`
-  - `SaveProtocolPath`
-- Tests passing after latest changes.
+### New/updated tests
+File: `SleepEditWeb.Tests/ProtocolEditorControllerTests.cs`
+Added tests:
+- `SaveXml_WhenExportFails_ReturnsServerErrorPayload`
+- `SetDefaultProtocol_WhenExportFails_ReturnsServerErrorPayload`
+- `ImportXml_WhenServiceThrowsFormatException_ReturnsBadRequestInvalidFormat`
+- `ImportXmlUpload_WhenFileTooLarge_ReturnsBadRequest`
+Existing fallback tests for empty configured paths remain in place.
 
-## Requested next enhancement (legacy parity)
-Implement right-click node context menu + link-node chooser modal like WinForms:
-- Right-click tree node opens context menu.
-- Menu includes `Select Link...`.
-- Selecting it opens modal tree picker of all nodes.
-- User chooses target node and app sets source node `LinkId` + `LinkText` automatically.
+### Documentation added
+File: `docs/protocol-editor-deployment-runbook.md`
+Includes:
+- Exact config keys and env var names for ProtocolEditor paths/feature flags
+- Example production values for appsettings/env vars
+- Save/default/startup path resolution order
+- Filesystem permissions and persistence assumptions
+- Multi-instance caveats (shared storage requirement)
+- Endpoint troubleshooting matrix (400/500 causes + checks)
+- Post-deploy smoke tests
+- Hosting-platform log verification checklist with expected log message patterns
 
-## Proposed implementation details
-1. Add custom context menu in Protocol Editor tree UI.
-   - Trigger on node `contextmenu` event.
-   - Keep existing left-click selection behavior.
-2. Add Bootstrap modal "Select Link node".
-   - Render hierarchical node tree with search/filter.
-   - Show node text and ID.
-3. Add client methods (small, low complexity):
-   - `openNodeMenu(nodeId, x, y)`
-   - `openLinkPicker(sourceNodeId)`
-   - `selectLinkTarget(targetNodeId)`
-   - `clearNodeLink(sourceNodeId)`
-4. Reuse existing backend endpoint:
-   - Use `UpdateNode` POST (no new domain action required) to set `linkId/linkText`.
-5. Optional validation guard:
-   - Disallow self-link and optionally descendant-link targets in UI.
-6. Keep manual Link Id/Text fields as fallback for admin power users.
+### Validation
+- `dotnet test SleepEditWeb.sln` passed.
+- Test totals after additions: 48 passed, 0 failed.
 
-## SOLID / quality guardrails for implementation
-- Keep JS functions narrowly scoped (single responsibility).
-- Avoid large condition-heavy handlers; extract helpers to keep cyclomatic complexity around 5 or less.
-- Reuse existing server operations instead of adding redundant endpoints.
-- Add or update tests where practical for link assignment behavior.
-
-## Suggested first coding steps next session
-1. Add modal markup + hidden context menu markup in `Views/ProtocolEditor/Index.cshtml`.
-2. Add tree right-click wiring and menu positioning logic.
-3. Add modal tree builder and target selection logic.
-4. Route selection through existing `UpdateNode` flow.
-5. Validate with `dotnet test SleepEditWeb.sln`.
-
-## User intent reminder
-This feature is for convenience parity with the legacy protocol editor workflow and should feel fast and direct for technicians.
+### Important context carried forward
+- Production save/default issues were addressed earlier via deterministic fallback paths and aligned startup candidate paths.
+- Logging instrumentation and policy docs are already in place across controllers/services.

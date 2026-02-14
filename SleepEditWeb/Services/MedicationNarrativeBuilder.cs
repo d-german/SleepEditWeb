@@ -1,4 +1,5 @@
 using SleepEditWeb.Models;
+using Microsoft.Extensions.Logging;
 
 namespace SleepEditWeb.Services;
 
@@ -10,10 +11,17 @@ public interface IMedicationNarrativeBuilder
 public sealed class MedicationNarrativeBuilder : IMedicationNarrativeBuilder
 {
     private const string UnknownMarker = "[UNKNOWN MEDICATION]";
+    private readonly ILogger<MedicationNarrativeBuilder> _logger;
+
+    public MedicationNarrativeBuilder(ILogger<MedicationNarrativeBuilder> logger)
+    {
+        _logger = logger;
+    }
 
     public MedicationNarrative Build(IReadOnlyCollection<string> selectedMedicationNames, IReadOnlySet<string> knownMedicationNames)
     {
         var normalized = Normalize(selectedMedicationNames);
+        _logger.LogDebug("Medication narrative build requested. NormalizedSelectionCount: {Count}", normalized.Count);
         if (normalized.Count == 0)
         {
             return new MedicationNarrative
@@ -25,6 +33,7 @@ public sealed class MedicationNarrativeBuilder : IMedicationNarrativeBuilder
 
         var rendered = normalized.Select(name => Render(name, knownMedicationNames)).ToList();
         var unknowns = normalized.Where(name => !knownMedicationNames.Contains(name)).ToList();
+        _logger.LogDebug("Medication narrative build completed. UnknownCount: {UnknownCount}", unknowns.Count);
 
         return new MedicationNarrative
         {
