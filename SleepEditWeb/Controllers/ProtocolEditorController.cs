@@ -507,7 +507,7 @@ public sealed class ProtocolEditorController : Controller
             return _startupOptions.DefaultProtocolPath;
         }
 
-        return Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "protocol.xml");
+        return Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
     }
 
     private string ResolveDefaultPath()

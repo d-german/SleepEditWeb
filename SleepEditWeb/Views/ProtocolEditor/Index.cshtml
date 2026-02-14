@@ -952,7 +952,8 @@
             });
 
             if (!response.ok) {
-                setStatus(`Request failed: ${action}`);
+                const payload = await response.json().catch(() => null);
+                setStatus(payload?.error || `Request failed: ${action}`);
                 return false;
             }
 
