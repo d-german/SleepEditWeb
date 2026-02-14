@@ -823,7 +823,11 @@ textarea.form-control[readonly] {
 
 .protocol-tree-host {
     max-height: 680px;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0.25rem;
+    padding-bottom: 1rem;
+    scrollbar-gutter: stable;
 }
 
 .protocol-tree-root,
@@ -842,6 +846,7 @@ textarea.form-control[readonly] {
     display: flex;
     align-items: stretch;
     gap: 0.3rem;
+    min-width: 0;
 }
 
 .protocol-tree-toggle {
@@ -868,6 +873,7 @@ textarea.form-control[readonly] {
 .protocol-tree-node {
     width: auto;
     flex: 1 1 auto;
+    min-width: 0;
     border: 1px solid var(--input-border);
     background: var(--input-bg);
     color: var(--input-text);

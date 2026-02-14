@@ -429,6 +429,11 @@
         function toggleSectionCollapsed(sectionId) {
             if (collapsedSectionIds.has(sectionId)) {
                 collapsedSectionIds.delete(sectionId);
+                const section = findNodeById(state.document.sections, sectionId);
+                const firstChild = section && section.children && section.children.length ? section.children[0] : null;
+                if (firstChild) {
+                    queueScrollToNode(firstChild.id);
+                }
                 saveCollapsedIdSet(collapseStorageKey, collapsedSectionIds);
                 return;
             }
