@@ -409,7 +409,7 @@ body {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     max-height: 300px;
     overflow-y: auto;
-    z-index: 1050 !important;
+    z-index: 2000 !important;
 }
 
 .ui-menu-item {
@@ -513,6 +513,33 @@ body {
 textarea.form-control[readonly] {
     background-color: var(--input-bg);
     opacity: 0.8;
+}
+
+.protocol-editor-shell input.form-control[readonly],
+.protocol-editor-shell textarea.form-control[readonly] {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--input-text);
+    opacity: 1;
+}
+
+.protocol-editor-shell .form-control:disabled,
+.protocol-editor-shell .form-select:disabled {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--input-text);
+    opacity: 1;
+}
+
+.protocol-editor-shell .form-select {
+    background-color: var(--input-bg);
+    border-color: var(--input-border);
+    color: var(--input-text);
+}
+
+.protocol-editor-shell .form-select option {
+    background-color: var(--input-bg);
+    color: var(--input-text);
 }
 
 /* ==========================================
@@ -678,4 +705,81 @@ textarea.form-control[readonly] {
 
 [data-theme="dark"] .drug-info h6.text-info {
     color: #22d3ee !important;
+}
+
+/* ==========================================
+   Sleep Note Editor
+   ========================================== */
+.editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.sleep-note-editor {
+    min-height: 420px;
+    border: 1px solid var(--input-border);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    white-space: pre-wrap;
+    overflow-y: auto;
+    line-height: 1.5;
+}
+
+.sleep-note-editor:focus {
+    outline: none;
+    border-color: var(--btn-primary-bg);
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25);
+}
+
+/* ==========================================
+   Protocol Editor
+   ========================================== */
+.protocol-editor-shell .dashboard-card {
+    min-height: 220px;
+}
+
+.protocol-tree-host {
+    max-height: 680px;
+    overflow: auto;
+}
+
+.protocol-tree-root,
+.protocol-tree-children {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.protocol-tree-item {
+    margin: 0;
+    padding: 0;
+}
+
+.protocol-tree-node {
+    width: 100%;
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+    color: var(--input-text);
+    text-align: left;
+    border-radius: 0.35rem;
+    margin: 0.18rem 0;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.9rem;
+}
+
+.protocol-tree-node:hover {
+    border-color: var(--btn-primary-bg);
+}
+
+.protocol-tree-node.is-selected {
+    border-color: #22d3ee;
+    background: rgba(34, 211, 238, 0.15);
+}
+
+.protocol-tree-node.is-drop-target {
+    border-color: #4ade80;
+    background: rgba(74, 222, 128, 0.16);
 }

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -78,11 +79,11 @@ public class MedListControllerTests
         // Assert
         Assert.That(result, Is.Not.Null);
         Assert.That(result.Model, Is.EqualTo(medNames));
-        var selectedMeds = _controller.ViewBag.SelectedMeds as List<string>;
-        Assert.That(selectedMeds, Is.Not.Null);
-        Assert.That(selectedMeds.Count, Is.EqualTo(2));
-        Assert.That(selectedMeds, Contains.Item("Med1"));
-        Assert.That(selectedMeds, Contains.Item("Med2"));
+        var selectedMeds = _controller.ViewBag.SelectedMeds as ImmutableArray<string>?;
+        Assert.That(selectedMeds.HasValue, Is.True);
+        Assert.That(selectedMeds.Value.Length, Is.EqualTo(2));
+        Assert.That(selectedMeds.Value, Contains.Item("Med1"));
+        Assert.That(selectedMeds.Value, Contains.Item("Med2"));
     }
 
     private object? GetPropertyValue(object? obj, string propertyName)

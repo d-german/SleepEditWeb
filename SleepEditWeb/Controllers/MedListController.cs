@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using SleepEditWeb.Data;
 using SleepEditWeb.Services;
 
+using System.Collections.Immutable;
 namespace SleepEditWeb.Controllers;
 
 public class MedListController : Controller
@@ -19,10 +20,13 @@ public class MedListController : Controller
     public IActionResult Index()
     {
         var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
-        var selectedMedsList = selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
+        var selectedMedsList = selectedMeds != null
+            ? selectedMeds.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToImmutableArray()
+            : ImmutableArray<string>.Empty;
+
         ViewBag.SelectedMeds = selectedMedsList;
 
-        var medList = _repository.GetAllMedicationNames().ToList();
+        var medList = _repository.GetAllMedicationNames().ToImmutableArray();
         return View(medList);
     }
 

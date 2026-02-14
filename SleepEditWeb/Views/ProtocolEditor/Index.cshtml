@@ -1,0 +1,630 @@
+@using SleepEditWeb.Models
+@model ProtocolEditorViewModel
+@{
+    ViewData["Title"] = "Protocol Editor";
+}
+
+@Html.AntiForgeryToken()
+
+<div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div>
+        <h1 class="page-title">Protocol Editor</h1>
+        <p class="page-subtitle">Build, organize, and export protocol statements.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <button type="button" id="addSectionBtn" class="btn btn-outline-primary">Add Section</button>
+        <button type="button" id="addChildBtn" class="btn btn-outline-primary">Add Child</button>
+        <button type="button" id="removeNodeBtn" class="btn btn-outline-danger">Remove</button>
+        <button type="button" id="undoBtn" class="btn btn-outline-secondary">Undo</button>
+        <button type="button" id="redoBtn" class="btn btn-outline-secondary">Redo</button>
+        <button type="button" id="resetBtn" class="btn btn-outline-secondary">Reset</button>
+        <button type="button" id="saveXmlBtn" class="btn btn-outline-primary">Save XML</button>
+        <button type="button" id="exportXmlBtn" class="btn btn-primary">Export XML</button>
+    </div>
+</div>
+
+<div class="row g-3 protocol-editor-shell">
+    <div class="col-12 col-xl-4">
+        <div class="dashboard-card h-100">
+            <div class="dashboard-card-header">
+                <i class="bi bi-diagram-3 me-2"></i>Protocol Tree
+            </div>
+            <div class="dashboard-card-body">
+                <div id="protocolTree" class="protocol-tree-host"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-xl-8">
+        <div class="dashboard-card">
+            <div class="dashboard-card-header">
+                <i class="bi bi-file-earmark-text me-2"></i>Statement Info
+            </div>
+            <div class="dashboard-card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="nodeTextInput" class="form-label">Statement Text</label>
+                        <textarea id="nodeTextInput" class="form-control" rows="5"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-card mt-3">
+            <div class="dashboard-card-header">
+                <i class="bi bi-list-check me-2"></i>SubText Info
+            </div>
+            <div class="dashboard-card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-7">
+                        <label for="subTextList" class="form-label">SubText</label>
+                        <select id="subTextList" class="form-select" size="5"></select>
+                    </div>
+                    <div class="col-12 col-lg-5">
+                        <label for="subTextInput" class="form-label">New Item</label>
+                        <input id="subTextInput" type="text" class="form-control mb-2" />
+                        <div class="d-flex gap-2">
+                            <button type="button" id="addSubTextBtn" class="btn btn-outline-primary btn-sm">Add Item</button>
+                            <button type="button" id="removeSubTextBtn" class="btn btn-outline-danger btn-sm">Remove Item</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-card mt-3">
+            <div class="dashboard-card-header">
+                <i class="bi bi-link-45deg me-2"></i>Link Info
+            </div>
+            <div class="dashboard-card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label">Statement Id</label>
+                        <input id="statementIdInput" type="text" class="form-control" readonly />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="linkIdInput" class="form-label">Link Id</label>
+                        <input id="linkIdInput" type="number" class="form-control" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label for="linkTextInput" class="form-label">Link Text</label>
+                        <input id="linkTextInput" type="text" class="form-control" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="protocolEditorStatus" class="small text-muted mt-3">Ready</div>
+
+@section Scripts {
+<script>
+    (function () {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        const statusEl = document.getElementById('protocolEditorStatus');
+        const treeHost = document.getElementById('protocolTree');
+        const nodeTextInput = document.getElementById('nodeTextInput');
+        const statementIdInput = document.getElementById('statementIdInput');
+        const linkIdInput = document.getElementById('linkIdInput');
+        const linkTextInput = document.getElementById('linkTextInput');
+        const subTextInput = document.getElementById('subTextInput');
+        const subTextList = document.getElementById('subTextList');
+
+        let state = {
+            document: @Html.Raw(Json.Serialize(Model.InitialDocument)),
+            undoCount: 0,
+            redoCount: 0,
+            lastUpdatedUtc: null
+        };
+        let selectedNodeId = null;
+        let dragNodeId = null;
+
+        document.getElementById('addSectionBtn').addEventListener('click', onAddSection);
+        document.getElementById('addChildBtn').addEventListener('click', onAddChild);
+        document.getElementById('removeNodeBtn').addEventListener('click', onRemoveNode);
+        document.getElementById('undoBtn').addEventListener('click', () => postState('Undo', {}));
+        document.getElementById('redoBtn').addEventListener('click', () => postState('Redo', {}));
+        document.getElementById('resetBtn').addEventListener('click', onReset);
+        document.getElementById('saveXmlBtn').addEventListener('click', onSaveXml);
+        document.getElementById('exportXmlBtn').addEventListener('click', onExportXml);
+        document.getElementById('addSubTextBtn').addEventListener('click', onAddSubText);
+        document.getElementById('removeSubTextBtn').addEventListener('click', onRemoveSubText);
+
+        nodeTextInput.addEventListener('blur', commitNodeUpdate);
+        linkIdInput.addEventListener('blur', commitNodeUpdate);
+        linkTextInput.addEventListener('blur', commitNodeUpdate);
+        document.addEventListener('keydown', onKeydown);
+
+        initialize();
+
+        async function initialize() {
+            await refreshState();
+            renderAll();
+        }
+
+        async function refreshState() {
+            const response = await fetch('@Url.Action("State", "ProtocolEditor")');
+            if (!response.ok) {
+                setStatus('Unable to load protocol state.');
+                return;
+            }
+
+            state = await response.json();
+            ensureSelection();
+        }
+
+        function ensureSelection() {
+            if (selectedNodeId == null) {
+                selectedNodeId = state.document.sections.length ? state.document.sections[0].id : null;
+                return;
+            }
+
+            if (!findNodeById(state.document.sections, selectedNodeId)) {
+                selectedNodeId = state.document.sections.length ? state.document.sections[0].id : null;
+            }
+        }
+
+        function renderAll() {
+            renderTree();
+            renderDetails();
+            setStatus(`Undo: ${state.undoCount} | Redo: ${state.redoCount}`);
+        }
+
+        function renderTree() {
+            treeHost.innerHTML = '';
+
+            const root = document.createElement('ul');
+            root.className = 'protocol-tree-root';
+
+            state.document.sections.forEach(section => {
+                root.appendChild(buildNode(section, 0));
+            });
+
+            treeHost.appendChild(root);
+            attachRootDropZone(root);
+        }
+
+        function buildNode(node, depth) {
+            const item = document.createElement('li');
+            item.className = 'protocol-tree-item';
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `protocol-tree-node ${selectedNodeId === node.id ? 'is-selected' : ''}`;
+            button.textContent = node.text || '(empty)';
+            button.style.paddingLeft = `${10 + depth * 14}px`;
+            button.draggable = true;
+            button.addEventListener('click', () => {
+                selectedNodeId = node.id;
+                renderAll();
+            });
+            button.addEventListener('dragstart', event => onDragStart(event, node.id));
+            button.addEventListener('dragover', onDragOver);
+            button.addEventListener('dragenter', event => onDragEnter(event, button));
+            button.addEventListener('dragleave', event => onDragLeave(event, button));
+            button.addEventListener('drop', event => onDrop(event, node));
+            button.addEventListener('dragend', () => {
+                dragNodeId = null;
+                clearDropIndicators();
+            });
+            item.appendChild(button);
+
+            if (node.children && node.children.length) {
+                const childList = document.createElement('ul');
+                childList.className = 'protocol-tree-children';
+                node.children.forEach(child => childList.appendChild(buildNode(child, depth + 1)));
+                item.appendChild(childList);
+            }
+
+            return item;
+        }
+
+        function renderDetails() {
+            const selected = getSelectedNode();
+
+            if (!selected) {
+                statementIdInput.value = '';
+                nodeTextInput.value = '';
+                linkIdInput.value = '';
+                linkTextInput.value = '';
+                subTextList.innerHTML = '';
+                setInputsEnabled(false);
+                return;
+            }
+
+            setInputsEnabled(true);
+            statementIdInput.value = selected.id;
+            nodeTextInput.value = selected.text || '';
+            linkIdInput.value = selected.linkId ?? -1;
+            linkTextInput.value = selected.linkText || '';
+            renderSubText(selected.subText || []);
+        }
+
+        function renderSubText(items) {
+            subTextList.innerHTML = '';
+            items.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                subTextList.appendChild(option);
+            });
+        }
+
+        function setInputsEnabled(enabled) {
+            nodeTextInput.disabled = !enabled;
+            linkIdInput.disabled = !enabled;
+            linkTextInput.disabled = !enabled;
+            subTextInput.disabled = !enabled;
+            subTextList.disabled = !enabled;
+            document.getElementById('addChildBtn').disabled = !enabled;
+            document.getElementById('removeNodeBtn').disabled = !enabled;
+            document.getElementById('addSubTextBtn').disabled = !enabled;
+            document.getElementById('removeSubTextBtn').disabled = !enabled;
+        }
+
+        function getSelectedNode() {
+            if (selectedNodeId == null) {
+                return null;
+            }
+
+            return findNodeById(state.document.sections, selectedNodeId);
+        }
+
+        function findNodeById(nodes, id) {
+            for (const node of nodes) {
+                if (node.id === id) {
+                    return node;
+                }
+
+                const childFound = findNodeById(node.children || [], id);
+                if (childFound) {
+                    return childFound;
+                }
+            }
+
+            return null;
+        }
+
+        function findParentId(nodes, targetId, parentId) {
+            for (const node of nodes) {
+                if (node.id === targetId) {
+                    return parentId;
+                }
+
+                const childParentId = findParentId(node.children || [], targetId, node.id);
+                if (childParentId != null) {
+                    return childParentId;
+                }
+            }
+
+            return null;
+        }
+
+        function findIndexInParent(parentId, nodeId) {
+            if (parentId === 0) {
+                return state.document.sections.findIndex(node => node.id === nodeId);
+            }
+
+            const parent = findNodeById(state.document.sections, parentId);
+            if (!parent) {
+                return -1;
+            }
+
+            return (parent.children || []).findIndex(node => node.id === nodeId);
+        }
+
+        function onDragStart(event, nodeId) {
+            dragNodeId = nodeId;
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', String(nodeId));
+        }
+
+        function onDragOver(event) {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+        }
+
+        function onDragEnter(event, element) {
+            event.preventDefault();
+            element.classList.add('is-drop-target');
+        }
+
+        function onDragLeave(event, element) {
+            if (event.currentTarget.contains(event.relatedTarget)) {
+                return;
+            }
+
+            element.classList.remove('is-drop-target');
+        }
+
+        async function onDrop(event, targetNode) {
+            event.preventDefault();
+            clearDropIndicators();
+
+            const draggedId = Number(event.dataTransfer.getData('text/plain') || dragNodeId);
+            if (!Number.isFinite(draggedId) || draggedId === targetNode.id) {
+                return;
+            }
+
+            const dragged = findNodeById(state.document.sections, draggedId);
+            if (!dragged) {
+                return;
+            }
+
+            const moveRequest = buildMoveRequest(dragged, targetNode);
+            if (!moveRequest) {
+                setStatus('Invalid drop target.');
+                return;
+            }
+
+            await postState('MoveNode', moveRequest);
+            selectedNodeId = draggedId;
+            renderAll();
+        }
+
+        function buildMoveRequest(dragged, target) {
+            const draggedKind = normalizeKind(dragged.kind);
+            const targetKind = normalizeKind(target.kind);
+
+            if (draggedKind === 'section') {
+                if (targetKind !== 'section') {
+                    return null;
+                }
+
+                const targetIndex = findIndexInParent(0, target.id);
+                if (targetIndex < 0) {
+                    return null;
+                }
+
+                return {
+                    nodeId: dragged.id,
+                    parentId: 0,
+                    targetIndex
+                };
+            }
+
+            if (targetKind === 'section') {
+                return {
+                    nodeId: dragged.id,
+                    parentId: target.id,
+                    targetIndex: (target.children || []).length
+                };
+            }
+
+            const targetParentId = findParentId(state.document.sections, target.id, 0);
+            if (targetParentId == null) {
+                return null;
+            }
+
+            const targetIndex = findIndexInParent(targetParentId, target.id);
+            if (targetIndex < 0) {
+                return null;
+            }
+
+            return {
+                nodeId: dragged.id,
+                parentId: targetParentId,
+                targetIndex
+            };
+        }
+
+        function normalizeKind(kind) {
+            if (typeof kind === 'string') {
+                return kind.toLowerCase();
+            }
+
+            if (typeof kind === 'number') {
+                if (kind === 1) {
+                    return 'section';
+                }
+
+                if (kind === 2) {
+                    return 'subsection';
+                }
+
+                return 'root';
+            }
+
+            return '';
+        }
+
+        function attachRootDropZone(rootElement) {
+            rootElement.addEventListener('dragover', onDragOver);
+            rootElement.addEventListener('drop', async event => {
+                event.preventDefault();
+                clearDropIndicators();
+
+                const draggedId = Number(event.dataTransfer.getData('text/plain') || dragNodeId);
+                if (!Number.isFinite(draggedId)) {
+                    return;
+                }
+
+                const dragged = findNodeById(state.document.sections, draggedId);
+                if (!dragged || normalizeKind(dragged.kind) !== 'section') {
+                    return;
+                }
+
+                await postState('MoveNode', {
+                    nodeId: draggedId,
+                    parentId: 0,
+                    targetIndex: state.document.sections.length
+                });
+                selectedNodeId = draggedId;
+                renderAll();
+            });
+        }
+
+        function clearDropIndicators() {
+            treeHost.querySelectorAll('.is-drop-target').forEach(element => {
+                element.classList.remove('is-drop-target');
+            });
+        }
+
+        async function commitNodeUpdate() {
+            if (selectedNodeId == null) {
+                return;
+            }
+
+            await postState('UpdateNode', {
+                nodeId: selectedNodeId,
+                text: nodeTextInput.value || '',
+                linkId: Number.isFinite(Number(linkIdInput.value)) ? Number(linkIdInput.value) : -1,
+                linkText: linkTextInput.value || ''
+            });
+        }
+
+        async function onAddSection() {
+            const text = prompt('Section name:', 'New Section');
+            if (text == null) {
+                return;
+            }
+
+            await postState('AddSection', { text });
+            const latest = state.document.sections[state.document.sections.length - 1];
+            if (latest) {
+                selectedNodeId = latest.id;
+            }
+            renderAll();
+        }
+
+        async function onAddChild() {
+            if (selectedNodeId == null) {
+                return;
+            }
+
+            const text = prompt('Child statement:', 'New Node');
+            if (text == null) {
+                return;
+            }
+
+            await postState('AddChild', {
+                parentId: selectedNodeId,
+                text
+            });
+            renderAll();
+        }
+
+        async function onRemoveNode() {
+            if (selectedNodeId == null) {
+                return;
+            }
+
+            if (!confirm('Remove selected node?')) {
+                return;
+            }
+
+            await postState('RemoveNode', {
+                nodeId: selectedNodeId
+            });
+            ensureSelection();
+            renderAll();
+        }
+
+        async function onAddSubText() {
+            if (selectedNodeId == null) {
+                return;
+            }
+
+            const value = (subTextInput.value || '').trim();
+            if (!value) {
+                return;
+            }
+
+            await postState('AddSubText', {
+                nodeId: selectedNodeId,
+                value
+            });
+            subTextInput.value = '';
+            renderAll();
+        }
+
+        async function onRemoveSubText() {
+            if (selectedNodeId == null || !subTextList.value) {
+                return;
+            }
+
+            await postState('RemoveSubText', {
+                nodeId: selectedNodeId,
+                value: subTextList.value
+            });
+            renderAll();
+        }
+
+        async function onReset() {
+            if (!confirm('Reset protocol to starter content?')) {
+                return;
+            }
+
+            await postState('Reset', {});
+            ensureSelection();
+            renderAll();
+        }
+
+        function onExportXml() {
+            window.open('@Url.Action("ExportXml", "ProtocolEditor")', '_blank');
+        }
+
+        async function onSaveXml() {
+            const response = await fetch('/ProtocolEditor/SaveXml', {
+                method: 'POST',
+                headers: {
+                    'RequestVerificationToken': token
+                }
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                setStatus(payload?.error || 'Request failed: SaveXml');
+                return;
+            }
+
+            const payload = await response.json();
+            state = payload;
+            ensureSelection();
+            renderAll();
+            setStatus(`Saved XML to ${payload.savedPath || 'configured path'}`);
+        }
+
+        async function onKeydown(event) {
+            if (!event.ctrlKey) {
+                return;
+            }
+
+            if (event.key.toLowerCase() === 'z') {
+                event.preventDefault();
+                await postState('Undo', {});
+                return;
+            }
+
+            if (event.key.toLowerCase() === 'y') {
+                event.preventDefault();
+                await postState('Redo', {});
+            }
+        }
+
+        async function postState(action, payload) {
+            const response = await fetch(`/ProtocolEditor/${action}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify(payload || {})
+            });
+
+            if (!response.ok) {
+                setStatus(`Request failed: ${action}`);
+                return;
+            }
+
+            state = await response.json();
+            ensureSelection();
+            renderAll();
+        }
+
+        function setStatus(message) {
+            statusEl.textContent = message;
+        }
+    })();
+</script>
+}

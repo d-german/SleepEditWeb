@@ -1,5 +1,5 @@
-using SleepEditWeb.Controllers;
 using SleepEditWeb.Data;
+using SleepEditWeb.Models;
 using SleepEditWeb.Services;
 
 namespace SleepEditWeb;
@@ -10,45 +10,53 @@ public class Program
 	{
 		var builder = WebApplication.CreateBuilder(args);
 
-		// Add services to the container.
 		builder.Services.AddControllersWithViews();
-		builder.Services.AddHttpClient(); // Add HttpClient here
-		
-		// Register LiteDB medication repository as singleton (thread-safe, single connection per app lifetime)
-		builder.Services.AddSingleton<IMedicationRepository, LiteDbMedicationRepository>();
-		
-		// Register drug info service for OpenFDA lookups
+		builder.Services.AddHttpClient();
 		builder.Services.AddHttpClient<IDrugInfoService, OpenFdaDrugInfoService>();
 
-		builder.Services.AddDistributedMemoryCache(); // Adds a default in-memory implementation of IDistributedCache
+		builder.Services.AddSingleton<IMedicationRepository, LiteDbMedicationRepository>();
+		builder.Services.AddScoped<IMedicationNarrativeBuilder, MedicationNarrativeBuilder>();
+		builder.Services.AddScoped<IEditorInsertionService, EditorInsertionService>();
+		builder.Services.AddScoped<ISleepNoteEditorSessionStore, SleepNoteEditorSessionStore>();
+		builder.Services.AddScoped<ISleepNoteEditorOrchestrator, SleepNoteEditorOrchestrator>();
+		builder.Services.AddScoped<IProtocolXmlService, ProtocolXmlService>();
+		builder.Services.AddScoped<IProtocolStarterService, ProtocolStarterService>();
+		builder.Services.AddScoped<IProtocolEditorSessionStore, ProtocolEditorSessionStore>();
+		builder.Services.AddScoped<IProtocolEditorService, ProtocolEditorService>();
+		builder.Services.AddHttpContextAccessor();
+
+		builder.Services.Configure<SleepNoteEditorFeatureOptions>(
+			builder.Configuration.GetSection(SleepNoteEditorFeatureOptions.SectionName));
+		builder.Services.Configure<ProtocolEditorFeatureOptions>(
+			builder.Configuration.GetSection(ProtocolEditorFeatureOptions.SectionName));
+		builder.Services.Configure<ProtocolEditorStartupOptions>(
+			builder.Configuration.GetSection(ProtocolEditorStartupOptions.SectionName));
+
+		builder.Services.AddDistributedMemoryCache();
 		builder.Services.AddSession(options =>
 		{
-			options.IdleTimeout = TimeSpan.FromMinutes(30); // You can set the timeout here
+			options.IdleTimeout = TimeSpan.FromMinutes(30);
 			options.Cookie.HttpOnly = true;
 			options.Cookie.IsEssential = true;
 		});
 
 		var app = builder.Build();
 
-		// Configure the HTTP request pipeline.
 		if (!app.Environment.IsDevelopment())
 		{
 			app.UseExceptionHandler("/Home/Error");
-			// The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
 			app.UseHsts();
 		}
 
 		app.UseSession();
 		app.UseHttpsRedirection();
 		app.UseStaticFiles();
-
 		app.UseRouting();
-
 		app.UseAuthorization();
 
 		app.MapControllerRoute(
 			name: "default",
-			pattern: "{controller=MedList}/{action=Index}/{id?}");
+			pattern: "{controller=SleepNoteEditor}/{action=Index}/{id?}");
 
 		app.Run();
 	}
