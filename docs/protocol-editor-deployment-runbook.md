@@ -67,7 +67,9 @@ When values are empty, runtime fallback behavior is:
    - fallback: `<AppContext.BaseDirectory>/Data/protocols/protocol.xml`
 2. Default path resolution uses:
    - `DefaultProtocolPath`
-   - otherwise same value as save path resolution
+   - `StartupProtocolPath`
+   - `SaveProtocolPath`
+   - fallback: `<AppContext.BaseDirectory>/Data/protocols/default-protocol.xml`
 3. Protocol Viewer startup load candidates use:
    - `DefaultProtocolPath`
    - `StartupProtocolPath`

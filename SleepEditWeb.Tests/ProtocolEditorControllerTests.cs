@@ -40,12 +40,12 @@ public class ProtocolEditorControllerTests
     }
 
     [Test]
-    public void SetDefaultProtocol_WithEmptyConfiguredPaths_UsesSameFallbackAsSave()
+    public void SetDefaultProtocol_WithEmptyConfiguredPaths_UsesDefaultProtocolFallbackPath()
     {
         // Arrange
         var service = CreateServiceMock();
         var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
-        var expectedFallbackPath = Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "protocol.xml");
+        var expectedFallbackPath = Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
 
         try
         {

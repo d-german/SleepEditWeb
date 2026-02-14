@@ -517,7 +517,17 @@ public sealed class ProtocolEditorController : Controller
             return _startupOptions.DefaultProtocolPath;
         }
 
-        return ResolveSavePath();
+        if (!string.IsNullOrWhiteSpace(_startupOptions.StartupProtocolPath))
+        {
+            return _startupOptions.StartupProtocolPath;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_startupOptions.SaveProtocolPath))
+        {
+            return _startupOptions.SaveProtocolPath;
+        }
+
+        return Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
     }
 
     private static async Task<string> ReadUploadedXmlAsync(IFormFile file)
