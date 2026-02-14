@@ -557,7 +557,8 @@
         }
 
         function openProtocolViewer() {
-            protocolViewerFrame.src = protocolViewerUrl;
+            const separator = protocolViewerUrl.includes('?') ? '&' : '?';
+            protocolViewerFrame.src = `${protocolViewerUrl}${separator}ts=${Date.now()}`;
             protocolViewerModal.show();
         }
 

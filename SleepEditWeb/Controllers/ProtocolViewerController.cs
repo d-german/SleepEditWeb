@@ -43,6 +43,7 @@ public sealed class ProtocolViewerController : Controller
     }
 
     [HttpGet("")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Index()
     {
         if (!IsEnabled())
@@ -52,6 +53,9 @@ public sealed class ProtocolViewerController : Controller
         }
 
         _logger.LogInformation("ProtocolViewer index requested.");
+        Response.Headers.CacheControl = "no-store, no-cache, max-age=0";
+        Response.Headers.Pragma = "no-cache";
+
         var initialDocument = _starterService.Create();
         var model = BuildViewModel(initialDocument, DateTime.UtcNow);
         _logger.LogInformation("ProtocolViewer model created with {SectionCount} sections.", model.InitialDocument.Sections.Count);
