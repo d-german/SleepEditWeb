@@ -1,0 +1,10 @@
+{
+  "name": "sleepeditweb-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint:frontend": "node ./scripts/frontend-lint.mjs",
+    "test:frontend": "node --test ./wwwroot/js/__tests__/*.test.mjs",
+    "check:frontend": "npm run lint:frontend && npm run test:frontend"
+  }
+}

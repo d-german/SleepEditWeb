@@ -1,3 +1,5 @@
+using SleepEditWeb.Protocol.Domain;
+
 namespace SleepEditWeb.Models;
 
 public enum ProtocolNodeKind
@@ -44,6 +46,10 @@ public sealed class ProtocolEditorSnapshot
     public List<ProtocolDocument> UndoHistory { get; set; } = [];
 
     public List<ProtocolDocument> RedoHistory { get; set; } = [];
+
+    public List<ProtocolTreeDocument> UndoDomainHistory { get; set; } = [];
+
+    public List<ProtocolTreeDocument> RedoDomainHistory { get; set; } = [];
 
     public DateTimeOffset LastUpdatedUtc { get; set; } = DateTimeOffset.UtcNow;
 }

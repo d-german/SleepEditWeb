@@ -12,6 +12,22 @@ public class ProtocolEditorUiContractsTests
     [Test]
     public void ProtocolEditorController_RouteTemplates_RemainStable()
     {
+        var controllerRoute = typeof(ProtocolEditorController).GetCustomAttribute<RouteAttribute>();
+        Assert.That(controllerRoute, Is.Not.Null, "ProtocolEditorController missing [Route] attribute.");
+        Assert.That(controllerRoute!.Template, Is.EqualTo("ProtocolEditor"));
+
+        AssertRouteTemplate<HttpGetAttribute>("Index", string.Empty);
+        AssertRouteTemplate<HttpGetAttribute>("State", "State");
+        AssertRouteTemplate<HttpPostAttribute>("AddSection", "AddSection");
+        AssertRouteTemplate<HttpPostAttribute>("AddChild", "AddChild");
+        AssertRouteTemplate<HttpPostAttribute>("RemoveNode", "RemoveNode");
+        AssertRouteTemplate<HttpPostAttribute>("UpdateNode", "UpdateNode");
+        AssertRouteTemplate<HttpPostAttribute>("MoveNode", "MoveNode");
+        AssertRouteTemplate<HttpPostAttribute>("AddSubText", "AddSubText");
+        AssertRouteTemplate<HttpPostAttribute>("RemoveSubText", "RemoveSubText");
+        AssertRouteTemplate<HttpPostAttribute>("Undo", "Undo");
+        AssertRouteTemplate<HttpPostAttribute>("Redo", "Redo");
+        AssertRouteTemplate<HttpPostAttribute>("Reset", "Reset");
         AssertRouteTemplate<HttpPostAttribute>("SaveXml", "SaveXml");
         AssertRouteTemplate<HttpPostAttribute>("SetDefaultProtocol", "SetDefaultProtocol");
         AssertRouteTemplate<HttpPostAttribute>("ImportXml", "ImportXml");
@@ -55,7 +71,21 @@ public class ProtocolEditorUiContractsTests
 
         Assert.That(content, Does.Contain("/ProtocolEditor/ImportXmlUpload"));
         Assert.That(content, Does.Contain("/ProtocolEditor/SaveXml"));
+        Assert.That(content, Does.Contain("/ProtocolEditor/SetDefaultProtocol"));
+        Assert.That(content, Does.Contain("/ProtocolEditor/${action}"));
         Assert.That(content, Does.Contain("ExportXml"));
+    }
+
+    [Test]
+    public void ProtocolEditorAndViewerViews_UseModuleBootstraps()
+    {
+        var editorContent = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/ProtocolEditor/Index.cshtml"));
+        var viewerContent = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/ProtocolViewer/Index.cshtml"));
+
+        Assert.That(editorContent, Does.Contain("<script type=\"module\">"));
+        Assert.That(editorContent, Does.Contain("/js/protocol-editor-ui.js"));
+        Assert.That(viewerContent, Does.Contain("<script type=\"module\">"));
+        Assert.That(viewerContent, Does.Contain("/js/protocol-viewer-bootstrap.js"));
     }
 
     private static void AssertRouteTemplate<TAttribute>(string actionName, string expectedTemplate)

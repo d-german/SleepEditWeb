@@ -6,7 +6,25 @@ This runbook covers production configuration and diagnostics for:
 
 - Protocol Editor save/import/default path behavior
 - Protocol Viewer startup protocol loading
+- Protocol editor/viewer ES module bootstrap and guardrail checks
 - Logging settings needed for incident triage
+
+## Frontend Module Deployment Checks
+
+The protocol editor/viewer now bootstraps through ES modules:
+
+- Editor bootstrap import: `/js/protocol-editor-ui.js`
+- Viewer bootstrap import: `/js/protocol-viewer-bootstrap.js`
+
+Pre-deployment checks:
+
+1. Run `npm run lint:frontend` from `SleepEditWeb/` and confirm dependency guardrails pass.
+2. Run `npm run test:frontend` from `SleepEditWeb/` and confirm pure helper/store tests pass.
+3. Run `dotnet test SleepEditWeb.sln` and ensure `ProtocolEditorUiContractsTests` still pass view-contract checks.
+
+Rollback trigger:
+
+- If either bootstrap module fails to load in browser (404/import error/syntax error), rollback to last known-good deployment artifact immediately; no server-side configuration change is required for rollback.
 
 ## Required Configuration
 

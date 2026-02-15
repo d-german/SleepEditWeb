@@ -1,10 +1,11 @@
-using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
+using SleepEditWeb.Web.ProtocolEditor;
 
 namespace SleepEditWeb.Controllers;
 
@@ -15,28 +16,39 @@ public sealed class ProtocolEditorController : Controller
 
     private readonly IProtocolEditorService _service;
     private readonly ProtocolEditorFeatureOptions _featureOptions;
-    private readonly ProtocolEditorStartupOptions _startupOptions;
+    private readonly IProtocolEditorPathPolicy _pathPolicy;
+    private readonly IProtocolEditorFileStore _fileStore;
+    private readonly IProtocolRepository _repository;
+    private readonly IProtocolEditorRequestValidator _requestValidator;
+    private readonly IProtocolEditorResponseMapper _responseMapper;
     private readonly ILogger<ProtocolEditorController> _logger;
 
     public ProtocolEditorController(
         IProtocolEditorService service,
         IOptions<ProtocolEditorFeatureOptions> featureOptions,
-        IOptions<ProtocolEditorStartupOptions> startupOptions,
+        IProtocolEditorPathPolicy pathPolicy,
+        IProtocolEditorFileStore fileStore,
+        IProtocolRepository repository,
+        IProtocolEditorRequestValidator requestValidator,
+        IProtocolEditorResponseMapper responseMapper,
         ILogger<ProtocolEditorController> logger)
     {
         _service = service;
         _featureOptions = featureOptions.Value;
-        _startupOptions = startupOptions.Value;
+        _pathPolicy = pathPolicy;
+        _fileStore = fileStore;
+        _repository = repository;
+        _requestValidator = requestValidator;
+        _responseMapper = responseMapper;
         _logger = logger;
     }
 
     [HttpGet("")]
     public IActionResult Index()
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(Index), out var denied))
         {
-            _logger.LogWarning("ProtocolEditor index denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
         _logger.LogInformation("ProtocolEditor index requested.");
@@ -50,110 +62,109 @@ public sealed class ProtocolEditorController : Controller
     [HttpGet("State")]
     public IActionResult State()
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(State), out var denied))
         {
-            _logger.LogWarning("ProtocolEditor state denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
         _logger.LogDebug("ProtocolEditor state requested.");
-        return Json(ToStateResponse(_service.Load()));
+        return Json(_responseMapper.ToStateResponse(_service.Load()));
     }
 
     [HttpPost("AddSection")]
     [ValidateAntiForgeryToken]
     public IActionResult AddSection([FromBody] AddSectionRequest? request)
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(AddSection), out var denied))
         {
-            _logger.LogWarning("AddSection denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
         _logger.LogInformation("AddSection requested. TextLength: {Length}", request?.Text?.Length ?? 0);
         var snapshot = _service.AddSection(request?.Text ?? "New Section");
-        return Json(ToStateResponse(snapshot));
+        return Json(_responseMapper.ToStateResponse(snapshot));
     }
 
     [HttpPost("AddChild")]
     [ValidateAntiForgeryToken]
     public IActionResult AddChild([FromBody] AddChildRequest? request)
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(AddChild), out var denied))
         {
-            _logger.LogWarning("AddChild denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
-        if (request == null)
+        if (_requestValidator.IsPayloadMissing(request))
         {
             _logger.LogWarning("AddChild rejected because payload was null.");
             return BadRequest(new { error = "Request payload is required." });
         }
 
-        _logger.LogInformation("AddChild requested. ParentId: {ParentId}, TextLength: {Length}", request.ParentId, request.Text?.Length ?? 0);
+        _logger.LogInformation("AddChild requested. ParentId: {ParentId}, TextLength: {Length}", request!.ParentId, request.Text?.Length ?? 0);
         var snapshot = _service.AddChild(request.ParentId, request.Text ?? "New Node");
-        return Json(ToStateResponse(snapshot));
+        return Json(_responseMapper.ToStateResponse(snapshot));
     }
 
     [HttpPost("RemoveNode")]
     [ValidateAntiForgeryToken]
     public IActionResult RemoveNode([FromBody] RemoveNodeRequest? request)
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(RemoveNode), out var denied))
         {
-            _logger.LogWarning("RemoveNode denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
-        if (request == null)
+        if (_requestValidator.IsPayloadMissing(request))
         {
             _logger.LogWarning("RemoveNode rejected because payload was null.");
             return BadRequest(new { error = "Request payload is required." });
         }
 
-        _logger.LogInformation("RemoveNode requested. NodeId: {NodeId}", request.NodeId);
+        _logger.LogInformation("RemoveNode requested. NodeId: {NodeId}", request!.NodeId);
         var snapshot = _service.RemoveNode(request.NodeId);
-        return Json(ToStateResponse(snapshot));
+        return Json(_responseMapper.ToStateResponse(snapshot));
     }
 
     [HttpPost("UpdateNode")]
     [ValidateAntiForgeryToken]
     public IActionResult UpdateNode([FromBody] UpdateNodeRequest? request)
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(UpdateNode), out var denied))
         {
-            _logger.LogWarning("UpdateNode denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
-        if (request == null)
+        if (_requestValidator.IsPayloadMissing(request))
         {
             _logger.LogWarning("UpdateNode rejected because payload was null.");
             return BadRequest(new { error = "Request payload is required." });
         }
 
-        _logger.LogInformation("UpdateNode requested. NodeId: {NodeId}, LinkId: {LinkId}, TextLength: {Length}", request.NodeId, request.LinkId, request.Text?.Length ?? 0);
+        _logger.LogInformation(
+            "UpdateNode requested. NodeId: {NodeId}, LinkId: {LinkId}, TextLength: {Length}",
+            request!.NodeId,
+            request.LinkId,
+            request.Text?.Length ?? 0);
+
         var snapshot = _service.UpdateNode(
             request.NodeId,
             request.Text ?? string.Empty,
             request.LinkId,
             request.LinkText ?? string.Empty);
 
-        return Json(ToStateResponse(snapshot));
+        return Json(_responseMapper.ToStateResponse(snapshot));
     }
 
     [HttpPost("MoveNode")]
     [ValidateAntiForgeryToken]
     public IActionResult MoveNode([FromBody] MoveNodeRequest? request)
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(MoveNode), out var denied))
         {
-            _logger.LogWarning("MoveNode denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
-        if (request == null)
+        if (_requestValidator.IsPayloadMissing(request))
         {
             _logger.LogWarning("MoveNode rejected because payload was null.");
             return BadRequest(new { error = "Request payload is required." });
@@ -161,104 +172,99 @@ public sealed class ProtocolEditorController : Controller
 
         _logger.LogInformation(
             "MoveNode requested. NodeId: {NodeId}, ParentId: {ParentId}, TargetIndex: {TargetIndex}",
-            request.NodeId,
+            request!.NodeId,
             request.ParentId,
             request.TargetIndex);
+
         var snapshot = _service.MoveNode(request.NodeId, request.ParentId, request.TargetIndex);
-        return Json(ToStateResponse(snapshot));
+        return Json(_responseMapper.ToStateResponse(snapshot));
     }
 
     [HttpPost("AddSubText")]
     [ValidateAntiForgeryToken]
     public IActionResult AddSubText([FromBody] SubTextRequest? request)
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(AddSubText), out var denied))
         {
-            _logger.LogWarning("AddSubText denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
-        if (request == null)
+        if (_requestValidator.IsPayloadMissing(request))
         {
             _logger.LogWarning("AddSubText rejected because payload was null.");
             return BadRequest(new { error = "Request payload is required." });
         }
 
-        _logger.LogInformation("AddSubText requested. NodeId: {NodeId}, ValueLength: {Length}", request.NodeId, request.Value?.Length ?? 0);
+        _logger.LogInformation("AddSubText requested. NodeId: {NodeId}, ValueLength: {Length}", request!.NodeId, request.Value?.Length ?? 0);
         var snapshot = _service.AddSubText(request.NodeId, request.Value ?? string.Empty);
-        return Json(ToStateResponse(snapshot));
+        return Json(_responseMapper.ToStateResponse(snapshot));
     }
 
     [HttpPost("RemoveSubText")]
     [ValidateAntiForgeryToken]
     public IActionResult RemoveSubText([FromBody] SubTextRequest? request)
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(RemoveSubText), out var denied))
         {
-            _logger.LogWarning("RemoveSubText denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
-        if (request == null)
+        if (_requestValidator.IsPayloadMissing(request))
         {
             _logger.LogWarning("RemoveSubText rejected because payload was null.");
             return BadRequest(new { error = "Request payload is required." });
         }
 
-        _logger.LogInformation("RemoveSubText requested. NodeId: {NodeId}, ValueLength: {Length}", request.NodeId, request.Value?.Length ?? 0);
+        _logger.LogInformation("RemoveSubText requested. NodeId: {NodeId}, ValueLength: {Length}", request!.NodeId, request.Value?.Length ?? 0);
         var snapshot = _service.RemoveSubText(request.NodeId, request.Value ?? string.Empty);
-        return Json(ToStateResponse(snapshot));
+        return Json(_responseMapper.ToStateResponse(snapshot));
     }
 
     [HttpPost("Undo")]
     [ValidateAntiForgeryToken]
     public IActionResult Undo()
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(Undo), out var denied))
         {
-            _logger.LogWarning("Undo denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
         _logger.LogInformation("Undo requested.");
-        return Json(ToStateResponse(_service.Undo()));
+        return Json(_responseMapper.ToStateResponse(_service.Undo()));
     }
 
     [HttpPost("Redo")]
     [ValidateAntiForgeryToken]
     public IActionResult Redo()
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(Redo), out var denied))
         {
-            _logger.LogWarning("Redo denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
         _logger.LogInformation("Redo requested.");
-        return Json(ToStateResponse(_service.Redo()));
+        return Json(_responseMapper.ToStateResponse(_service.Redo()));
     }
 
     [HttpPost("Reset")]
     [ValidateAntiForgeryToken]
     public IActionResult Reset()
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(Reset), out var denied))
         {
-            _logger.LogWarning("Reset denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
         _logger.LogInformation("Reset requested.");
-        return Json(ToStateResponse(_service.Reset()));
+        return Json(_responseMapper.ToStateResponse(_service.Reset()));
     }
 
     [HttpGet("ExportXml")]
     public IActionResult ExportXml()
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(ExportXml), out var denied))
         {
-            _logger.LogWarning("ExportXml denied because feature is disabled.");
-            return NotFound();
+            return denied!;
         }
 
         _logger.LogInformation("ExportXml requested.");
@@ -270,41 +276,30 @@ public sealed class ProtocolEditorController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult SaveXml()
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(SaveXml), out var denied))
         {
-            return NotFound();
+            return denied!;
         }
 
-        var savePath = ResolveSavePath();
-        if (string.IsNullOrWhiteSpace(savePath))
+        var savePath = _pathPolicy.ResolveSavePath();
+        var pathValidationError = _requestValidator.ValidateResolvedPath(savePath, "No XML save path is configured.");
+        if (pathValidationError != null)
         {
             _logger.LogWarning("SaveXml aborted because no save path could be resolved.");
-            return BadRequest(new { error = "No XML save path is configured." });
+            return BadRequest(new { error = pathValidationError });
         }
 
         _logger.LogInformation("SaveXml requested. Resolved save path: {Path}", savePath);
 
         try
         {
-            var directory = Path.GetDirectoryName(savePath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
             var xml = _service.ExportXml();
-            System.IO.File.WriteAllText(savePath, xml, Encoding.UTF8);
+            _fileStore.WriteAllText(savePath, xml);
 
             var snapshot = _service.Load();
+            TryPersistVersion(snapshot.Document, "SaveXml", savePath);
             _logger.LogInformation("SaveXml completed successfully at path: {Path}", savePath);
-            return Json(new
-            {
-                document = snapshot.Document,
-                undoCount = snapshot.UndoHistory.Count,
-                redoCount = snapshot.RedoHistory.Count,
-                lastUpdatedUtc = snapshot.LastUpdatedUtc,
-                savedPath = savePath
-            });
+            return Json(_responseMapper.ToSavedPathResponse(snapshot, savePath));
         }
         catch (Exception ex) when (
             ex is IOException or
@@ -321,41 +316,30 @@ public sealed class ProtocolEditorController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult SetDefaultProtocol()
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(SetDefaultProtocol), out var denied))
         {
-            return NotFound();
+            return denied!;
         }
 
-        var defaultPath = ResolveDefaultPath();
-        if (string.IsNullOrWhiteSpace(defaultPath))
+        var defaultPath = _pathPolicy.ResolveDefaultPath();
+        var pathValidationError = _requestValidator.ValidateResolvedPath(defaultPath, "No default protocol path is configured.");
+        if (pathValidationError != null)
         {
             _logger.LogWarning("SetDefaultProtocol aborted because no default path could be resolved.");
-            return BadRequest(new { error = "No default protocol path is configured." });
+            return BadRequest(new { error = pathValidationError });
         }
 
         _logger.LogInformation("SetDefaultProtocol requested. Resolved default path: {Path}", defaultPath);
 
         try
         {
-            var directory = Path.GetDirectoryName(defaultPath);
-            if (!string.IsNullOrWhiteSpace(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
             var xml = _service.ExportXml();
-            System.IO.File.WriteAllText(defaultPath, xml, Encoding.UTF8);
+            _fileStore.WriteAllText(defaultPath, xml);
 
             var snapshot = _service.Load();
+            TryPersistVersion(snapshot.Document, "SetDefaultProtocol", defaultPath);
             _logger.LogInformation("SetDefaultProtocol completed successfully at path: {Path}", defaultPath);
-            return Json(new
-            {
-                document = snapshot.Document,
-                undoCount = snapshot.UndoHistory.Count,
-                redoCount = snapshot.RedoHistory.Count,
-                lastUpdatedUtc = snapshot.LastUpdatedUtc,
-                defaultPath
-            });
+            return Json(_responseMapper.ToDefaultPathResponse(snapshot, defaultPath));
         }
         catch (Exception ex) when (
             ex is IOException or
@@ -372,20 +356,22 @@ public sealed class ProtocolEditorController : Controller
     [ValidateAntiForgeryToken]
     public IActionResult ImportXml([FromBody] ImportXmlRequest? request)
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(ImportXml), out var denied))
         {
-            return NotFound();
+            return denied!;
         }
 
-        var importPath = ResolveImportPath(request);
+        var importPath = _pathPolicy.ResolveImportPath(request?.Path);
         _logger.LogInformation("ImportXml requested. Resolved import path: {Path}", importPath);
-        if (string.IsNullOrWhiteSpace(importPath))
+
+        var pathValidationError = _requestValidator.ValidateResolvedPath(importPath, "No XML import path is configured.");
+        if (pathValidationError != null)
         {
             _logger.LogWarning("ImportXml aborted because no import path could be resolved.");
-            return BadRequest(new { error = "No XML import path is configured." });
+            return BadRequest(new { error = pathValidationError });
         }
 
-        if (!System.IO.File.Exists(importPath))
+        if (!_fileStore.Exists(importPath))
         {
             _logger.LogWarning("ImportXml aborted because file was not found at path: {Path}", importPath);
             return BadRequest(new { error = "Import XML file was not found.", path = importPath });
@@ -393,17 +379,11 @@ public sealed class ProtocolEditorController : Controller
 
         try
         {
-            var xml = System.IO.File.ReadAllText(importPath, Encoding.UTF8);
+            var xml = _fileStore.ReadAllText(importPath);
             var snapshot = _service.ImportXml(xml);
+            TryPersistVersion(snapshot.Document, "ImportXml", importPath);
             _logger.LogInformation("ImportXml completed successfully from path: {Path}", importPath);
-            return Json(new
-            {
-                document = snapshot.Document,
-                undoCount = snapshot.UndoHistory.Count,
-                redoCount = snapshot.RedoHistory.Count,
-                lastUpdatedUtc = snapshot.LastUpdatedUtc,
-                loadedPath = importPath
-            });
+            return Json(_responseMapper.ToLoadedPathResponse(snapshot, importPath));
         }
         catch (FormatException ex)
         {
@@ -425,49 +405,48 @@ public sealed class ProtocolEditorController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ImportXmlUpload(IFormFile? file)
     {
-        if (!IsEnabled())
+        if (!TryEnsureEnabled(nameof(ImportXmlUpload), out var denied))
         {
-            return NotFound();
+            return denied!;
         }
 
-        if (file == null || file.Length == 0)
+        var uploadValidationError = _requestValidator.ValidateUploadedFile(file, MaxImportXmlBytes);
+        if (uploadValidationError != null)
         {
-            _logger.LogWarning("ImportXmlUpload aborted because no file content was uploaded.");
-            return BadRequest(new { error = "No XML file was uploaded." });
-        }
+            if (uploadValidationError == "Uploaded XML file is too large.")
+            {
+                _logger.LogWarning(
+                    "ImportXmlUpload rejected file '{FileName}' because size {Bytes} exceeded limit {LimitBytes}.",
+                    file?.FileName,
+                    file?.Length,
+                    MaxImportXmlBytes);
+            }
+            else
+            {
+                _logger.LogWarning("ImportXmlUpload aborted because no file content was uploaded.");
+            }
 
-        if (file.Length > MaxImportXmlBytes)
-        {
-            _logger.LogWarning(
-                "ImportXmlUpload rejected file '{FileName}' because size {Bytes} exceeded limit {LimitBytes}.",
-                file.FileName,
-                file.Length,
-                MaxImportXmlBytes);
-            return BadRequest(new { error = "Uploaded XML file is too large." });
+            return BadRequest(new { error = uploadValidationError });
         }
 
         _logger.LogInformation(
             "ImportXmlUpload requested for file '{FileName}' with size {Bytes}.",
-            file.FileName,
+            file!.FileName,
             file.Length);
 
         try
         {
-            var xml = await ReadUploadedXmlAsync(file);
+            var xml = await _fileStore.ReadUploadedXmlAsync(file);
             var snapshot = _service.ImportXml(xml);
-            var savedPath = WriteXmlToResolvedPath(xml, file.FileName);
+            var savedPath = _pathPolicy.ResolveUploadSavePath(file.FileName);
+            _fileStore.WriteAllText(savedPath, xml);
+            TryPersistVersion(snapshot.Document, "ImportXmlUpload", savedPath);
             _logger.LogInformation(
                 "ImportXmlUpload completed successfully for file '{FileName}'. Saved path: {Path}",
                 file.FileName,
                 savedPath);
-            return Json(new
-            {
-                document = snapshot.Document,
-                undoCount = snapshot.UndoHistory.Count,
-                redoCount = snapshot.RedoHistory.Count,
-                lastUpdatedUtc = snapshot.LastUpdatedUtc,
-                savedPath
-            });
+
+            return Json(_responseMapper.ToSavedPathResponse(snapshot, savedPath));
         }
         catch (FormatException ex)
         {
@@ -490,105 +469,32 @@ public sealed class ProtocolEditorController : Controller
         return _featureOptions.ProtocolEditorEnabled;
     }
 
-    private string ResolveSavePath()
+    private bool TryEnsureEnabled(string actionName, out IActionResult? denied)
     {
-        if (!string.IsNullOrWhiteSpace(_startupOptions.SaveProtocolPath))
+        if (IsEnabled())
         {
-            return _startupOptions.SaveProtocolPath;
+            denied = null;
+            return true;
         }
 
-        if (!string.IsNullOrWhiteSpace(_startupOptions.StartupProtocolPath))
-        {
-            return _startupOptions.StartupProtocolPath;
-        }
-
-        if (!string.IsNullOrWhiteSpace(_startupOptions.DefaultProtocolPath))
-        {
-            return _startupOptions.DefaultProtocolPath;
-        }
-
-        return Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
+        _logger.LogWarning("{Action} denied because feature is disabled.", actionName);
+        denied = NotFound();
+        return false;
     }
 
-    private string ResolveDefaultPath()
+    private void TryPersistVersion(ProtocolDocument document, string source, string note)
     {
-        if (!string.IsNullOrWhiteSpace(_startupOptions.DefaultProtocolPath))
+        try
         {
-            return _startupOptions.DefaultProtocolPath;
+            _repository.SaveVersion(document, source, note);
         }
-
-        if (!string.IsNullOrWhiteSpace(_startupOptions.StartupProtocolPath))
+        catch (Exception ex)
         {
-            return _startupOptions.StartupProtocolPath;
+            _logger.LogWarning(
+                ex,
+                "Protocol version persistence failed for source {Source}. Continuing with session snapshot behavior.",
+                source);
         }
-
-        if (!string.IsNullOrWhiteSpace(_startupOptions.SaveProtocolPath))
-        {
-            return _startupOptions.SaveProtocolPath;
-        }
-
-        return Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
-    }
-
-    private static async Task<string> ReadUploadedXmlAsync(IFormFile file)
-    {
-        using var stream = file.OpenReadStream();
-        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-        return await reader.ReadToEndAsync();
-    }
-
-    private string WriteXmlToResolvedPath(string xml, string? uploadedFileName)
-    {
-        var savePath = ResolveUploadedFileSavePath(uploadedFileName);
-        var directory = Path.GetDirectoryName(savePath);
-        if (!string.IsNullOrWhiteSpace(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-
-        System.IO.File.WriteAllText(savePath, xml, Encoding.UTF8);
-        return savePath;
-    }
-
-    private string ResolveUploadedFileSavePath(string? uploadedFileName)
-    {
-        if (!string.IsNullOrWhiteSpace(_startupOptions.SaveProtocolPath))
-        {
-            return _startupOptions.SaveProtocolPath;
-        }
-
-        var safeFileName = string.IsNullOrWhiteSpace(uploadedFileName)
-            ? "protocol-upload.xml"
-            : Path.GetFileName(uploadedFileName);
-
-        if (!safeFileName.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
-        {
-            safeFileName = $"{safeFileName}.xml";
-        }
-
-        var fallbackDirectory = Path.Combine(AppContext.BaseDirectory, "Data", "protocols");
-        return Path.Combine(fallbackDirectory, safeFileName);
-    }
-
-    private string ResolveImportPath(ImportXmlRequest? request)
-    {
-        if (!string.IsNullOrWhiteSpace(request?.Path))
-        {
-            return request.Path;
-        }
-
-        return ResolveSavePath();
-    }
-
-    private static object ToStateResponse(ProtocolEditorSnapshot snapshot)
-    {
-        return new
-        {
-            document = snapshot.Document,
-            undoCount = snapshot.UndoHistory.Count,
-            redoCount = snapshot.RedoHistory.Count,
-            lastUpdatedUtc = snapshot.LastUpdatedUtc
-        };
     }
 
     public sealed class AddSectionRequest
