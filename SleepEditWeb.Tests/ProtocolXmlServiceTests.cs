@@ -1,5 +1,6 @@
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
+using SleepEditWeb.Infrastructure.ProtocolXml;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace SleepEditWeb.Tests;
@@ -135,5 +136,93 @@ public class ProtocolXmlServiceTests
         Assert.That(hydrated.Sections[0].Children.Count, Is.EqualTo(1));
         Assert.That(hydrated.Sections[0].Children[0].SubText, Has.Count.EqualTo(1));
         Assert.That(hydrated.Sections[0].Children[0].Children[0].Text, Is.EqualTo("PaCO2 > 52"));
+    }
+
+    [Test]
+    public void Serialize_OmitsBlankSubTextValues()
+    {
+        // Arrange
+        var document = new ProtocolDocument
+        {
+            Id = 0,
+            LinkId = -1,
+            LinkText = string.Empty,
+            Text = "Starter",
+            Sections =
+            [
+                new ProtocolNodeModel
+                {
+                    Id = 1,
+                    LinkId = -1,
+                    LinkText = string.Empty,
+                    Text = "Diagnostic Polysomnogram:",
+                    Kind = ProtocolNodeKind.Section,
+                    SubText = [ string.Empty, "   ", "retain-me" ],
+                    Children = []
+                }
+            ]
+        };
+
+        // Act
+        var xml = _service.Serialize(document);
+
+        // Assert
+        Assert.That(xml, Does.Contain("<SubText>retain-me</SubText>"));
+        Assert.That(xml, Does.Not.Contain("<SubText></SubText>"));
+        Assert.That(xml, Does.Not.Contain("<SubText>   </SubText>"));
+    }
+
+    [Test]
+    public void Deserialize_WithInvalidRoot_ThrowsFormatException()
+    {
+        // Arrange
+        const string xml = "<NotProtocol><Id>1</Id></NotProtocol>";
+
+        // Act / Assert
+        Assert.That(() => _service.Deserialize(xml), Throws.TypeOf<FormatException>());
+    }
+
+    [Test]
+    public void XmlSerializerComponent_WritesProtocolRoot()
+    {
+        // Arrange
+        var serializer = new ProtocolXmlSerializer(new ProtocolXmlMapper());
+        var document = new ProtocolDocument
+        {
+            Id = -1,
+            LinkId = -1,
+            LinkText = string.Empty,
+            Text = "Serializer contract",
+            Sections = []
+        };
+
+        // Act
+        var xml = serializer.Serialize(document);
+
+        // Assert
+        Assert.That(xml, Does.Contain("<Protocol>"));
+        Assert.That(xml, Does.Contain("<text>Serializer contract</text>"));
+    }
+
+    [Test]
+    public void XmlDeserializerComponent_ReadsProtocolDocument()
+    {
+        // Arrange
+        var deserializer = new ProtocolXmlDeserializer(new ProtocolXmlMapper());
+        const string xml = """
+                           <Protocol>
+                             <Id>-1</Id>
+                             <LinkId>-1</LinkId>
+                             <LinkText></LinkText>
+                             <text>Deserializer contract</text>
+                           </Protocol>
+                           """;
+
+        // Act
+        var document = deserializer.Deserialize(xml);
+
+        // Assert
+        Assert.That(document.Text, Is.EqualTo("Deserializer contract"));
+        Assert.That(document.Sections, Is.Empty);
     }
 }

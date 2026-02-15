@@ -1,6 +1,8 @@
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using SleepEditWeb.Application.Protocol;
+using SleepEditWeb.Application.Protocol.Commands;
 using SleepEditWeb.Models;
+using SleepEditWeb.Protocol.Domain;
 
 namespace SleepEditWeb.Services;
 
@@ -35,17 +37,40 @@ public interface IProtocolEditorService
 
 public sealed class ProtocolEditorService : IProtocolEditorService
 {
+    private const int MaxUndoDepth = 100;
+
     private readonly IProtocolEditorSessionStore _sessionStore;
     private readonly IProtocolXmlService _xmlService;
+    private readonly IProtocolCommandHandler<AddSectionCommand> _addSectionHandler;
+    private readonly IProtocolCommandHandler<AddChildCommand> _addChildHandler;
+    private readonly IProtocolCommandHandler<RemoveNodeCommand> _removeNodeHandler;
+    private readonly IProtocolCommandHandler<UpdateNodeCommand> _updateNodeHandler;
+    private readonly IProtocolCommandHandler<MoveNodeCommand> _moveNodeHandler;
+    private readonly IProtocolCommandHandler<AddSubTextCommand> _addSubTextHandler;
+    private readonly IProtocolCommandHandler<RemoveSubTextCommand> _removeSubTextHandler;
     private readonly ILogger<ProtocolEditorService> _logger;
 
     public ProtocolEditorService(
         IProtocolEditorSessionStore sessionStore,
         IProtocolXmlService xmlService,
+        IProtocolCommandHandler<AddSectionCommand> addSectionHandler,
+        IProtocolCommandHandler<AddChildCommand> addChildHandler,
+        IProtocolCommandHandler<RemoveNodeCommand> removeNodeHandler,
+        IProtocolCommandHandler<UpdateNodeCommand> updateNodeHandler,
+        IProtocolCommandHandler<MoveNodeCommand> moveNodeHandler,
+        IProtocolCommandHandler<AddSubTextCommand> addSubTextHandler,
+        IProtocolCommandHandler<RemoveSubTextCommand> removeSubTextHandler,
         ILogger<ProtocolEditorService> logger)
     {
         _sessionStore = sessionStore;
         _xmlService = xmlService;
+        _addSectionHandler = addSectionHandler;
+        _addChildHandler = addChildHandler;
+        _removeNodeHandler = removeNodeHandler;
+        _updateNodeHandler = updateNodeHandler;
+        _moveNodeHandler = moveNodeHandler;
+        _addSubTextHandler = addSubTextHandler;
+        _removeSubTextHandler = removeSubTextHandler;
         _logger = logger;
     }
 
@@ -58,56 +83,25 @@ public sealed class ProtocolEditorService : IProtocolEditorService
     public ProtocolEditorSnapshot AddSection(string text)
     {
         _logger.LogInformation("ProtocolEditorService.AddSection requested. TextLength: {Length}", text.Length);
-        return ApplyMutation(document =>
-        {
-            document.Sections.Add(CreateNode(document, text, ProtocolNodeKind.Section));
-        });
+        return ApplyCommandMutation(new AddSectionCommand(text), _addSectionHandler, nameof(AddSection));
     }
 
     public ProtocolEditorSnapshot AddChild(int parentId, string text)
     {
         _logger.LogInformation("ProtocolEditorService.AddChild requested. ParentId: {ParentId}, TextLength: {Length}", parentId, text.Length);
-        return ApplyMutation(document =>
-        {
-            var parent = FindNode(document.Sections, parentId);
-            if (parent == null)
-            {
-                return;
-            }
-
-            parent.Children.Add(CreateNode(document, text, ProtocolNodeKind.SubSection));
-        });
+        return ApplyCommandMutation(new AddChildCommand(parentId, text), _addChildHandler, nameof(AddChild));
     }
 
     public ProtocolEditorSnapshot RemoveNode(int nodeId)
     {
         _logger.LogInformation("ProtocolEditorService.RemoveNode requested. NodeId: {NodeId}", nodeId);
-        return ApplyMutation(document =>
-        {
-            if (!TryDetachNode(document, nodeId, out var removed))
-            {
-                return;
-            }
-
-            ClearInboundLinks(document.Sections, removed.Id);
-        });
+        return ApplyCommandMutation(new RemoveNodeCommand(nodeId), _removeNodeHandler, nameof(RemoveNode));
     }
 
     public ProtocolEditorSnapshot UpdateNode(int nodeId, string text, int linkId, string linkText)
     {
         _logger.LogInformation("ProtocolEditorService.UpdateNode requested. NodeId: {NodeId}, LinkId: {LinkId}, TextLength: {Length}", nodeId, linkId, text.Length);
-        return ApplyMutation(document =>
-        {
-            var node = FindNode(document.Sections, nodeId);
-            if (node == null)
-            {
-                return;
-            }
-
-            node.Text = text ?? string.Empty;
-            node.LinkId = linkId;
-            node.LinkText = linkText ?? string.Empty;
-        });
+        return ApplyCommandMutation(new UpdateNodeCommand(nodeId, text, linkId, linkText), _updateNodeHandler, nameof(UpdateNode));
     }
 
     public ProtocolEditorSnapshot MoveNode(int nodeId, int parentId, int targetIndex)
@@ -117,90 +111,42 @@ public sealed class ProtocolEditorService : IProtocolEditorService
             nodeId,
             parentId,
             targetIndex);
-        return ApplyMutation(document =>
-        {
-            var moving = FindNode(document.Sections, nodeId);
-            if (moving == null || ContainsNode(moving, parentId))
-            {
-                return;
-            }
 
-            if (!TryDetachNode(document, nodeId, out var detached))
-            {
-                return;
-            }
-
-            var target = ResolveTargetList(document, parentId, detached.Kind);
-            if (target == null)
-            {
-                return;
-            }
-
-            var index = Math.Clamp(targetIndex, 0, target.Count);
-            detached.Kind = parentId == 0 ? ProtocolNodeKind.Section : ProtocolNodeKind.SubSection;
-            target.Insert(index, detached);
-        });
+        return ApplyCommandMutation(new MoveNodeCommand(nodeId, parentId, targetIndex), _moveNodeHandler, nameof(MoveNode));
     }
 
     public ProtocolEditorSnapshot AddSubText(int nodeId, string value)
     {
         _logger.LogInformation("ProtocolEditorService.AddSubText requested. NodeId: {NodeId}, ValueLength: {Length}", nodeId, value.Length);
-        return ApplyMutation(document =>
-        {
-            var node = FindNode(document.Sections, nodeId);
-            if (node == null || string.IsNullOrWhiteSpace(value))
-            {
-                return;
-            }
-
-            node.SubText.Add(value.Trim());
-        });
+        return ApplyCommandMutation(new AddSubTextCommand(nodeId, value), _addSubTextHandler, nameof(AddSubText));
     }
 
     public ProtocolEditorSnapshot RemoveSubText(int nodeId, string value)
     {
         _logger.LogInformation("ProtocolEditorService.RemoveSubText requested. NodeId: {NodeId}, ValueLength: {Length}", nodeId, value.Length);
-        return ApplyMutation(document =>
-        {
-            var node = FindNode(document.Sections, nodeId);
-            if (node == null || string.IsNullOrWhiteSpace(value))
-            {
-                return;
-            }
-
-            var index = node.SubText.FindIndex(item => item.Equals(value, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0)
-            {
-                node.SubText.RemoveAt(index);
-            }
-        });
+        return ApplyCommandMutation(new RemoveSubTextCommand(nodeId, value), _removeSubTextHandler, nameof(RemoveSubText));
     }
 
     public ProtocolEditorSnapshot Undo()
     {
         _logger.LogInformation("ProtocolEditorService.Undo requested.");
         var snapshot = _sessionStore.Load();
-        if (snapshot.UndoHistory.Count == 0)
+
+        var undoDomainHistory = ResolveDomainHistory(snapshot.UndoDomainHistory, snapshot.UndoHistory);
+        if (undoDomainHistory.Count == 0)
         {
             _logger.LogDebug("ProtocolEditorService.Undo skipped because undo history was empty.");
             return snapshot;
         }
 
-        var undoHistory = CloneHistory(snapshot.UndoHistory);
-        var restored = undoHistory[^1];
-        undoHistory.RemoveAt(undoHistory.Count - 1);
+        var current = ProtocolTreeMapper.ToDomain(snapshot.Document);
+        var restored = undoDomainHistory[^1];
+        undoDomainHistory.RemoveAt(undoDomainHistory.Count - 1);
 
-        var redoHistory = CloneHistory(snapshot.RedoHistory);
-        redoHistory.Add(CloneDocument(snapshot.Document));
+        var redoDomainHistory = ResolveDomainHistory(snapshot.RedoDomainHistory, snapshot.RedoHistory);
+        redoDomainHistory.Add(current);
 
-        var next = new ProtocolEditorSnapshot
-        {
-            Document = restored,
-            UndoHistory = undoHistory,
-            RedoHistory = redoHistory,
-            LastUpdatedUtc = DateTimeOffset.UtcNow
-        };
-
+        var next = BuildSnapshot(restored, undoDomainHistory, redoDomainHistory, DateTimeOffset.UtcNow);
         _sessionStore.Save(next);
         _logger.LogInformation("ProtocolEditorService.Undo completed.");
         return next;
@@ -210,27 +156,22 @@ public sealed class ProtocolEditorService : IProtocolEditorService
     {
         _logger.LogInformation("ProtocolEditorService.Redo requested.");
         var snapshot = _sessionStore.Load();
-        if (snapshot.RedoHistory.Count == 0)
+
+        var redoDomainHistory = ResolveDomainHistory(snapshot.RedoDomainHistory, snapshot.RedoHistory);
+        if (redoDomainHistory.Count == 0)
         {
             _logger.LogDebug("ProtocolEditorService.Redo skipped because redo history was empty.");
             return snapshot;
         }
 
-        var redoHistory = CloneHistory(snapshot.RedoHistory);
-        var restored = redoHistory[^1];
-        redoHistory.RemoveAt(redoHistory.Count - 1);
+        var current = ProtocolTreeMapper.ToDomain(snapshot.Document);
+        var restored = redoDomainHistory[^1];
+        redoDomainHistory.RemoveAt(redoDomainHistory.Count - 1);
 
-        var undoHistory = CloneHistory(snapshot.UndoHistory);
-        undoHistory.Add(CloneDocument(snapshot.Document));
+        var undoDomainHistory = ResolveDomainHistory(snapshot.UndoDomainHistory, snapshot.UndoHistory);
+        undoDomainHistory.Add(current);
 
-        var next = new ProtocolEditorSnapshot
-        {
-            Document = restored,
-            UndoHistory = undoHistory,
-            RedoHistory = redoHistory,
-            LastUpdatedUtc = DateTimeOffset.UtcNow
-        };
-
+        var next = BuildSnapshot(restored, undoDomainHistory, redoDomainHistory, DateTimeOffset.UtcNow);
         _sessionStore.Save(next);
         _logger.LogInformation("ProtocolEditorService.Redo completed.");
         return next;
@@ -253,6 +194,8 @@ public sealed class ProtocolEditorService : IProtocolEditorService
             Document = document,
             UndoHistory = [],
             RedoHistory = [],
+            UndoDomainHistory = [],
+            RedoDomainHistory = [],
             LastUpdatedUtc = DateTimeOffset.UtcNow
         };
 
@@ -270,175 +213,88 @@ public sealed class ProtocolEditorService : IProtocolEditorService
         return xml;
     }
 
-    private ProtocolEditorSnapshot ApplyMutation(Action<ProtocolDocument> mutation)
+    private ProtocolEditorSnapshot ApplyCommandMutation<TCommand>(
+        TCommand command,
+        IProtocolCommandHandler<TCommand> handler,
+        string operationName)
     {
         var snapshot = _sessionStore.Load();
-        var current = CloneDocument(snapshot.Document);
-        var original = CloneDocument(snapshot.Document);
-        mutation(current);
+        var current = ProtocolTreeMapper.ToDomain(snapshot.Document);
 
-        var undoHistory = CloneHistory(snapshot.UndoHistory);
-        undoHistory.Add(original);
-
-        if (undoHistory.Count > 100)
+        var updateResult = handler.Handle(current, command);
+        if (updateResult.IsFailure)
         {
-            undoHistory.RemoveAt(0);
+            var userMessage = ProtocolResultMapping.ToUserSafeMessage(updateResult);
+            _logger.LogDebug(
+                "ProtocolEditorService.{Operation} skipped. Code: {Code}, Message: {Message}, UserMessage: {UserMessage}",
+                operationName,
+                updateResult.ErrorCode,
+                updateResult.ErrorMessage,
+                userMessage);
+            return snapshot;
         }
 
-        var next = new ProtocolEditorSnapshot
-        {
-            Document = current,
-            UndoHistory = undoHistory,
-            RedoHistory = [],
-            LastUpdatedUtc = DateTimeOffset.UtcNow
-        };
+        var undoDomainHistory = ResolveDomainHistory(snapshot.UndoDomainHistory, snapshot.UndoHistory);
+        undoDomainHistory.Add(current);
 
+        if (undoDomainHistory.Count > MaxUndoDepth)
+        {
+            undoDomainHistory.RemoveAt(0);
+        }
+
+        var next = BuildSnapshot(updateResult.Value, undoDomainHistory, [], DateTimeOffset.UtcNow);
         _sessionStore.Save(next);
+
         _logger.LogDebug(
-            "ProtocolEditorService mutation saved. UndoCount: {UndoCount}, RedoCount: {RedoCount}",
+            "ProtocolEditorService mutation saved. Operation: {Operation}, UndoCount: {UndoCount}, RedoCount: {RedoCount}",
+            operationName,
             next.UndoHistory.Count,
             next.RedoHistory.Count);
+
         return next;
     }
 
-    private static void ClearInboundLinks(List<ProtocolNodeModel> nodes, int removedId)
+    private static ProtocolEditorSnapshot BuildSnapshot(
+        ProtocolTreeDocument current,
+        List<ProtocolTreeDocument> undoDomainHistory,
+        List<ProtocolTreeDocument> redoDomainHistory,
+        DateTimeOffset timestamp)
     {
-        foreach (var node in nodes)
+        return new ProtocolEditorSnapshot
         {
-            if (node.LinkId == removedId)
-            {
-                node.LinkId = -1;
-                node.LinkText = string.Empty;
-            }
-
-            ClearInboundLinks(node.Children, removedId);
-        }
-    }
-
-    private static List<ProtocolNodeModel>? ResolveTargetList(ProtocolDocument document, int parentId, ProtocolNodeKind movingKind)
-    {
-        if (movingKind == ProtocolNodeKind.Section)
-        {
-            return parentId == 0 ? document.Sections : null;
-        }
-
-        if (parentId == 0)
-        {
-            return null;
-        }
-
-        var parent = FindNode(document.Sections, parentId);
-        if (parent == null)
-        {
-            return null;
-        }
-
-        return parent.Children;
-    }
-
-    private static bool TryDetachNode(ProtocolDocument document, int nodeId, out ProtocolNodeModel removed)
-    {
-        if (TryDetachFromList(document.Sections, nodeId, out removed))
-        {
-            return true;
-        }
-
-        foreach (var section in document.Sections)
-        {
-            if (TryDetachFromList(section.Children, nodeId, out removed))
-            {
-                return true;
-            }
-        }
-
-        removed = new ProtocolNodeModel();
-        return false;
-    }
-
-    private static bool TryDetachFromList(List<ProtocolNodeModel> nodes, int nodeId, out ProtocolNodeModel removed)
-    {
-        for (var index = 0; index < nodes.Count; index++)
-        {
-            if (nodes[index].Id == nodeId)
-            {
-                removed = nodes[index];
-                nodes.RemoveAt(index);
-                return true;
-            }
-
-            if (TryDetachFromList(nodes[index].Children, nodeId, out removed))
-            {
-                return true;
-            }
-        }
-
-        removed = new ProtocolNodeModel();
-        return false;
-    }
-
-    private static ProtocolNodeModel? FindNode(List<ProtocolNodeModel> nodes, int id)
-    {
-        foreach (var node in nodes)
-        {
-            if (node.Id == id)
-            {
-                return node;
-            }
-
-            var found = FindNode(node.Children, id);
-            if (found != null)
-            {
-                return found;
-            }
-        }
-
-        return null;
-    }
-
-    private static bool ContainsNode(ProtocolNodeModel node, int id)
-    {
-        if (node.Id == id)
-        {
-            return true;
-        }
-
-        return node.Children.Any(child => ContainsNode(child, id));
-    }
-
-    private static ProtocolNodeModel CreateNode(ProtocolDocument document, string text, ProtocolNodeKind kind)
-    {
-        return new ProtocolNodeModel
-        {
-            Id = NextId(document),
-            LinkId = -1,
-            LinkText = string.Empty,
-            Text = string.IsNullOrWhiteSpace(text) ? "New Node" : text.Trim(),
-            Kind = kind,
-            SubText = [],
-            Children = []
+            Document = ProtocolTreeMapper.ToMutable(current),
+            UndoDomainHistory = undoDomainHistory,
+            RedoDomainHistory = redoDomainHistory,
+            UndoHistory = CreateLegacyHistoryPlaceholders(undoDomainHistory.Count),
+            RedoHistory = CreateLegacyHistoryPlaceholders(redoDomainHistory.Count),
+            LastUpdatedUtc = timestamp
         };
     }
 
-    private static int NextId(ProtocolDocument document)
+    private static List<ProtocolTreeDocument> ResolveDomainHistory(
+        IReadOnlyList<ProtocolTreeDocument> domainHistory,
+        IReadOnlyList<ProtocolDocument> legacyHistory)
     {
-        var max = document.Sections.Select(GetMaxId).DefaultIfEmpty(0).Max();
-        return max + 1;
+        if (domainHistory.Count > 0)
+        {
+            return domainHistory.ToList();
+        }
+
+        return legacyHistory
+            .Select(ProtocolTreeMapper.ToDomain)
+            .ToList();
     }
 
-    private static int GetMaxId(ProtocolNodeModel node)
+    private static List<ProtocolDocument> CreateLegacyHistoryPlaceholders(int count)
     {
-        var childMax = node.Children.Select(GetMaxId).DefaultIfEmpty(node.Id).Max();
-        return Math.Max(node.Id, childMax);
-    }
+        if (count <= 0)
+        {
+            return [];
+        }
 
-    private static ProtocolDocument CloneDocument(ProtocolDocument document)
-    {
-        var json = JsonSerializer.Serialize(document);
-        return JsonSerializer.Deserialize<ProtocolDocument>(json) ?? new ProtocolDocument();
-    }
-
-    private static List<ProtocolDocument> CloneHistory(List<ProtocolDocument> history)
-    {
-        return history.Select(CloneDocument).ToList();
+        return Enumerable
+            .Range(0, count)
+            .Select(_ => new ProtocolDocument())
+            .ToList();
     }
 }

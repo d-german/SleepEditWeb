@@ -1,0 +1,43 @@
+name: Frontend Guardrails
+
+on:
+  pull_request:
+    paths:
+      - "SleepEditWeb/wwwroot/js/**"
+      - "SleepEditWeb/Views/ProtocolEditor/Index.cshtml"
+      - "SleepEditWeb/Views/ProtocolViewer/Index.cshtml"
+      - "SleepEditWeb/scripts/frontend-lint.mjs"
+      - "SleepEditWeb/package.json"
+      - "docs/protocol-editor-modular-architecture.md"
+  push:
+    branches:
+      - main
+    paths:
+      - "SleepEditWeb/wwwroot/js/**"
+      - "SleepEditWeb/Views/ProtocolEditor/Index.cshtml"
+      - "SleepEditWeb/Views/ProtocolViewer/Index.cshtml"
+      - "SleepEditWeb/scripts/frontend-lint.mjs"
+      - "SleepEditWeb/package.json"
+      - "docs/protocol-editor-modular-architecture.md"
+
+jobs:
+  frontend-guardrails:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: SleepEditWeb
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Lint Frontend Boundaries
+        run: npm run lint:frontend
+
+      - name: Run Frontend Tests
+        run: npm run test:frontend

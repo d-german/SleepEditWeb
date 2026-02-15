@@ -1,8 +1,13 @@
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using SleepEditWeb.Application.Protocol.Commands;
+using SleepEditWeb.Application.Protocol.Queries;
+using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Data;
+using SleepEditWeb.Infrastructure.ProtocolXml;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
+using SleepEditWeb.Web.ProtocolEditor;
 
 namespace SleepEditWeb;
 
@@ -24,6 +29,22 @@ public class Program
 		builder.Services.AddScoped<IProtocolXmlService, ProtocolXmlService>();
 		builder.Services.AddScoped<IProtocolStarterService, ProtocolStarterService>();
 		builder.Services.AddScoped<IProtocolEditorSessionStore, ProtocolEditorSessionStore>();
+		builder.Services.AddScoped<IProtocolEditorPathPolicy, ProtocolEditorPathPolicy>();
+		builder.Services.AddScoped<IProtocolEditorFileStore, ProtocolEditorFileStore>();
+		builder.Services.AddScoped<IProtocolEditorRequestValidator, ProtocolEditorRequestValidator>();
+		builder.Services.AddScoped<IProtocolEditorResponseMapper, ProtocolEditorResponseMapper>();
+		builder.Services.AddScoped<IProtocolXmlMapper, ProtocolXmlMapper>();
+		builder.Services.AddScoped<IProtocolXmlSerializer, ProtocolXmlSerializer>();
+		builder.Services.AddScoped<IProtocolXmlDeserializer, ProtocolXmlDeserializer>();
+		builder.Services.AddSingleton<IProtocolRepository, LiteDbProtocolRepository>();
+		builder.Services.AddScoped<IProtocolCommandHandler<AddSectionCommand>, AddSectionCommandHandler>();
+		builder.Services.AddScoped<IProtocolCommandHandler<AddChildCommand>, AddChildCommandHandler>();
+		builder.Services.AddScoped<IProtocolCommandHandler<RemoveNodeCommand>, RemoveNodeCommandHandler>();
+		builder.Services.AddScoped<IProtocolCommandHandler<UpdateNodeCommand>, UpdateNodeCommandHandler>();
+		builder.Services.AddScoped<IProtocolCommandHandler<MoveNodeCommand>, MoveNodeCommandHandler>();
+		builder.Services.AddScoped<IProtocolCommandHandler<AddSubTextCommand>, AddSubTextCommandHandler>();
+		builder.Services.AddScoped<IProtocolCommandHandler<RemoveSubTextCommand>, RemoveSubTextCommandHandler>();
+		builder.Services.AddScoped<IProtocolQueryHandler<FindNodeByIdQuery, SleepEditWeb.Protocol.Domain.ProtocolTreeNode>, FindNodeByIdQueryHandler>();
 		builder.Services.AddScoped<IProtocolEditorService, ProtocolEditorService>();
 		builder.Services.AddHttpContextAccessor();
 
