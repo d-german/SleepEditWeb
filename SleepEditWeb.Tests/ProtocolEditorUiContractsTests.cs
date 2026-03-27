@@ -81,6 +81,15 @@ public class ProtocolEditorUiContractsTests
     }
 
     [Test]
+    public void ProtocolTree_AllowsSelectingSectionHeaders()
+    {
+        var content = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Components/ProtocolEditor/ProtocolTree.razor"));
+
+        Assert.That(content, Does.Contain("protocol-section-select"));
+        Assert.That(content, Does.Contain("HandleSectionSelected(secId)"));
+    }
+
+    [Test]
     public void ProtocolViewerView_UsesModuleBootstrap()
     {
         var viewerContent = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/ProtocolViewer/Index.cshtml"));

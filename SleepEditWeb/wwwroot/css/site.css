@@ -1253,3 +1253,133 @@ a:hover {
 .form-control {
     border-radius: var(--border-radius-sm);
 }
+
+/* ==========================================
+   Protocol Editor - Blazor tree components
+   ========================================== */
+.protocol-tree-host {
+    max-height: 60vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.protocol-section {
+    margin-bottom: 0.25rem;
+}
+
+.protocol-section-header {
+    border-radius: var(--border-radius-sm);
+    font-size: 0.875rem;
+    transition: background-color 0.1s;
+}
+
+.protocol-section-header:hover {
+    background-color: var(--sidebar-hover);
+}
+
+.protocol-section-header.selected {
+    background-color: var(--sidebar-active-bg);
+    color: var(--sidebar-active-text);
+}
+
+.protocol-section-header.selected .badge {
+    opacity: 0.85;
+}
+
+.protocol-section-toggle,
+.protocol-section-select {
+    border: 0;
+    background: transparent;
+    color: inherit;
+}
+
+.protocol-section-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    border-radius: 4px;
+    flex: 0 0 auto;
+}
+
+.protocol-section-select {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    cursor: pointer;
+    font-size: inherit;
+}
+
+.protocol-section-toggle:hover,
+.protocol-section-select:hover {
+    color: inherit;
+}
+
+.protocol-node-list {
+    padding-left: 0;
+    list-style: none;
+}
+
+.protocol-node-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.18rem 0.4rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.protocol-node-item:hover {
+    background-color: var(--sidebar-hover);
+}
+
+.protocol-node-item.selected {
+    background-color: var(--sidebar-active-bg) !important;
+    color: var(--sidebar-active-text) !important;
+}
+
+.protocol-node-item.selected .badge {
+    opacity: 0.85;
+}
+
+.protocol-node-text {
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.8125rem;
+}
+
+.protocol-editor-shell .col-xl-4 .dashboard-card-body {
+    padding: 0.5rem;
+}
+
+.protocol-details-column {
+    min-height: 0;
+}
+
+@media (min-width: 1200px) {
+    .protocol-details-column {
+        position: sticky;
+        top: 0.75rem;
+        max-height: calc(100vh - 8rem);
+        overflow-y: auto;
+        padding-right: 0.35rem;
+        scrollbar-gutter: stable;
+    }
+}
+
+.protocol-editor-shell > div > .d-flex.flex-wrap {
+    gap: 0.2rem;
+}
+
+.protocol-editor-toolbar {
+    gap: 0.2rem !important;
+}

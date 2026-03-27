@@ -17,12 +17,21 @@
             var listId = GetSectionListId(secId);
 
             <div class="protocol-section mb-2">
-                <div class="protocol-section-header d-flex align-items-center gap-1 py-1 px-2"
-                     style="cursor: pointer; user-select: none;"
-                     @onclick="@(() => HandleSectionToggle(secId))">
-                    <i class="bi @(isCollapsed ? "bi-chevron-right" : "bi-chevron-down") me-1"></i>
-                    <span class="fw-semibold flex-grow-1">@sec.Text</span>
-                    <span class="badge bg-secondary">@CountDescendants(sec)</span>
+                <div class="protocol-section-header d-flex align-items-center gap-1 py-1 px-2 @(SelectedNodeId == secId ? "selected" : null)"
+                     style="user-select: none;">
+                    <button type="button"
+                            class="protocol-section-toggle"
+                            title="@(isCollapsed ? "Expand section" : "Collapse section")"
+                            aria-label="@(isCollapsed ? "Expand section" : "Collapse section")"
+                            @onclick="@(() => HandleSectionToggle(secId))">
+                        <i class="bi @(isCollapsed ? "bi-chevron-right" : "bi-chevron-down")"></i>
+                    </button>
+                    <button type="button"
+                            class="protocol-section-select"
+                            @onclick="@(() => HandleSectionSelected(secId))">
+                        <span class="fw-semibold flex-grow-1 text-start">@sec.Text</span>
+                        <span class="badge bg-secondary">@CountDescendants(sec)</span>
+                    </button>
                 </div>
                 @if (!isCollapsed)
                 {
@@ -100,6 +109,11 @@
 
         var json = System.Text.Json.JsonSerializer.Serialize(_collapsedSectionIds.ToList());
         await _jsRuntime.InvokeVoidAsync("localStorage.setItem", CollapseStorageKey, json);
+    }
+
+    private async Task HandleSectionSelected(int sectionId)
+    {
+        await OnNodeSelected.InvokeAsync(sectionId);
     }
 
     [JSInvokable]

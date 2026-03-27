@@ -8,43 +8,43 @@
 @inject IJSRuntime _jsRuntime
 @inject ILogger<ProtocolToolbar> _logger
 
-<div class="d-flex flex-wrap gap-2 mb-3">
-    <button type="button" class="btn btn-outline-primary" @onclick="HandleAddSection" disabled="@IsLoading">
+<div class="d-flex flex-wrap gap-1 mb-3 protocol-editor-toolbar">
+    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="HandleAddSection" disabled="@IsLoading">
         Add Section
     </button>
-    <button type="button" class="btn btn-outline-primary" @onclick="HandleAddChild"
+    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="HandleAddChild"
             disabled="@(IsLoading || SelectedNodeId is null)">
         Add Child
     </button>
-    <button type="button" class="btn btn-outline-danger" @onclick="HandleRemoveNode"
+    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="HandleRemoveNode"
             disabled="@(IsLoading || SelectedNodeId is null)">
         Remove
     </button>
-    <button type="button" class="btn btn-outline-secondary" @onclick="HandleUndo"
+    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="HandleUndo"
             disabled="@(IsLoading || !CanUndo)">
         Undo
     </button>
-    <button type="button" class="btn btn-outline-secondary" @onclick="HandleRedo"
+    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="HandleRedo"
             disabled="@(IsLoading || !CanRedo)">
         Redo
     </button>
-    <button type="button" class="btn btn-outline-secondary" @onclick="HandleReset" disabled="@IsLoading">
+    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="HandleReset" disabled="@IsLoading">
         Reset
     </button>
-    <button type="button" class="btn btn-outline-secondary" @onclick="OnToggleAllSections" disabled="@IsLoading">
+    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OnToggleAllSections" disabled="@IsLoading">
         Collapse Sections
     </button>
-    <label class="btn btn-outline-primary @(IsLoading ? "disabled" : "")" title="Import Protocol XML">
+    <label class="btn btn-sm btn-outline-primary @(IsLoading ? "disabled" : "")" title="Import Protocol XML">
         Import Protocol
         <InputFile OnChange="HandleImport" accept=".xml,text/xml,application/xml" class="d-none" />
     </label>
-    <button type="button" class="btn btn-outline-primary" @onclick="HandleSave" disabled="@IsLoading">
+    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="HandleSave" disabled="@IsLoading">
         Save Protocol
     </button>
-    <button type="button" class="btn btn-outline-primary" @onclick="HandleSetDefault" disabled="@IsLoading">
+    <button type="button" class="btn btn-sm btn-outline-primary" @onclick="HandleSetDefault" disabled="@IsLoading">
         Set As Default
     </button>
-    <button type="button" class="btn btn-primary" @onclick="HandleExport" disabled="@IsLoading">
+    <button type="button" class="btn btn-sm btn-primary" @onclick="HandleExport" disabled="@IsLoading">
         Export Protocol
     </button>
 </div>

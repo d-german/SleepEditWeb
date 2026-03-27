@@ -23,6 +23,7 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
     private readonly IProtocolStarterService _starterService;
     private readonly IProtocolRepository _repository;
     private readonly ILogger<ProtocolEditorSessionStore> _logger;
+    private ProtocolEditorSnapshot? _inMemorySnapshot;
 
     public ProtocolEditorSessionStore(
         IHttpContextAccessor httpContextAccessor,
@@ -38,11 +39,17 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
 
     public ProtocolEditorSnapshot Load()
     {
+        if (_inMemorySnapshot != null)
+        {
+            _logger.LogDebug("ProtocolEditorSessionStore.Load returned snapshot from in-memory state.");
+            return _inMemorySnapshot;
+        }
+
         var session = GetSession();
         if (session == null)
         {
             _logger.LogWarning("ProtocolEditorSessionStore.Load returned default snapshot because session was unavailable.");
-            return CreateDefaultSnapshot();
+            return CacheSnapshot(CreateDefaultSnapshot());
         }
 
         var serialized = session.GetString(SnapshotKey);
@@ -50,15 +57,18 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
         if (snapshot != null)
         {
             _logger.LogDebug("ProtocolEditorSessionStore.Load returned snapshot from session.");
-            return snapshot;
+            return CacheSnapshot(snapshot);
         }
 
         _logger.LogInformation("ProtocolEditorSessionStore.Load returned default snapshot because session state was empty or invalid.");
-        return CreateDefaultSnapshot();
+        return CacheSnapshot(CreateDefaultSnapshot());
     }
 
     public void Save(ProtocolEditorSnapshot snapshot)
     {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        _inMemorySnapshot = snapshot;
+
         var session = GetSession();
         if (session == null)
         {
@@ -66,12 +76,25 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
             return;
         }
 
-        var serialized = JsonSerializer.Serialize(snapshot);
-        session.SetString(SnapshotKey, serialized);
-        _logger.LogDebug(
-            "ProtocolEditorSessionStore.Save persisted snapshot. UndoCount: {UndoCount}, RedoCount: {RedoCount}",
-            snapshot.UndoHistory.Count,
-            snapshot.RedoHistory.Count);
+        if (_httpContextAccessor.HttpContext?.Response?.HasStarted == true)
+        {
+            _logger.LogDebug("ProtocolEditorSessionStore.Save kept snapshot in memory because the response has already started.");
+            return;
+        }
+
+        try
+        {
+            var serialized = JsonSerializer.Serialize(snapshot);
+            session.SetString(SnapshotKey, serialized);
+            _logger.LogDebug(
+                "ProtocolEditorSessionStore.Save persisted snapshot. UndoCount: {UndoCount}, RedoCount: {RedoCount}",
+                snapshot.UndoHistory.Count,
+                snapshot.RedoHistory.Count);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "ProtocolEditorSessionStore.Save kept snapshot in memory because session could not be updated.");
+        }
     }
 
     public void Reset()
@@ -83,6 +106,12 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
     private ISession? GetSession()
     {
         return _httpContextAccessor.HttpContext?.Session;
+    }
+
+    private ProtocolEditorSnapshot CacheSnapshot(ProtocolEditorSnapshot snapshot)
+    {
+        _inMemorySnapshot = snapshot;
+        return snapshot;
     }
 
     private ProtocolEditorSnapshot CreateDefaultSnapshot()

@@ -1,4 +1,4 @@
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@rendermode @(new InteractiveServerRenderMode(prerender: true))
 
 @inject IProtocolEditorService _service
 @inject IOptions<ProtocolEditorFeatureOptions> _featureOptions
@@ -61,7 +61,7 @@ else
         }
 
         <div class="row g-3 protocol-editor-shell">
-            <div class="col-12 col-xl-4">
+            <div class="col-12 col-xl-4 protocol-tree-column">
                 <div class="dashboard-card h-100">
                     <div class="dashboard-card-header">
                         <i class="bi bi-diagram-3 me-2"></i>Protocol Tree
@@ -74,7 +74,7 @@ else
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-xl-8">
+            <div class="col-12 col-xl-8 protocol-details-column">
                 <ProtocolNodeInfoPanel SelectedNode="GetSelectedNode(_snapshot.Document, _selectedNodeId)"
                                        Document="_snapshot.Document"
                                        OnMutation="HandleMutation"

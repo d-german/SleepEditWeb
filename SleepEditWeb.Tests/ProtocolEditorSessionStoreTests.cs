@@ -102,6 +102,50 @@ public class ProtocolEditorSessionStoreTests
         repository.Verify(x => x.GetLatestVersion(), Times.Never);
     }
 
+    [Test]
+    public void Save_WhenSessionWriteFails_KeepsSnapshotInMemory()
+    {
+        // Arrange
+        var session = new Mock<ISession>();
+        session
+            .Setup(x => x.Set(It.IsAny<string>(), It.IsAny<byte[]>()))
+            .Throws(new InvalidOperationException("The session cannot be established after the response has started."));
+
+        var httpContext = new Mock<HttpContext>();
+        httpContext.SetupGet(x => x.Session).Returns(session.Object);
+
+        var accessor = new Mock<IHttpContextAccessor>();
+        accessor.Setup(x => x.HttpContext).Returns(httpContext.Object);
+
+        var starter = new Mock<IProtocolStarterService>();
+        starter.Setup(x => x.Create()).Returns(CreateDocument("Starter Protocol"));
+
+        var repository = new Mock<IProtocolRepository>();
+        repository.Setup(x => x.GetLatestVersion()).Returns((ProtocolVersion?)null);
+
+        var store = new ProtocolEditorSessionStore(
+            accessor.Object,
+            starter.Object,
+            repository.Object,
+            NullLogger<ProtocolEditorSessionStore>.Instance);
+
+        var snapshot = new ProtocolEditorSnapshot
+        {
+            Document = CreateDocument("Updated Protocol"),
+            UndoHistory = [],
+            RedoHistory = [],
+            LastUpdatedUtc = DateTimeOffset.UtcNow
+        };
+
+        // Act
+        Assert.DoesNotThrow(() => store.Save(snapshot));
+        var loaded = store.Load();
+
+        // Assert
+        Assert.That(loaded.Document.Text, Is.EqualTo("Updated Protocol"));
+        session.Verify(x => x.Set(It.IsAny<string>(), It.IsAny<byte[]>()), Times.Once);
+    }
+
     private static ProtocolDocument CreateDocument(string text)
     {
         return new ProtocolDocument

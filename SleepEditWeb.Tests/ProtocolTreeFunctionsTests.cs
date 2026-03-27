@@ -54,6 +54,21 @@ public class ProtocolTreeFunctionsTests
     }
 
     [Test]
+    public void RemoveNode_RemovesTopLevelSectionById()
+    {
+        // Arrange
+        var source = CreateDomainDocument();
+        var removedSectionId = source.Sections[^1].Id;
+
+        // Act
+        var updated = ProtocolTreeFunctions.RemoveNode(source, removedSectionId);
+
+        // Assert
+        Assert.That(updated.Sections.Any(section => section.Id == removedSectionId), Is.False);
+        Assert.That(updated.Sections.Count, Is.EqualTo(source.Sections.Count - 1));
+    }
+
+    [Test]
     public void MoveNode_RejectsMoveIntoOwnDescendant()
     {
         // Arrange
