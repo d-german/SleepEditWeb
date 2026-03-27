@@ -1,0 +1,48 @@
+<div class="protocol-node-item @(Node.Id == SelectedNodeId ? "selected" : "")"
+     style="padding-left: @(Depth * 16)px"
+     @onclick="HandleClick"
+     @onclick:stopPropagation="true"
+     data-node-id="@Node.Id">
+    <span class="protocol-node-text">@Node.Text</span>
+    @if (Node.SubText.Count > 0)
+    {
+        <span class="badge bg-secondary ms-1" title="@Node.SubText.Count subtext item(s)">
+            <i class="bi bi-list-ul"></i> @Node.SubText.Count
+        </span>
+    }
+    @if (Node.LinkId > 0)
+    {
+        <span class="badge bg-info ms-1" title="Links to node @Node.LinkId">
+            <i class="bi bi-link-45deg"></i>
+        </span>
+    }
+    @if (Node.Children.Count > 0)
+    {
+        <span class="badge bg-light text-dark ms-1" title="@Node.Children.Count child(ren)">
+            <i class="bi bi-diagram-3"></i> @Node.Children.Count
+        </span>
+    }
+</div>
+
+@if (Node.Children.Count > 0)
+{
+    <div>
+        @foreach (var child in Node.Children)
+        {
+            <ProtocolNodeItem Node="child"
+                              SelectedNodeId="SelectedNodeId"
+                              OnNodeSelected="OnNodeSelected"
+                              Depth="Depth + 1" />
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public ProtocolNodeModel Node { get; set; } = new();
+    [Parameter] public int? SelectedNodeId { get; set; }
+    [Parameter] public EventCallback<int> OnNodeSelected { get; set; }
+    [Parameter] public int Depth { get; set; }
+
+    private async Task HandleClick() =>
+        await OnNodeSelected.InvokeAsync(Node.Id);
+}

@@ -7,6 +7,7 @@ using SleepEditWeb.Data;
 using SleepEditWeb.Infrastructure.ProtocolXml;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
+using SleepEditWeb.Components;
 using SleepEditWeb.Web.ProtocolEditor;
 
 namespace SleepEditWeb;
@@ -18,6 +19,7 @@ public class Program
 		var builder = WebApplication.CreateBuilder(args);
 
 		builder.Services.AddControllersWithViews();
+		builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 		builder.Services.AddHttpClient();
 		builder.Services.AddHttpClient<IDrugInfoService, OpenFdaDrugInfoService>();
 
@@ -84,6 +86,8 @@ public class Program
 		app.MapControllerRoute(
 			name: "default",
 			pattern: "{controller=SleepNoteEditor}/{action=Index}/{id?}");
+
+		app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 		app.Run();
 	}

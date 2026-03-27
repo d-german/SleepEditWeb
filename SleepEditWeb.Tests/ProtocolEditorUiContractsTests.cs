@@ -61,29 +61,30 @@ public class ProtocolEditorUiContractsTests
     }
 
     [Test]
-    public void ProtocolEditorView_UsesProtocolWording_WhileRetainingXmlEndpoints()
+    public void ProtocolEditorToolbar_UsesProtocolWording()
     {
-        var content = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/ProtocolEditor/Index.cshtml"));
+        // Wording lives in the Blazor toolbar component; controller routes are verified by ProtocolEditorController_RouteTemplates_RemainStable
+        var toolbar = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Components/ProtocolEditor/ProtocolToolbar.razor"));
 
-        Assert.That(content, Does.Contain(">Import Protocol<"));
-        Assert.That(content, Does.Contain(">Save Protocol<"));
-        Assert.That(content, Does.Contain(">Export Protocol<"));
-
-        Assert.That(content, Does.Contain("/ProtocolEditor/ImportXmlUpload"));
-        Assert.That(content, Does.Contain("/ProtocolEditor/SaveXml"));
-        Assert.That(content, Does.Contain("/ProtocolEditor/SetDefaultProtocol"));
-        Assert.That(content, Does.Contain("/ProtocolEditor/${action}"));
-        Assert.That(content, Does.Contain("ExportXml"));
+        Assert.That(toolbar, Does.Contain("Import Protocol"));
+        Assert.That(toolbar, Does.Contain("Save Protocol"));
+        Assert.That(toolbar, Does.Contain("Export Protocol"));
     }
 
     [Test]
-    public void ProtocolEditorAndViewerViews_UseModuleBootstraps()
+    public void ProtocolEditorView_EmbedsBlazorShellComponent()
     {
-        var editorContent = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/ProtocolEditor/Index.cshtml"));
+        var content = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/ProtocolEditor/Index.cshtml"));
+
+        Assert.That(content, Does.Contain("ProtocolEditorShell"));
+        Assert.That(content, Does.Contain("render-mode"));
+    }
+
+    [Test]
+    public void ProtocolViewerView_UsesModuleBootstrap()
+    {
         var viewerContent = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/ProtocolViewer/Index.cshtml"));
 
-        Assert.That(editorContent, Does.Contain("<script type=\"module\">"));
-        Assert.That(editorContent, Does.Contain("/js/protocol-editor-ui.js"));
         Assert.That(viewerContent, Does.Contain("<script type=\"module\">"));
         Assert.That(viewerContent, Does.Contain("/js/protocol-viewer-bootstrap.js"));
     }

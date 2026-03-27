@@ -1,0 +1,121 @@
+<!-- Backdrop overlay -->
+<div class="modal-backdrop fade show" style="z-index: 1050;"></div>
+
+<!-- Modal dialog -->
+<div class="modal d-block" tabindex="-1" style="z-index: 1055;" role="dialog">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Link Node</h5>
+                <button type="button" class="btn-close" @onclick="HandleCancel" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="small text-muted mb-2">
+                    Linking from: <strong>@SourceNode.Text</strong>
+                </div>
+                <label class="form-label">Search</label>
+                <input type="text"
+                       class="form-control mb-3"
+                       placeholder="Filter by node text or id"
+                       @bind="_searchQuery"
+                       @bind:event="oninput" />
+
+                @foreach (var (sec, nodes) in GetFilteredSections(Document, _searchQuery))
+                {
+                    <div class="mb-2">
+                        <div class="fw-semibold text-muted small px-1 py-1 border-bottom">@sec.Text</div>
+                        <div class="list-group list-group-flush">
+                            @foreach (var node in nodes)
+                            {
+                                var nodeId = node.Id;
+                                var isCurrentLink = node.Id == SourceNode.LinkId;
+                                var isPicked = node.Id == _pickedNodeId;
+                                <button type="button"
+                                        class="list-group-item list-group-item-action @(isPicked ? "active" : "") @(isCurrentLink ? "list-group-item-info" : "")"
+                                        @onclick="@(() => _pickedNodeId = nodeId)">
+                                    <span class="me-2 text-muted small">[@node.Id]</span>
+                                    @node.Text
+                                    @if (isCurrentLink)
+                                    {
+                                        <span class="badge bg-info ms-1">Current</span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="HandleCancel">Cancel</button>
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick="HandleSelect"
+                        disabled="@(_pickedNodeId is null)">
+                    Select
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public ProtocolDocument Document { get; set; } = new();
+    [Parameter] public ProtocolNodeModel SourceNode { get; set; } = new();
+    [Parameter] public EventCallback<(int LinkId, string LinkText)> OnLinkSelected { get; set; }
+    [Parameter] public EventCallback OnCancelled { get; set; }
+
+    private string _searchQuery = string.Empty;
+    private int? _pickedNodeId;
+
+    protected override void OnParametersSet()
+    {
+        _pickedNodeId = SourceNode.LinkId > 0 ? SourceNode.LinkId : null;
+    }
+
+    private async Task HandleSelect()
+    {
+        if (_pickedNodeId is null) return;
+        var pickedNode = FindNodeById(Document.Sections, _pickedNodeId.Value);
+        await OnLinkSelected.InvokeAsync((_pickedNodeId.Value, pickedNode?.Text ?? string.Empty));
+    }
+
+    private async Task HandleCancel() =>
+        await OnCancelled.InvokeAsync();
+
+    private static IEnumerable<(ProtocolNodeModel Section, IEnumerable<ProtocolNodeModel> Nodes)> GetFilteredSections(
+        ProtocolDocument doc, string query)
+    {
+        var q = query.Trim();
+        foreach (var sec in doc.Sections)
+        {
+            var matchingNodes = FlattenNodes(sec.Children)
+                .Where(n => string.IsNullOrEmpty(q)
+                    || n.Text.Contains(q, System.StringComparison.OrdinalIgnoreCase)
+                    || n.Id.ToString() == q);
+
+            if (matchingNodes.Any())
+                yield return (sec, matchingNodes);
+        }
+    }
+
+    private static IEnumerable<ProtocolNodeModel> FlattenNodes(IEnumerable<ProtocolNodeModel> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            yield return node;
+            foreach (var child in FlattenNodes(node.Children))
+                yield return child;
+        }
+    }
+
+    private static ProtocolNodeModel? FindNodeById(IEnumerable<ProtocolNodeModel> nodes, int id)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Id == id) return node;
+            var found = FindNodeById(node.Children, id);
+            if (found is not null) return found;
+        }
+        return null;
+    }
+}

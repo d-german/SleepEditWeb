@@ -1,0 +1,230 @@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+@inject IProtocolEditorService _service
+@inject IOptions<ProtocolEditorFeatureOptions> _featureOptions
+@inject IJSRuntime _jsRuntime
+@inject ILogger<ProtocolEditorShell> _logger
+
+@if (!_featureOptions.Value.ProtocolEditorEnabled)
+{
+    <div class="alert alert-warning mt-3">
+        <i class="bi bi-exclamation-triangle me-2"></i>The Protocol Editor is currently disabled.
+    </div>
+}
+else if (_isLoading)
+{
+    <div class="d-flex justify-content-center align-items-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <span class="ms-3 text-muted">Loading protocol editor...</span>
+    </div>
+}
+else
+{
+    <div tabindex="0" @onkeydown="HandleKeyDown" style="outline: none;">
+        <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <h1 class="page-title">Protocol Editor</h1>
+                <p class="page-subtitle">Build, organize, and export protocol statements.</p>
+            </div>
+        </div>
+
+        <ProtocolToolbar
+            Snapshot="_snapshot"
+            SelectedNodeId="_selectedNodeId"
+            IsLoading="_isLoading"
+            OnMutation="HandleMutation"
+            OnError="HandleError"
+            OnAddSection="HandleAddSectionRequested"
+            OnToggleAllSections="HandleToggleAllSections" />
+
+        @if (_addSectionPanelOpen)
+        {
+            <div class="input-group mb-3" style="max-width: 400px;">
+                <input id="newSectionInput"
+                       type="text"
+                       class="form-control"
+                       placeholder="Section name"
+                       @bind="_newSectionText"
+                       @bind:event="oninput"
+                       @onkeydown="HandleAddSectionKeyDown" />
+                <button class="btn btn-primary" type="button" @onclick="HandleAddSectionConfirm"
+                        disabled="@string.IsNullOrWhiteSpace(_newSectionText)">
+                    Add
+                </button>
+                <button class="btn btn-outline-secondary" type="button"
+                        @onclick="() => { _addSectionPanelOpen = false; _newSectionText = string.Empty; }">
+                    Cancel
+                </button>
+            </div>
+        }
+
+        <div class="row g-3 protocol-editor-shell">
+            <div class="col-12 col-xl-4">
+                <div class="dashboard-card h-100">
+                    <div class="dashboard-card-header">
+                        <i class="bi bi-diagram-3 me-2"></i>Protocol Tree
+                    </div>
+                    <div class="dashboard-card-body">
+                        <ProtocolTree Document="_snapshot.Document"
+                                      SelectedNodeId="_selectedNodeId"
+                                      OnNodeSelected="HandleNodeSelected"
+                                      OnNodeMoved="HandleNodeMoved" />
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-xl-8">
+                <ProtocolNodeInfoPanel SelectedNode="GetSelectedNode(_snapshot.Document, _selectedNodeId)"
+                                       Document="_snapshot.Document"
+                                       OnMutation="HandleMutation"
+                                       OnError="HandleError" />
+            </div>
+        </div>
+
+        <div class="small text-muted mt-3">@_statusMessage</div>
+    </div>
+}
+
+@code {
+    private ProtocolEditorSnapshot _snapshot = new();
+    private int? _selectedNodeId;
+    private string _statusMessage = "Ready";
+    private bool _isLoading = true;
+    private bool _addSectionPanelOpen;
+    private string _newSectionText = string.Empty;
+    private bool _allSectionsCollapsed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _snapshot = await Task.Run(() => _service.Load());
+            _logger.LogInformation("ProtocolEditorShell loaded document with {SectionCount} sections.", _snapshot.Document.Sections.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "ProtocolEditorShell failed to load.");
+            _statusMessage = "Failed to load protocol. Please refresh.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_addSectionPanelOpen)
+        {
+            await _jsRuntime.InvokeVoidAsync("document.getElementById", "newSectionInput");
+            try { await _jsRuntime.InvokeVoidAsync("eval", "document.getElementById('newSectionInput')?.focus()"); }
+            catch { /* focus is best-effort */ }
+        }
+    }
+
+    private void HandleMutation(ProtocolEditorSnapshot snapshot)
+    {
+        _snapshot = snapshot;
+        _statusMessage = "Saved";
+        StateHasChanged();
+    }
+
+    private void HandleError(string message)
+    {
+        _statusMessage = message;
+        StateHasChanged();
+    }
+
+    private void HandleNodeSelected(int nodeId)
+    {
+        _selectedNodeId = nodeId;
+    }
+
+    private async Task HandleNodeMoved((int NodeId, int NewParentId, int NewIndex) args)
+    {
+        try
+        {
+            var snapshot = _service.MoveNode(args.NodeId, args.NewParentId, args.NewIndex);
+            HandleMutation(snapshot);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "MoveNode failed.");
+            HandleError("Failed to move node.");
+        }
+        await Task.CompletedTask;
+    }
+
+    private void HandleAddSectionRequested()
+    {
+        _addSectionPanelOpen = true;
+        _newSectionText = string.Empty;
+    }
+
+    private void HandleAddSectionConfirm()
+    {
+        if (string.IsNullOrWhiteSpace(_newSectionText)) return;
+        try
+        {
+            var snapshot = _service.AddSection(_newSectionText.Trim());
+            _addSectionPanelOpen = false;
+            _newSectionText = string.Empty;
+            HandleMutation(snapshot);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AddSection failed.");
+            HandleError("Failed to add section.");
+        }
+    }
+
+    private void HandleAddSectionKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") HandleAddSectionConfirm();
+        if (e.Key == "Escape") { _addSectionPanelOpen = false; _newSectionText = string.Empty; }
+    }
+
+    private void HandleToggleAllSections()
+    {
+        _allSectionsCollapsed = !_allSectionsCollapsed;
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.CtrlKey && e.Key == "z" && !e.ShiftKey)
+        {
+            try { HandleMutation(_service.Undo()); } catch { HandleError("Undo failed."); }
+        }
+        else if (e.CtrlKey && (e.Key == "y" || (e.Key == "z" && e.ShiftKey)))
+        {
+            try { HandleMutation(_service.Redo()); } catch { HandleError("Redo failed."); }
+        }
+        else if (e.Key == "Delete" && _selectedNodeId.HasValue && !_addSectionPanelOpen)
+        {
+            var confirmed = await _jsRuntime.InvokeAsync<bool>("confirm", "Remove this node and all its children?");
+            if (confirmed)
+            {
+                try { HandleMutation(_service.RemoveNode(_selectedNodeId.Value)); }
+                catch { HandleError("Failed to remove node."); }
+            }
+        }
+    }
+
+    private static ProtocolNodeModel? GetSelectedNode(ProtocolDocument document, int? selectedNodeId)
+    {
+        if (selectedNodeId is null) return null;
+        return FindNodeById(document.Sections, selectedNodeId.Value);
+    }
+
+    private static ProtocolNodeModel? FindNodeById(IEnumerable<ProtocolNodeModel> nodes, int id)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Id == id) return node;
+            var found = FindNodeById(node.Children, id);
+            if (found is not null) return found;
+        }
+        return null;
+    }
+}
