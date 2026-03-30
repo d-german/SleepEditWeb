@@ -63,7 +63,6 @@ public class ProtocolEditorUiContractsTests
     [Test]
     public void ProtocolEditorToolbar_UsesProtocolWording()
     {
-        // Wording lives in the Blazor toolbar component; controller routes are verified by ProtocolEditorController_RouteTemplates_RemainStable
         var toolbar = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Components/ProtocolEditor/ProtocolToolbar.razor"));
 
         Assert.That(toolbar, Does.Contain("Import Protocol"));
@@ -94,8 +93,16 @@ public class ProtocolEditorUiContractsTests
     {
         var viewerContent = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/ProtocolViewer/Index.cshtml"));
 
-        Assert.That(viewerContent, Does.Contain("<script type=\"module\">"));
+        Assert.That(viewerContent, Does.Contain("<script type=\"module\">") );
         Assert.That(viewerContent, Does.Contain("/js/protocol-viewer-bootstrap.js"));
+    }
+
+    [Test]
+    public void ProtocolViewerSharedUtilities_ModuleExists()
+    {
+        var sharedUtilsPath = ResolveRepoFile("SleepEditWeb/wwwroot/js/protocol-shared-utils.js");
+
+        Assert.That(File.Exists(sharedUtilsPath), Is.True, "Protocol shared utilities module must exist for the Protocol Viewer module graph.");
     }
 
     private static void AssertRouteTemplate<TAttribute>(string actionName, string expectedTemplate)

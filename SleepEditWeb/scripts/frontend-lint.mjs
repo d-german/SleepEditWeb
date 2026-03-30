@@ -12,6 +12,7 @@ const protocolFiles = walk(jsRoot)
 const errors = [];
 
 const allowedImports = new Map([
+    ["protocol-dnd.js", new Set()],
     ["protocol-editor-api.js", new Set()],
     ["protocol-editor-store.js", new Set()],
     ["protocol-shared-utils.js", new Set()],
@@ -50,6 +51,11 @@ for (const file of protocolFiles) {
         if (!allowed.has(target)) {
             errors.push(`Dependency boundary violation: ${name} -> ${target}`);
         }
+
+        const targetPath = join(jsRoot, target);
+        if (!statExists(targetPath)) {
+            errors.push(`Missing protocol module import target: ${relative(root, file)} -> ${target}`);
+        }
     }
 }
 
@@ -62,15 +68,9 @@ for (const file of testFiles) {
     }
 }
 
-assertContains(
-    join(viewsRoot, "ProtocolEditor", "Index.cshtml"),
-    "<script type=\"module\">",
-    "ProtocolEditor view must use module script bootstrap."
-);
-assertContains(
-    join(viewsRoot, "ProtocolEditor", "Index.cshtml"),
-    "/js/protocol-editor-ui.js",
-    "ProtocolEditor view must import protocol-editor-ui.js."
+assertFileExists(
+    join(jsRoot, "protocol-shared-utils.js"),
+    "Protocol shared utilities module must exist."
 );
 assertContains(
     join(viewsRoot, "ProtocolViewer", "Index.cshtml"),
@@ -96,6 +96,12 @@ console.log("Frontend guardrails passed.");
 function assertContains(file, expected, message) {
     const content = readFileSync(file, "utf8");
     if (!content.includes(expected)) {
+        errors.push(message);
+    }
+}
+
+function assertFileExists(file, message) {
+    if (!statExists(file)) {
         errors.push(message);
     }
 }

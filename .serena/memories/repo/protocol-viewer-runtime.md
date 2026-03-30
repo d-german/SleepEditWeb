@@ -1,0 +1,4 @@
+- Protocol Viewer is MVC/Razor + ES module bootstrap, not Blazor.
+- protocol-viewer.js depends on wwwroot/js/protocol-shared-utils.js for flattenNodes/buildNodeRelationshipMaps/findNodeById/date helpers.
+- If protocol-shared-utils.js is missing, section shells still render server-side but protocol body rows do not populate client-side.
+- Frontend guardrail for this lives in SleepEditWeb/scripts/frontend-lint.mjs and node-based helper tests live in SleepEditWeb/wwwroot/js/__tests__/protocol-shared-utils.test.mjs.
