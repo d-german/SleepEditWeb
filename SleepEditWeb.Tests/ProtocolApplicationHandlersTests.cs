@@ -1,8 +1,9 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
+using Moq;
 using SleepEditWeb.Application.Protocol;
 using SleepEditWeb.Application.Protocol.Commands;
 using SleepEditWeb.Application.Protocol.Queries;
+using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Models;
 using SleepEditWeb.Protocol.Domain;
 using SleepEditWeb.Services;
@@ -123,8 +124,7 @@ public class ProtocolApplicationHandlersTests
     private static ProtocolTreeDocument CreateDomainDocument()
     {
         var starter = new ProtocolStarterService(
-            new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
-            Options.Create(new ProtocolEditorStartupOptions()),
+            new Mock<IProtocolRepository>().Object,
             NullLogger<ProtocolStarterService>.Instance);
 
         return ProtocolTreeMapper.ToDomain(starter.Create());

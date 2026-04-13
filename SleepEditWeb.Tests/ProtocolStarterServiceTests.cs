@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
+using Moq;
+using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
 
@@ -9,58 +10,38 @@ namespace SleepEditWeb.Tests;
 public class ProtocolStarterServiceTests
 {
     [Test]
-    public void Create_UsesConfiguredStartupProtocolFile_WhenPresent()
+    public void Create_UsesCurrentProtocolFromRepository_WhenAvailable()
     {
         // Arrange
-        var tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.xml");
-        File.WriteAllText(tempPath, """
-<?xml version="1.0"?>
-<Protocol>
-  <Id>-1</Id>
-  <LinkId>-1</LinkId>
-  <LinkText></LinkText>
-  <text>Configured Protocol</text>
-  <Section>
-    <Id>1</Id>
-    <LinkId>-1</LinkId>
-    <LinkText></LinkText>
-    <text>Configured Section</text>
-  </Section>
-</Protocol>
-""");
+        var repository = new Mock<IProtocolRepository>();
+        repository.Setup(r => r.GetCurrentProtocol()).Returns(new ProtocolVersion(
+            VersionId: Guid.NewGuid(),
+            SavedUtc: DateTime.UtcNow,
+            Source: "test",
+            Note: "db protocol",
+            Document: CreateDocument("DB Protocol")));
 
-        try
-        {
-            var service = new ProtocolStarterService(
-                new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
-                Options.Create(new ProtocolEditorStartupOptions { StartupProtocolPath = tempPath }),
-                NullLogger<ProtocolStarterService>.Instance);
+        var service = new ProtocolStarterService(
+            repository.Object,
+            NullLogger<ProtocolStarterService>.Instance);
 
-            // Act
-            var result = service.Create();
+        // Act
+        var result = service.Create();
 
-            // Assert
-            Assert.That(result.Text, Is.EqualTo("Configured Protocol"));
-            Assert.That(result.Sections, Has.Count.EqualTo(1));
-            Assert.That(result.Sections[0].Text, Is.EqualTo("Configured Section"));
-        }
-        finally
-        {
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
-        }
+        // Assert
+        Assert.That(result.Text, Is.EqualTo("DB Protocol"));
+        repository.Verify(r => r.GetCurrentProtocol(), Times.Once);
     }
 
     [Test]
-    public void Create_FallsBackToSeededProtocol_WhenConfiguredFileIsMissing()
+    public void Create_FallsBackToSeed_WhenRepositoryReturnsNull()
     {
         // Arrange
-        var missingPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.xml");
+        var repository = new Mock<IProtocolRepository>();
+        repository.Setup(r => r.GetCurrentProtocol()).Returns((ProtocolVersion?)null);
+
         var service = new ProtocolStarterService(
-            new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
-            Options.Create(new ProtocolEditorStartupOptions { StartupProtocolPath = missingPath }),
+            repository.Object,
             NullLogger<ProtocolStarterService>.Instance);
 
         // Act
@@ -68,149 +49,58 @@ public class ProtocolStarterServiceTests
 
         // Assert
         Assert.That(result.Text, Is.EqualTo("Saint Luke's Protocol"));
-        Assert.That(result.Sections.Any(section => section.Text == "Diagnostic Polysomnogram:"), Is.True);
+        Assert.That(result.Sections.Any(s => s.Text == "Diagnostic Polysomnogram:"), Is.True);
     }
 
     [Test]
-    public void Create_PrefersDefaultProtocolPath_OverStartupProtocolPath()
+    public void Create_FallsBackToSeed_WhenRepositoryThrows()
     {
         // Arrange
-        var defaultPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-default.xml");
-        var startupPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-startup.xml");
+        var repository = new Mock<IProtocolRepository>();
+        repository.Setup(r => r.GetCurrentProtocol()).Throws(new IOException("database unavailable"));
 
-        File.WriteAllText(defaultPath, """
-<?xml version="1.0"?>
-<Protocol>
-  <Id>-1</Id>
-  <LinkId>-1</LinkId>
-  <LinkText></LinkText>
-  <text>Default Protocol</text>
-  <Section>
-    <Id>1</Id>
-    <LinkId>-1</LinkId>
-    <LinkText></LinkText>
-    <text>Default Section</text>
-  </Section>
-</Protocol>
-""");
+        var service = new ProtocolStarterService(
+            repository.Object,
+            NullLogger<ProtocolStarterService>.Instance);
 
-        File.WriteAllText(startupPath, """
-<?xml version="1.0"?>
-<Protocol>
-  <Id>-1</Id>
-  <LinkId>-1</LinkId>
-  <LinkText></LinkText>
-  <text>Startup Protocol</text>
-  <Section>
-    <Id>1</Id>
-    <LinkId>-1</LinkId>
-    <LinkText></LinkText>
-    <text>Startup Section</text>
-  </Section>
-</Protocol>
-""");
+        // Act
+        var result = service.Create();
 
-        try
-        {
-            var service = new ProtocolStarterService(
-                new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
-                Options.Create(new ProtocolEditorStartupOptions
-                {
-                    DefaultProtocolPath = defaultPath,
-                    StartupProtocolPath = startupPath
-                }),
-                NullLogger<ProtocolStarterService>.Instance);
-
-            // Act
-            var result = service.Create();
-
-            // Assert
-            Assert.That(result.Text, Is.EqualTo("Default Protocol"));
-            Assert.That(result.Sections[0].Text, Is.EqualTo("Default Section"));
-        }
-        finally
-        {
-            if (File.Exists(defaultPath))
-            {
-                File.Delete(defaultPath);
-            }
-
-            if (File.Exists(startupPath))
-            {
-                File.Delete(startupPath);
-            }
-        }
+        // Assert
+        Assert.That(result.Text, Is.EqualTo("Saint Luke's Protocol"));
+        Assert.That(result.Sections.Count, Is.GreaterThan(0));
     }
 
-
     [Test]
-    public void Create_PrefersSaveProtocolPath_OverStartupProtocolPath_WhenDefaultIsNotConfigured()
+    public void Create_SeedProtocol_HasExpectedSections()
     {
         // Arrange
-        var savePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-save.xml");
-        var startupPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-startup.xml");
+        var repository = new Mock<IProtocolRepository>();
+        repository.Setup(r => r.GetCurrentProtocol()).Returns((ProtocolVersion?)null);
 
-        File.WriteAllText(savePath, """
-<?xml version="1.0"?>
-<Protocol>
-  <Id>-1</Id>
-  <LinkId>-1</LinkId>
-  <LinkText></LinkText>
-  <text>Save Protocol</text>
-  <Section>
-    <Id>1</Id>
-    <LinkId>-1</LinkId>
-    <LinkText></LinkText>
-    <text>Save Section</text>
-  </Section>
-</Protocol>
-""");
+        var service = new ProtocolStarterService(
+            repository.Object,
+            NullLogger<ProtocolStarterService>.Instance);
 
-        File.WriteAllText(startupPath, """
-<?xml version="1.0"?>
-<Protocol>
-  <Id>-1</Id>
-  <LinkId>-1</LinkId>
-  <LinkText></LinkText>
-  <text>Startup Protocol</text>
-  <Section>
-    <Id>1</Id>
-    <LinkId>-1</LinkId>
-    <LinkText></LinkText>
-    <text>Startup Section</text>
-  </Section>
-</Protocol>
-""");
+        // Act
+        var result = service.Create();
 
-        try
+        // Assert
+        Assert.That(result.Sections, Has.Count.EqualTo(12));
+        Assert.That(result.Sections[0].Text, Is.EqualTo("Diagnostic Polysomnogram:"));
+        Assert.That(result.Sections.Any(s => s.Text == "CPAP Titration Polysomnogram:"), Is.True);
+        Assert.That(result.Sections.Any(s => s.Text == "End of Study:"), Is.True);
+    }
+
+    private static ProtocolDocument CreateDocument(string text)
+    {
+        return new ProtocolDocument
         {
-            var service = new ProtocolStarterService(
-                new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
-                Options.Create(new ProtocolEditorStartupOptions
-                {
-                    SaveProtocolPath = savePath,
-                    StartupProtocolPath = startupPath
-                }),
-                NullLogger<ProtocolStarterService>.Instance);
-
-            // Act
-            var result = service.Create();
-
-            // Assert
-            Assert.That(result.Text, Is.EqualTo("Save Protocol"));
-            Assert.That(result.Sections[0].Text, Is.EqualTo("Save Section"));
-        }
-        finally
-        {
-            if (File.Exists(savePath))
-            {
-                File.Delete(savePath);
-            }
-
-            if (File.Exists(startupPath))
-            {
-                File.Delete(startupPath);
-            }
-        }
+            Id = -1,
+            LinkId = -1,
+            LinkText = string.Empty,
+            Text = text,
+            Sections = []
+        };
     }
 }
