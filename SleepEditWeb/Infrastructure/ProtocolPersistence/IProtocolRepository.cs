@@ -16,4 +16,8 @@ public interface IProtocolRepository
     ProtocolVersion? GetLatestVersion();
 
     IReadOnlyList<ProtocolVersion> ListVersions(int maxCount = 20);
+
+    ProtocolVersion SaveCurrentProtocol(ProtocolDocument document, string source);
+
+    ProtocolVersion? GetCurrentProtocol();
 }

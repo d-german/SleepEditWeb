@@ -7,6 +7,8 @@ namespace SleepEditWeb.Infrastructure.ProtocolPersistence;
 public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
 {
     private const string VersionsCollection = "protocol_versions";
+    private const string CurrentCollection = "current_protocol";
+    private const string CurrentProtocolKey = "current";
 
     private readonly LiteDatabase _database;
     private readonly IProtocolXmlService _xmlService;
@@ -60,7 +62,7 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
             .Limit(1)
             .FirstOrDefault();
 
-        return entity == null ? null : Map(entity);
+        return entity == null ? null : MapVersion(entity);
     }
 
     public IReadOnlyList<ProtocolVersion> ListVersions(int maxCount = 20)
@@ -73,8 +75,50 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
             .OrderByDescending(version => version.SavedUtc)
             .Limit(count)
             .ToList()
-            .Select(Map)
+            .Select(MapVersion)
             .ToList();
+    }
+
+    public ProtocolVersion SaveCurrentProtocol(ProtocolDocument document, string source)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+
+        var xml = _xmlService.Serialize(document);
+        var now = DateTime.UtcNow;
+
+        var currentEntity = new CurrentProtocolEntity
+        {
+            Id = CurrentProtocolKey,
+            SavedUtc = now,
+            Source = source ?? string.Empty,
+            Xml = xml
+        };
+
+        var collection = _database.GetCollection<CurrentProtocolEntity>(CurrentCollection);
+        collection.Upsert(currentEntity);
+
+        _logger.LogInformation(
+            "Saved current protocol from source {Source} at {SavedUtc}.",
+            currentEntity.Source,
+            currentEntity.SavedUtc);
+
+        var version = SaveVersion(document, source ?? string.Empty, "SaveCurrentProtocol");
+
+        return new ProtocolVersion(version.VersionId, now, source ?? string.Empty, "SaveCurrentProtocol", document);
+    }
+
+    public ProtocolVersion? GetCurrentProtocol()
+    {
+        var collection = _database.GetCollection<CurrentProtocolEntity>(CurrentCollection);
+        var entity = collection.FindById(CurrentProtocolKey);
+
+        if (entity != null)
+        {
+            return MapCurrent(entity);
+        }
+
+        _logger.LogInformation("No current protocol found. Falling back to latest version.");
+        return GetLatestVersion();
     }
 
     public void Dispose()
@@ -88,13 +132,23 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
         _disposed = true;
     }
 
-    private ProtocolVersion Map(ProtocolVersionEntity entity)
+    private ProtocolVersion MapVersion(ProtocolVersionEntity entity)
     {
         return new ProtocolVersion(
             entity.Id,
             entity.SavedUtc,
             entity.Source,
             entity.Note,
+            _xmlService.Deserialize(entity.Xml));
+    }
+
+    private ProtocolVersion MapCurrent(CurrentProtocolEntity entity)
+    {
+        return new ProtocolVersion(
+            Guid.Empty,
+            entity.SavedUtc,
+            entity.Source,
+            string.Empty,
             _xmlService.Deserialize(entity.Xml));
     }
 
@@ -126,6 +180,18 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
         public string Source { get; init; } = string.Empty;
 
         public string Note { get; init; } = string.Empty;
+
+        public string Xml { get; init; } = string.Empty;
+    }
+
+    private sealed class CurrentProtocolEntity
+    {
+        [BsonId]
+        public string Id { get; init; } = CurrentProtocolKey;
+
+        public DateTime SavedUtc { get; init; }
+
+        public string Source { get; init; } = string.Empty;
 
         public string Xml { get; init; } = string.Empty;
     }
