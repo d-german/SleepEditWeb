@@ -30,7 +30,6 @@ public class ProtocolEditorUiContractsTests
         AssertRouteTemplate<HttpPostAttribute>("Reset", "Reset");
         AssertRouteTemplate<HttpPostAttribute>("SaveXml", "SaveXml");
         AssertRouteTemplate<HttpPostAttribute>("SetDefaultProtocol", "SetDefaultProtocol");
-        AssertRouteTemplate<HttpPostAttribute>("ImportXml", "ImportXml");
         AssertRouteTemplate<HttpPostAttribute>("ImportXmlUpload", "ImportXmlUpload");
         AssertRouteTemplate<HttpGetAttribute>("ExportXml", "ExportXml");
     }

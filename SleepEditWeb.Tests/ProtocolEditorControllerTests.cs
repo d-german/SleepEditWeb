@@ -34,7 +34,7 @@ public class ProtocolEditorControllerTests
         };
         var service = new Mock<IProtocolEditorService>();
         service.Setup(x => x.Load()).Returns(snapshot);
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
+        var controller = CreateController(service.Object);
 
         // Act
         var result = controller.State() as JsonResult;
@@ -61,7 +61,7 @@ public class ProtocolEditorControllerTests
             LinkText = "Linked target"
         };
         service.Setup(x => x.UpdateNode(request.NodeId, request.Text!, request.LinkId, request.LinkText!)).Returns(snapshot);
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
+        var controller = CreateController(service.Object);
 
         // Act
         var result = controller.UpdateNode(request) as JsonResult;
@@ -80,7 +80,7 @@ public class ProtocolEditorControllerTests
         var snapshot = (ProtocolEditorSnapshot)service.Object.Load();
         var request = new ProtocolEditorController.SubTextRequest { NodeId = 9, Value = "New SubText" };
         service.Setup(x => x.AddSubText(request.NodeId, request.Value!)).Returns(snapshot);
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
+        var controller = CreateController(service.Object);
 
         // Act
         var result = controller.AddSubText(request) as JsonResult;
@@ -99,7 +99,7 @@ public class ProtocolEditorControllerTests
         var snapshot = (ProtocolEditorSnapshot)service.Object.Load();
         var request = new ProtocolEditorController.SubTextRequest { NodeId = 9, Value = "Old SubText" };
         service.Setup(x => x.RemoveSubText(request.NodeId, request.Value!)).Returns(snapshot);
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
+        var controller = CreateController(service.Object);
 
         // Act
         var result = controller.RemoveSubText(request) as JsonResult;
@@ -116,7 +116,7 @@ public class ProtocolEditorControllerTests
         // Arrange
         var service = CreateServiceMock();
         service.Setup(x => x.ExportXml()).Returns("<Protocol><Id>-1</Id></Protocol>");
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
+        var controller = CreateController(service.Object);
 
         // Act
         var result = controller.ExportXml() as ContentResult;
@@ -128,140 +128,41 @@ public class ProtocolEditorControllerTests
     }
 
     [Test]
-    public void SaveXml_WithEmptyConfiguredPaths_UsesDeterministicFallbackPath()
-    {
-        // Arrange
-        var service = CreateServiceMock();
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
-        var expectedFallbackPath = Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
-
-        try
-        {
-            // Act
-            var result = controller.SaveXml() as JsonResult;
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(GetPropertyValue(result!.Value, "savedPath"), Is.EqualTo(expectedFallbackPath));
-            Assert.That(File.Exists(expectedFallbackPath), Is.True);
-        }
-        finally
-        {
-            if (File.Exists(expectedFallbackPath))
-            {
-                File.Delete(expectedFallbackPath);
-            }
-        }
-    }
-
-    [Test]
-    public void SaveXml_PersistsProtocolVersion_WhenRepositoryAvailable()
+    public void SaveXml_PersistsToRepository()
     {
         // Arrange
         var service = CreateServiceMock();
         var repository = CreateRepositoryMock();
-        var savePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-protocol-save.xml");
-        var controller = CreateController(
-            service.Object,
-            new ProtocolEditorStartupOptions { SaveProtocolPath = savePath },
-            repository);
-
-        try
-        {
-            // Act
-            var result = controller.SaveXml() as JsonResult;
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            repository.Verify(
-                x => x.SaveVersion(It.IsAny<ProtocolDocument>(), "SaveXml", savePath),
-                Times.Once);
-        }
-        finally
-        {
-            if (File.Exists(savePath))
-            {
-                File.Delete(savePath);
-            }
-        }
-    }
-
-    [Test]
-    public void SaveXml_WhenRepositorySaveFails_StillReturnsSuccessPayload()
-    {
-        // Arrange
-        var service = CreateServiceMock();
-        var repository = CreateRepositoryMock();
-        repository
-            .Setup(x => x.SaveVersion(It.IsAny<ProtocolDocument>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Throws(new IOException("database unavailable"));
-
-        var savePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-protocol-save.xml");
-        var controller = CreateController(
-            service.Object,
-            new ProtocolEditorStartupOptions { SaveProtocolPath = savePath },
-            repository);
-
-        try
-        {
-            // Act
-            var result = controller.SaveXml() as JsonResult;
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(GetPropertyValue(result!.Value, "savedPath"), Is.EqualTo(savePath));
-        }
-        finally
-        {
-            if (File.Exists(savePath))
-            {
-                File.Delete(savePath);
-            }
-        }
-    }
-
-    [Test]
-    public void SetDefaultProtocol_WithEmptyConfiguredPaths_UsesDefaultProtocolFallbackPath()
-    {
-        // Arrange
-        var service = CreateServiceMock();
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
-        var expectedFallbackPath = Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
-
-        try
-        {
-            // Act
-            var result = controller.SetDefaultProtocol() as JsonResult;
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(GetPropertyValue(result!.Value, "defaultPath"), Is.EqualTo(expectedFallbackPath));
-            Assert.That(File.Exists(expectedFallbackPath), Is.True);
-        }
-        finally
-        {
-            if (File.Exists(expectedFallbackPath))
-            {
-                File.Delete(expectedFallbackPath);
-            }
-        }
-    }
-
-    [Test]
-    public void ImportXml_WhenPathDoesNotExist_ReturnsBadRequestWithPath()
-    {
-        // Arrange
-        var service = CreateServiceMock();
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
-        var missingPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.xml");
+        var controller = CreateController(service.Object, repository);
 
         // Act
-        var result = controller.ImportXml(new ProtocolEditorController.ImportXmlRequest { Path = missingPath }) as BadRequestObjectResult;
+        var result = controller.SaveXml() as JsonResult;
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        Assert.That(GetPropertyValue(result!.Value, "error"), Is.EqualTo("Import XML file was not found."));
-        Assert.That(GetPropertyValue(result.Value, "path"), Is.EqualTo(missingPath));
+        repository.Verify(
+            x => x.SaveCurrentProtocol(It.IsAny<ProtocolDocument>(), "SaveXml"),
+            Times.Once);
+        Assert.That(GetPropertyValue(result!.Value, "document"), Is.Not.Null);
+    }
+
+    [Test]
+    public void SetDefaultProtocol_PersistsToRepository()
+    {
+        // Arrange
+        var service = CreateServiceMock();
+        var repository = CreateRepositoryMock();
+        var controller = CreateController(service.Object, repository);
+
+        // Act
+        var result = controller.SetDefaultProtocol() as JsonResult;
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        repository.Verify(
+            x => x.SaveCurrentProtocol(It.IsAny<ProtocolDocument>(), "SetDefaultProtocol"),
+            Times.Once);
+        Assert.That(GetPropertyValue(result!.Value, "document"), Is.Not.Null);
     }
 
     [Test]
@@ -269,7 +170,7 @@ public class ProtocolEditorControllerTests
     {
         // Arrange
         var service = CreateServiceMock();
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
+        var controller = CreateController(service.Object);
 
         // Act
         var result = await controller.ImportXmlUpload(null) as BadRequestObjectResult;
@@ -279,76 +180,12 @@ public class ProtocolEditorControllerTests
         Assert.That(GetPropertyValue(result!.Value, "error"), Is.EqualTo("No XML file was uploaded."));
     }
 
-
-    [Test]
-    public void SaveXml_WhenExportFails_ReturnsServerErrorPayload()
-    {
-        // Arrange
-        var service = CreateServiceMock();
-        service.Setup(x => x.ExportXml()).Throws(new IOException("disk full"));
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
-
-        // Act
-        var result = controller.SaveXml() as ObjectResult;
-
-        // Assert
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!.StatusCode, Is.EqualTo(500));
-        Assert.That(GetPropertyValue(result.Value, "error"), Is.EqualTo("Failed to save XML to the configured path."));
-    }
-
-    [Test]
-    public void SetDefaultProtocol_WhenExportFails_ReturnsServerErrorPayload()
-    {
-        // Arrange
-        var service = CreateServiceMock();
-        service.Setup(x => x.ExportXml()).Throws(new UnauthorizedAccessException("no write access"));
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
-
-        // Act
-        var result = controller.SetDefaultProtocol() as ObjectResult;
-
-        // Assert
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!.StatusCode, Is.EqualTo(500));
-        Assert.That(GetPropertyValue(result.Value, "error"), Is.EqualTo("Failed to set default protocol."));
-    }
-
-    [Test]
-    public void ImportXml_WhenServiceThrowsFormatException_ReturnsBadRequestInvalidFormat()
-    {
-        // Arrange
-        var service = CreateServiceMock();
-        service.Setup(x => x.ImportXml(It.IsAny<string>())).Throws(new FormatException("invalid xml"));
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
-        var importPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.xml");
-
-        try
-        {
-            File.WriteAllText(importPath, "<not-a-valid-protocol />");
-
-            // Act
-            var result = controller.ImportXml(new ProtocolEditorController.ImportXmlRequest { Path = importPath }) as BadRequestObjectResult;
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(GetPropertyValue(result!.Value, "error"), Is.EqualTo("Invalid XML format for protocol import."));
-        }
-        finally
-        {
-            if (File.Exists(importPath))
-            {
-                File.Delete(importPath);
-            }
-        }
-    }
-
     [Test]
     public async Task ImportXmlUpload_WhenFileTooLarge_ReturnsBadRequest()
     {
         // Arrange
         var service = CreateServiceMock();
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
+        var controller = CreateController(service.Object);
         var file = new Mock<IFormFile>();
         file.SetupGet(x => x.FileName).Returns("large.xml");
         file.SetupGet(x => x.Length).Returns((10L * 1024L * 1024L) + 1L);
@@ -361,12 +198,12 @@ public class ProtocolEditorControllerTests
         Assert.That(GetPropertyValue(result!.Value, "error"), Is.EqualTo("Uploaded XML file is too large."));
     }
 
-
     [Test]
-    public async Task ImportXmlUpload_WithoutConfiguredSavePath_UsesUploadedFileNameFallbackPath()
+    public async Task ImportXmlUpload_PersistsImportedProtocolToRepository()
     {
         // Arrange
         var service = CreateServiceMock();
+        var repository = CreateRepositoryMock();
         var snapshot = new ProtocolEditorSnapshot
         {
             Document = new ProtocolDocument
@@ -383,51 +220,53 @@ public class ProtocolEditorControllerTests
         };
         service.Setup(x => x.ImportXml(It.IsAny<string>())).Returns(snapshot);
 
-        var controller = CreateController(service.Object, new ProtocolEditorStartupOptions());
-        var fileName = $"{Guid.NewGuid():N}-import.xml";
+        var controller = CreateController(service.Object, repository);
         var xmlContent = System.Text.Encoding.UTF8.GetBytes("<Protocol><Id>-1</Id><LinkId>-1</LinkId><LinkText></LinkText><text>Imported</text></Protocol>");
         await using var stream = new MemoryStream(xmlContent);
-        IFormFile file = new FormFile(stream, 0, xmlContent.Length, "file", fileName);
+        IFormFile file = new FormFile(stream, 0, xmlContent.Length, "file", "import.xml");
 
-        var expectedPath = Path.Combine(AppContext.BaseDirectory, "Data", "protocols", fileName);
-        var defaultPath = Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml");
+        // Act
+        var result = await controller.ImportXmlUpload(file) as JsonResult;
 
-        try
-        {
-            // Act
-            var result = await controller.ImportXmlUpload(file) as JsonResult;
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        repository.Verify(
+            x => x.SaveCurrentProtocol(It.IsAny<ProtocolDocument>(), "ImportXmlUpload"),
+            Times.Once);
+        Assert.That(GetPropertyValue(result!.Value, "document"), Is.Not.Null);
+    }
 
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(GetPropertyValue(result!.Value, "savedPath"), Is.EqualTo(expectedPath));
-            Assert.That(expectedPath, Is.Not.EqualTo(defaultPath));
-            Assert.That(File.Exists(expectedPath), Is.True);
-        }
-        finally
-        {
-            if (File.Exists(expectedPath))
-            {
-                File.Delete(expectedPath);
-            }
-        }
+    [Test]
+    public async Task ImportXmlUpload_WhenFormatException_ReturnsBadRequest()
+    {
+        // Arrange
+        var service = CreateServiceMock();
+        service.Setup(x => x.ImportXml(It.IsAny<string>())).Throws(new FormatException("invalid xml"));
+        var controller = CreateController(service.Object);
+
+        var xmlContent = System.Text.Encoding.UTF8.GetBytes("<not-valid />");
+        await using var stream = new MemoryStream(xmlContent);
+        IFormFile file = new FormFile(stream, 0, xmlContent.Length, "file", "bad.xml");
+
+        // Act
+        var result = await controller.ImportXmlUpload(file) as BadRequestObjectResult;
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(GetPropertyValue(result!.Value, "error"), Is.EqualTo("Invalid XML format for protocol import."));
     }
 
     private static ProtocolEditorController CreateController(
         IProtocolEditorService service,
-        ProtocolEditorStartupOptions startupOptions,
         Mock<IProtocolRepository>? repositoryMock = null)
     {
         var repository = repositoryMock ?? CreateRepositoryMock();
-        var pathPolicy = new ProtocolEditorPathPolicy(Options.Create(startupOptions));
-        var fileStore = new ProtocolEditorFileStore();
         var requestValidator = new ProtocolEditorRequestValidator();
         var responseMapper = new ProtocolEditorResponseMapper();
 
         return new ProtocolEditorController(
             service,
             Options.Create(new ProtocolEditorFeatureOptions { ProtocolEditorEnabled = true }),
-            pathPolicy,
-            fileStore,
             repository.Object,
             requestValidator,
             responseMapper,
@@ -478,15 +317,16 @@ public class ProtocolEditorControllerTests
     {
         var repository = new Mock<IProtocolRepository>();
         repository
+            .Setup(x => x.SaveCurrentProtocol(It.IsAny<ProtocolDocument>(), It.IsAny<string>()))
+            .Returns<ProtocolDocument, string>((document, source) =>
+                new ProtocolVersion(Guid.NewGuid(), DateTime.UtcNow, source, "SaveCurrentProtocol", document));
+        repository
             .Setup(x => x.SaveVersion(It.IsAny<ProtocolDocument>(), It.IsAny<string>(), It.IsAny<string>()))
             .Returns<ProtocolDocument, string, string>((document, source, note) =>
                 new ProtocolVersion(Guid.NewGuid(), DateTime.UtcNow, source, note, document));
         repository
-            .Setup(x => x.GetLatestVersion())
+            .Setup(x => x.GetCurrentProtocol())
             .Returns((ProtocolVersion?)null);
-        repository
-            .Setup(x => x.ListVersions(It.IsAny<int>()))
-            .Returns(Array.Empty<ProtocolVersion>());
         return repository;
     }
 
