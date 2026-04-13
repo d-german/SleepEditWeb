@@ -124,7 +124,12 @@ function parseUsDate(value) {
         return null;
     }
 
-    if (month < 1 || month > 12 || day < 1 || day > 31) {
+    if (month < 1 || month > 12 || day < 1) {
+        return null;
+    }
+
+    const maxDay = new Date(year, month, 0).getDate();
+    if (day > maxDay) {
         return null;
     }
 

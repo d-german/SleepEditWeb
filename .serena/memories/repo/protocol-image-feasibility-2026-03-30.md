@@ -1,0 +1,7 @@
+- Protocol editor/viewer are text-only today: ProtocolDocument/ProtocolTreeDocument and ProtocolXmlMapper support Id, LinkId, LinkText, text, and SubText only.
+- Image support is feasible, but the main risk is persistence/export compatibility, not browser capture UI.
+- File picker support can reuse Blazor InputFile and existing IFormFile upload patterns.
+- Clipboard image paste can be implemented via Blazor JS interop/custom paste events.
+- Avoid embedding large base64 images directly in session/XML if possible: ProtocolEditorSessionStore serializes full snapshots and ProtocolEditorService keeps undo/redo snapshot history.
+- Preferred direction given deployment constraints: store image binaries in the database (for example LiteDB-backed image persistence) rather than arbitrary filesystem paths, and keep image metadata or references on protocol nodes.
+- Import/export does not need to match runtime persistence; database-backed storage can coexist with separate XML or bundled transfer formats.

@@ -96,3 +96,13 @@ test("study date helpers normalize between viewer and output formats", () => {
     assert.equal(formatStudyDate("2026-03-27"), "3/27/2026");
     assert.equal(formatStudyDate("3/7/2026"), "3/7/2026");
 });
+
+test("toDateInputValue rejects impossible calendar dates", () => {
+    assert.equal(toDateInputValue("2/31/2026"), "");
+    assert.equal(toDateInputValue("4/31/2026"), "");
+    assert.equal(toDateInputValue("2/29/2025"), "");
+});
+
+test("toDateInputValue accepts valid leap day", () => {
+    assert.equal(toDateInputValue("2/29/2028"), "2028-02-29");
+});
