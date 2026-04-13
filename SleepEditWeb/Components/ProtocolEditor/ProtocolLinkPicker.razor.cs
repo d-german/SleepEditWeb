@@ -37,9 +37,9 @@ public partial class ProtocolLinkPicker : ComponentBase
             var matchingNodes = FlattenNodes(sec.Children, 0)
                 .Where(entry => string.IsNullOrEmpty(q)
                     || entry.Node.Text.Contains(q, StringComparison.OrdinalIgnoreCase)
-                    || entry.Node.Id.ToString() == q);
+                    || entry.Node.Id.ToString() == q).ToList();
 
-            if (matchingNodes.Any())
+            if (matchingNodes.Count != 0)
                 yield return (sec, matchingNodes);
         }
     }

@@ -1,6 +1,6 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: true))
 
-@if (!_featureOptions.Value.ProtocolEditorEnabled)
+@if (!FeatureOptions.Value.ProtocolEditorEnabled)
 {
     <div class="alert alert-warning mt-3">
         <i class="bi bi-exclamation-triangle me-2"></i>The Protocol Editor is currently disabled.

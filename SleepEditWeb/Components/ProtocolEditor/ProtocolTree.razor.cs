@@ -7,7 +7,7 @@ namespace SleepEditWeb.Components.ProtocolEditor;
 
 public partial class ProtocolTree : ComponentBase, IAsyncDisposable
 {
-    [Inject] private IJSRuntime _jsRuntime { get; set; } = default!;
+    [Inject] private IJSRuntime JsRuntime { get; set; } = null!;
 
     [Parameter] public ProtocolDocument Document { get; set; } = new();
     [Parameter] public int? SelectedNodeId { get; set; }
@@ -23,7 +23,7 @@ public partial class ProtocolTree : ComponentBase, IAsyncDisposable
     {
         if (firstRender)
         {
-            var stored = await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", CollapseStorageKey);
+            var stored = await JsRuntime.InvokeAsync<string?>("localStorage.getItem", CollapseStorageKey);
             if (!string.IsNullOrWhiteSpace(stored))
             {
                 try
@@ -53,7 +53,7 @@ public partial class ProtocolTree : ComponentBase, IAsyncDisposable
         if (visibleListIds.Count == 0) return;
 
         _dotNetRef ??= DotNetObjectReference.Create(this);
-        await _jsRuntime.InvokeVoidAsync("protocolDnd.init", _dotNetRef, visibleListIds);
+        await JsRuntime.InvokeVoidAsync("protocolDnd.init", _dotNetRef, visibleListIds);
     }
 
     private async Task HandleSectionToggle(int sectionId)
@@ -62,7 +62,7 @@ public partial class ProtocolTree : ComponentBase, IAsyncDisposable
             _collapsedSectionIds.Remove(sectionId);
 
         var json = JsonSerializer.Serialize(_collapsedSectionIds.ToList());
-        await _jsRuntime.InvokeVoidAsync("localStorage.setItem", CollapseStorageKey, json);
+        await JsRuntime.InvokeVoidAsync("localStorage.setItem", CollapseStorageKey, json);
     }
 
     private async Task HandleSectionSelected(int sectionId)
@@ -80,10 +80,7 @@ public partial class ProtocolTree : ComponentBase, IAsyncDisposable
 
     private static int CountDescendants(ProtocolNodeModel node)
     {
-        var count = node.Children.Count;
-        foreach (var child in node.Children)
-            count += CountDescendants(child);
-        return count;
+        return node.Children.Count + node.Children.Sum(CountDescendants);
     }
 
     public async ValueTask DisposeAsync()
@@ -91,9 +88,10 @@ public partial class ProtocolTree : ComponentBase, IAsyncDisposable
         var allListIds = Document.Sections.Select(s => GetSectionListId(s.Id)).ToList();
         if (allListIds.Count > 0)
         {
-            try { await _jsRuntime.InvokeVoidAsync("protocolDnd.destroy", allListIds); }
+            try { await JsRuntime.InvokeVoidAsync("protocolDnd.destroy", allListIds); }
             catch { /* ignore disposal errors */ }
         }
         _dotNetRef?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

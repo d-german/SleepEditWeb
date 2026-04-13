@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-
 namespace SleepEditWeb.Web.ProtocolEditor;
 
 public interface IProtocolEditorRequestValidator

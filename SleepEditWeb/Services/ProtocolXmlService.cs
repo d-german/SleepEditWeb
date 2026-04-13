@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using SleepEditWeb.Infrastructure.ProtocolXml;
 using SleepEditWeb.Models;
 

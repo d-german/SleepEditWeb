@@ -1,5 +1,4 @@
 using System.Xml;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SleepEditWeb.Models;
 

@@ -1,5 +1,4 @@
 using LiteDB;
-using Microsoft.Extensions.Logging;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
 

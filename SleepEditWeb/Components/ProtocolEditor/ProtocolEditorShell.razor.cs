@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.JSInterop;
 using SleepEditWeb.Models;
@@ -10,10 +9,10 @@ namespace SleepEditWeb.Components.ProtocolEditor;
 
 public partial class ProtocolEditorShell : ComponentBase
 {
-    [Inject] private IProtocolEditorService _service { get; set; } = default!;
-    [Inject] private IOptions<ProtocolEditorFeatureOptions> _featureOptions { get; set; } = default!;
-    [Inject] private IJSRuntime _jsRuntime { get; set; } = default!;
-    [Inject] private ILogger<ProtocolEditorShell> _logger { get; set; } = default!;
+    [Inject] private IProtocolEditorService Service { get; set; } = null!;
+    [Inject] private IOptions<ProtocolEditorFeatureOptions> FeatureOptions { get; set; } = null!;
+    [Inject] private IJSRuntime JsRuntime { get; set; } = null!;
+    [Inject] private ILogger<ProtocolEditorShell> Logger { get; set; } = null!;
 
     private ProtocolEditorSnapshot _snapshot = new();
     private int? _selectedNodeId;
@@ -27,12 +26,12 @@ public partial class ProtocolEditorShell : ComponentBase
     {
         try
         {
-            _snapshot = await Task.Run(() => _service.Load());
-            _logger.LogInformation("ProtocolEditorShell loaded document with {SectionCount} sections.", _snapshot.Document.Sections.Count);
+            _snapshot = await Task.Run(() => Service.Load());
+            Logger.LogInformation("ProtocolEditorShell loaded document with {SectionCount} sections.", _snapshot.Document.Sections.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ProtocolEditorShell failed to load.");
+            Logger.LogError(ex, "ProtocolEditorShell failed to load.");
             _statusMessage = "Failed to load protocol. Please refresh.";
         }
         finally
@@ -45,8 +44,8 @@ public partial class ProtocolEditorShell : ComponentBase
     {
         if (_addSectionPanelOpen)
         {
-            await _jsRuntime.InvokeVoidAsync("document.getElementById", "newSectionInput");
-            try { await _jsRuntime.InvokeVoidAsync("eval", "document.getElementById('newSectionInput')?.focus()"); }
+            await JsRuntime.InvokeVoidAsync("document.getElementById", "newSectionInput");
+            try { await JsRuntime.InvokeVoidAsync("eval", "document.getElementById('newSectionInput')?.focus()"); }
             catch { /* focus is best-effort */ }
         }
     }
@@ -73,12 +72,12 @@ public partial class ProtocolEditorShell : ComponentBase
     {
         try
         {
-            var snapshot = _service.MoveNode(args.NodeId, args.NewParentId, args.NewIndex);
+            var snapshot = Service.MoveNode(args.NodeId, args.NewParentId, args.NewIndex);
             HandleMutation(snapshot);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "MoveNode failed.");
+            Logger.LogError(ex, "MoveNode failed.");
             HandleError("Failed to move node.");
         }
         await Task.CompletedTask;
@@ -95,14 +94,14 @@ public partial class ProtocolEditorShell : ComponentBase
         if (string.IsNullOrWhiteSpace(_newSectionText)) return;
         try
         {
-            var snapshot = _service.AddSection(_newSectionText.Trim());
+            var snapshot = Service.AddSection(_newSectionText.Trim());
             _addSectionPanelOpen = false;
             _newSectionText = string.Empty;
             HandleMutation(snapshot);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "AddSection failed.");
+            Logger.LogError(ex, "AddSection failed.");
             HandleError("Failed to add section.");
         }
     }
@@ -120,20 +119,20 @@ public partial class ProtocolEditorShell : ComponentBase
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.CtrlKey && e.Key == "z" && !e.ShiftKey)
+        if (e is { CtrlKey: true, Key: "z", ShiftKey: false })
         {
-            try { HandleMutation(_service.Undo()); } catch { HandleError("Undo failed."); }
+            try { HandleMutation(Service.Undo()); } catch { HandleError("Undo failed."); }
         }
-        else if (e.CtrlKey && (e.Key == "y" || (e.Key == "z" && e.ShiftKey)))
+        else if (e.CtrlKey && (e.Key == "y" || e is { Key: "z", ShiftKey: true }))
         {
-            try { HandleMutation(_service.Redo()); } catch { HandleError("Redo failed."); }
+            try { HandleMutation(Service.Redo()); } catch { HandleError("Redo failed."); }
         }
         else if (e.Key == "Delete" && _selectedNodeId.HasValue && !_addSectionPanelOpen)
         {
-            var confirmed = await _jsRuntime.InvokeAsync<bool>("confirm", "Remove this node and all its children?");
+            var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Remove this node and all its children?");
             if (confirmed)
             {
-                try { HandleMutation(_service.RemoveNode(_selectedNodeId.Value)); }
+                try { HandleMutation(Service.RemoveNode(_selectedNodeId.Value)); }
                 catch { HandleError("Failed to remove node."); }
             }
         }

@@ -1,5 +1,4 @@
 using SleepEditWeb.Data;
-using Microsoft.Extensions.Logging;
 using SleepEditWeb.Models;
 
 namespace SleepEditWeb.Services;

@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.Extensions.Logging;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
 
@@ -7,8 +6,8 @@ namespace SleepEditWeb.Components.ProtocolEditor;
 
 public partial class ProtocolNodeInfoPanel : ComponentBase
 {
-    [Inject] private IProtocolEditorService _service { get; set; } = default!;
-    [Inject] private ILogger<ProtocolNodeInfoPanel> _logger { get; set; } = default!;
+    [Inject] private IProtocolEditorService Service { get; set; } = null!;
+    [Inject] private ILogger<ProtocolNodeInfoPanel> Logger { get; set; } = null!;
 
     [Parameter] public ProtocolNodeModel? SelectedNode { get; set; }
     [Parameter] public ProtocolDocument Document { get; set; } = new();
@@ -39,12 +38,12 @@ public partial class ProtocolNodeInfoPanel : ComponentBase
         if (_nodeText == SelectedNode.Text) return;
         try
         {
-            var snapshot = _service.UpdateNode(SelectedNode.Id, _nodeText, SelectedNode.LinkId, SelectedNode.LinkText);
+            var snapshot = Service.UpdateNode(SelectedNode.Id, _nodeText, SelectedNode.LinkId, SelectedNode.LinkText);
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "UpdateNode text failed.");
+            Logger.LogError(ex, "UpdateNode text failed.");
             await OnError.InvokeAsync("Failed to update statement text.");
         }
     }
@@ -54,13 +53,13 @@ public partial class ProtocolNodeInfoPanel : ComponentBase
         if (SelectedNode is null || string.IsNullOrWhiteSpace(_newSubText)) return;
         try
         {
-            var snapshot = _service.AddSubText(SelectedNode.Id, _newSubText.Trim());
+            var snapshot = Service.AddSubText(SelectedNode.Id, _newSubText.Trim());
             _newSubText = string.Empty;
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "AddSubText failed.");
+            Logger.LogError(ex, "AddSubText failed.");
             await OnError.InvokeAsync("Failed to add SubText item.");
         }
     }
@@ -70,13 +69,13 @@ public partial class ProtocolNodeInfoPanel : ComponentBase
         if (SelectedNode is null || string.IsNullOrWhiteSpace(_selectedSubText)) return;
         try
         {
-            var snapshot = _service.RemoveSubText(SelectedNode.Id, _selectedSubText);
+            var snapshot = Service.RemoveSubText(SelectedNode.Id, _selectedSubText);
             _selectedSubText = string.Empty;
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "RemoveSubText failed.");
+            Logger.LogError(ex, "RemoveSubText failed.");
             await OnError.InvokeAsync("Failed to remove SubText item.");
         }
     }
@@ -86,12 +85,12 @@ public partial class ProtocolNodeInfoPanel : ComponentBase
         if (SelectedNode is null) return;
         try
         {
-            var snapshot = _service.UpdateNode(SelectedNode.Id, SelectedNode.Text, 0, string.Empty);
+            var snapshot = Service.UpdateNode(SelectedNode.Id, SelectedNode.Text, 0, string.Empty);
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ClearLink failed.");
+            Logger.LogError(ex, "ClearLink failed.");
             await OnError.InvokeAsync("Failed to clear link.");
         }
     }
@@ -102,12 +101,12 @@ public partial class ProtocolNodeInfoPanel : ComponentBase
         if (SelectedNode is null) return;
         try
         {
-            var snapshot = _service.UpdateNode(SelectedNode.Id, SelectedNode.Text, link.LinkId, link.LinkText);
+            var snapshot = Service.UpdateNode(SelectedNode.Id, SelectedNode.Text, link.LinkId, link.LinkText);
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SetLink failed.");
+            Logger.LogError(ex, "SetLink failed.");
             await OnError.InvokeAsync("Failed to set link.");
         }
     }
