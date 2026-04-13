@@ -10,7 +10,7 @@ Current protocol editing/viewing behavior is concentrated in a few monolithic un
 
 - `SleepEditWeb/Views/ProtocolEditor/Index.cshtml` (large inline editor script, state + rendering + API calls)
 - `SleepEditWeb/Views/ProtocolViewer/Index.cshtml` (inline viewer script + output composition)
-- `SleepEditWeb/Controllers/ProtocolEditorController.cs` (route handling + validation + file/path policies + response mapping)
+- `SleepEditWeb/Controllers/ProtocolEditorController.cs` (route handling + validation + DB persistence + response mapping)
 - `SleepEditWeb/Services/ProtocolEditorService.cs` (business mutations + undo/redo + traversal + link cleanup + cloning)
 
 The target is a modular architecture with strict dependency direction, explicit ownership boundaries, and a functional core where pure functions own protocol-tree behavior.
@@ -43,7 +43,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `Protocol.Domain` | Protocol invariants, tree operations, pure validation rules, structural transformations | HTTP, session, file IO, logging framework concerns | None |
 | `Protocol.Application` | Use-case handlers (`AddSection`, `MoveNode`, `UpdateNode`, etc.), `Result` composition, transaction boundaries | XML element ordering details, Razor/DOM concerns | `Protocol.Domain` |
-| `Protocol.Infrastructure` | XML serializer/deserializer, repository/session adapters, filesystem and DB integration | Route templates, UI state handling | `Protocol.Domain`, application abstractions |
+| `Protocol.Infrastructure` | XML serializer/deserializer, LiteDB repository/session adapters, DB integration | Route templates, UI state handling | `Protocol.Domain`, application abstractions |
 | `SleepEditWeb.Web` | Route contracts, auth/antiforgery filters, request validation, response shaping | Core tree mutation logic, XML schema rules | `Protocol.Application`, `Protocol.Infrastructure` via abstractions |
 | `SleepEditWeb.UI` | View bootstrap, API client calls, state store, rendering and interactions | Server-side path resolution, protocol invariants | Web endpoint contracts only |
 

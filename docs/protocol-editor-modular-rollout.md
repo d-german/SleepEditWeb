@@ -84,4 +84,4 @@ Use this checklist before every release candidate:
 2. Frontend unit tests pass (`npm run test:frontend`).
 3. Contract and backend tests pass (`dotnet test SleepEditWeb.sln`).
 4. Browser smoke test confirms no console import/runtime errors.
-5. Import/save/default flow validates file-path behavior in configured environment.
+5. Import/save/default flow validates DB persistence behavior.
