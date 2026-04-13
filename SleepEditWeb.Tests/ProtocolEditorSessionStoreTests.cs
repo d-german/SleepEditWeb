@@ -11,7 +11,7 @@ namespace SleepEditWeb.Tests;
 public class ProtocolEditorSessionStoreTests
 {
     [Test]
-    public void Load_WhenSessionMissing_UsesLatestRepositoryVersion()
+    public void Load_WhenSessionMissing_UsesCurrentProtocolFromRepository()
     {
         // Arrange
         var accessor = new Mock<IHttpContextAccessor>();
@@ -21,11 +21,11 @@ public class ProtocolEditorSessionStoreTests
         starter.Setup(x => x.Create()).Returns(CreateDocument("Starter Protocol"));
 
         var repository = new Mock<IProtocolRepository>();
-        repository.Setup(x => x.GetLatestVersion()).Returns(new ProtocolVersion(
+        repository.Setup(x => x.GetCurrentProtocol()).Returns(new ProtocolVersion(
             VersionId: Guid.NewGuid(),
             SavedUtc: DateTime.UtcNow,
             Source: "test",
-            Note: "latest",
+            Note: "current",
             Document: CreateDocument("Repository Protocol")));
 
         var store = new ProtocolEditorSessionStore(
@@ -53,7 +53,7 @@ public class ProtocolEditorSessionStoreTests
         starter.Setup(x => x.Create()).Returns(CreateDocument("Starter Protocol"));
 
         var repository = new Mock<IProtocolRepository>();
-        repository.Setup(x => x.GetLatestVersion()).Throws(new IOException("database unavailable"));
+        repository.Setup(x => x.GetCurrentProtocol()).Throws(new IOException("database unavailable"));
 
         var store = new ProtocolEditorSessionStore(
             accessor.Object,
@@ -81,7 +81,7 @@ public class ProtocolEditorSessionStoreTests
         starter.Setup(x => x.Create()).Returns(CreateDocument("Starter Protocol"));
 
         var repository = new Mock<IProtocolRepository>();
-        repository.Setup(x => x.GetLatestVersion()).Returns(new ProtocolVersion(
+        repository.Setup(x => x.GetCurrentProtocol()).Returns(new ProtocolVersion(
             VersionId: Guid.NewGuid(),
             SavedUtc: DateTime.UtcNow,
             Source: "test",
@@ -99,7 +99,7 @@ public class ProtocolEditorSessionStoreTests
 
         // Assert — Reset must use starter service, not the repository
         starter.Verify(x => x.Create(), Times.Once);
-        repository.Verify(x => x.GetLatestVersion(), Times.Never);
+        repository.Verify(x => x.GetCurrentProtocol(), Times.Never);
     }
 
     [Test]
@@ -121,7 +121,7 @@ public class ProtocolEditorSessionStoreTests
         starter.Setup(x => x.Create()).Returns(CreateDocument("Starter Protocol"));
 
         var repository = new Mock<IProtocolRepository>();
-        repository.Setup(x => x.GetLatestVersion()).Returns((ProtocolVersion?)null);
+        repository.Setup(x => x.GetCurrentProtocol()).Returns((ProtocolVersion?)null);
 
         var store = new ProtocolEditorSessionStore(
             accessor.Object,

@@ -144,14 +144,14 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
     {
         try
         {
-            var latestVersion = _repository.GetLatestVersion();
+            var latestVersion = _repository.GetCurrentProtocol();
             if (latestVersion == null)
             {
                 return null;
             }
 
             _logger.LogInformation(
-                "ProtocolEditorSessionStore loaded default snapshot from repository version {VersionId}.",
+                "ProtocolEditorSessionStore loaded default snapshot from current protocol {VersionId}.",
                 latestVersion.VersionId);
 
             var savedUtc = DateTime.SpecifyKind(latestVersion.SavedUtc, DateTimeKind.Utc);
