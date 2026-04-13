@@ -5,8 +5,6 @@ public interface IProtocolEditorRequestValidator
     bool IsPayloadMissing<TRequest>(TRequest? request)
         where TRequest : class;
 
-    string? ValidateResolvedPath(string resolvedPath, string missingPathMessage);
-
     string? ValidateUploadedFile(IFormFile? file, long maxImportXmlBytes);
 }
 
@@ -16,11 +14,6 @@ public sealed class ProtocolEditorRequestValidator : IProtocolEditorRequestValid
         where TRequest : class
     {
         return request == null;
-    }
-
-    public string? ValidateResolvedPath(string resolvedPath, string missingPathMessage)
-    {
-        return string.IsNullOrWhiteSpace(resolvedPath) ? missingPathMessage : null;
     }
 
     public string? ValidateUploadedFile(IFormFile? file, long maxImportXmlBytes)

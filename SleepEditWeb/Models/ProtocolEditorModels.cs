@@ -65,14 +65,3 @@ public sealed class ProtocolEditorFeatureOptions
 
     public bool ProtocolEditorEnabled { get; init; } = true;
 }
-
-public sealed class ProtocolEditorStartupOptions
-{
-    public const string SectionName = "ProtocolEditor";
-
-    public string DefaultProtocolPath { get; init; } = string.Empty;
-
-    public string StartupProtocolPath { get; init; } = string.Empty;
-
-    public string SaveProtocolPath { get; init; } = string.Empty;
-}
