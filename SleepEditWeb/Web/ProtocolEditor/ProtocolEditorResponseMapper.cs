@@ -16,7 +16,8 @@ public sealed class ProtocolEditorResponseMapper : IProtocolEditorResponseMapper
             document = snapshot.Document,
             undoCount = snapshot.UndoHistory.Count,
             redoCount = snapshot.RedoHistory.Count,
-            lastUpdatedUtc = snapshot.LastUpdatedUtc
+            lastUpdatedUtc = snapshot.LastUpdatedUtc,
+            activeProtocolId = snapshot.ActiveProtocolId
         };
     }
 }

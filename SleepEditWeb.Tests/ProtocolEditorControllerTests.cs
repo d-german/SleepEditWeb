@@ -342,9 +342,11 @@ public class ProtocolEditorControllerTests
 
     private static ProtocolEditorController CreateController(
         IProtocolEditorService service,
-        Mock<IProtocolRepository>? repositoryMock = null)
+        Mock<IProtocolRepository>? repositoryMock = null,
+        Mock<IProtocolManagementService>? managementServiceMock = null)
     {
         var repository = repositoryMock ?? CreateRepositoryMock();
+        var managementService = managementServiceMock ?? new Mock<IProtocolManagementService>();
         var requestValidator = new ProtocolEditorRequestValidator();
         var responseMapper = new ProtocolEditorResponseMapper();
 
@@ -354,6 +356,7 @@ public class ProtocolEditorControllerTests
             repository.Object,
             requestValidator,
             responseMapper,
+            managementService.Object,
             NullLogger<ProtocolEditorController>.Instance)
         {
             ControllerContext = new ControllerContext

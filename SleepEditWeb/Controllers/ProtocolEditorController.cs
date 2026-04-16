@@ -18,6 +18,7 @@ public sealed class ProtocolEditorController : Controller
     private readonly IProtocolRepository _repository;
     private readonly IProtocolEditorRequestValidator _requestValidator;
     private readonly IProtocolEditorResponseMapper _responseMapper;
+    private readonly IProtocolManagementService _managementService;
     private readonly ILogger<ProtocolEditorController> _logger;
 
     public ProtocolEditorController(
@@ -26,6 +27,7 @@ public sealed class ProtocolEditorController : Controller
         IProtocolRepository repository,
         IProtocolEditorRequestValidator requestValidator,
         IProtocolEditorResponseMapper responseMapper,
+        IProtocolManagementService managementService,
         ILogger<ProtocolEditorController> logger)
     {
         _service = service;
@@ -33,6 +35,7 @@ public sealed class ProtocolEditorController : Controller
         _repository = repository;
         _requestValidator = requestValidator;
         _responseMapper = responseMapper;
+        _managementService = managementService;
         _logger = logger;
     }
 
@@ -280,6 +283,12 @@ public sealed class ProtocolEditorController : Controller
         try
         {
             _repository.SaveCurrentProtocol(snapshot.Document, "SaveXml");
+
+            var activeProtocolId = _managementService.GetActiveProtocolId();
+            if (activeProtocolId.HasValue)
+            {
+                _repository.SaveProtocol(activeProtocolId.Value, snapshot.Document.Text, snapshot.Document, "SaveXml");
+            }
         }
         catch (Exception ex) when (
             ex is IOException or
@@ -308,7 +317,16 @@ public sealed class ProtocolEditorController : Controller
         var snapshot = _service.Load();
         try
         {
-            _repository.SaveCurrentProtocol(snapshot.Document, "SetDefaultProtocol");
+            var activeProtocolId = _managementService.GetActiveProtocolId();
+            if (activeProtocolId.HasValue)
+            {
+                _managementService.SetDefaultProtocol(activeProtocolId.Value);
+            }
+            else
+            {
+                // Backward compat: save as current protocol if no active ID
+                _repository.SaveCurrentProtocol(snapshot.Document, "SetDefaultProtocol");
+            }
         }
         catch (Exception ex) when (
             ex is IOException or
@@ -384,6 +402,93 @@ public sealed class ProtocolEditorController : Controller
         }
     }
 
+
+    [HttpPost("CreateProtocol")]
+    [ValidateAntiForgeryToken]
+    public IActionResult CreateProtocol([FromBody] CreateProtocolRequest? request)
+    {
+        if (!TryEnsureEnabled(nameof(CreateProtocol), out var denied)) return denied!;
+
+        var name = request?.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return BadRequest(new { error = "Protocol name is required." });
+        }
+
+        _logger.LogInformation("CreateProtocol requested. Name: {Name}", name);
+        var metadata = _managementService.CreateProtocol(name);
+        return Json(metadata);
+    }
+
+    [HttpGet("ListProtocols")]
+    public IActionResult ListProtocols()
+    {
+        if (!TryEnsureEnabled(nameof(ListProtocols), out var denied)) return denied!;
+
+        _logger.LogDebug("ListProtocols requested.");
+        var protocols = _managementService.ListProtocols();
+        return Json(protocols);
+    }
+
+    [HttpPost("LoadProtocol/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public IActionResult LoadProtocol(Guid id)
+    {
+        if (!TryEnsureEnabled(nameof(LoadProtocol), out var denied)) return denied!;
+
+        _logger.LogInformation("LoadProtocol requested. ProtocolId: {ProtocolId}", id);
+        try
+        {
+            var snapshot = _managementService.LoadProtocol(id);
+            return Json(_responseMapper.ToStateResponse(snapshot));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "LoadProtocol failed for {ProtocolId}.", id);
+            return NotFound(new { error = $"Protocol {id} not found." });
+        }
+    }
+
+    [HttpPost("DeleteProtocol/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public IActionResult DeleteProtocol(Guid id)
+    {
+        if (!TryEnsureEnabled(nameof(DeleteProtocol), out var denied)) return denied!;
+
+        _logger.LogInformation("DeleteProtocol requested. ProtocolId: {ProtocolId}", id);
+        var deleted = _managementService.DeleteProtocol(id);
+        if (!deleted)
+        {
+            return BadRequest(new { error = "Cannot delete the active or default protocol." });
+        }
+        return Json(new { success = true });
+    }
+
+    [HttpPost("RenameProtocol/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public IActionResult RenameProtocol(Guid id, [FromBody] RenameProtocolRequest? request)
+    {
+        if (!TryEnsureEnabled(nameof(RenameProtocol), out var denied)) return denied!;
+
+        var name = request?.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return BadRequest(new { error = "Protocol name is required." });
+        }
+
+        _logger.LogInformation("RenameProtocol requested. ProtocolId: {ProtocolId}, NewName: {Name}", id, name);
+        try
+        {
+            _managementService.RenameProtocol(id, name);
+            return Json(new { success = true });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "RenameProtocol failed for {ProtocolId}.", id);
+            return NotFound(new { error = $"Protocol {id} not found." });
+        }
+    }
+
     private bool IsEnabled()
     {
         return _featureOptions.ProtocolEditorEnabled;
@@ -444,5 +549,15 @@ public sealed class ProtocolEditorController : Controller
         public int NodeId { get; init; }
 
         public string? Value { get; init; }
+    }
+
+    public sealed class CreateProtocolRequest
+    {
+        public string? Name { get; init; }
+    }
+
+    public sealed class RenameProtocolRequest
+    {
+        public string? Name { get; init; }
     }
 }

@@ -21,6 +21,7 @@ public partial class ProtocolToolbar : ComponentBase
     [Parameter] public EventCallback OnToggleAllSections { get; set; }
     [Parameter] public int? SelectedNodeId { get; set; }
     [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public Guid? ActiveProtocolId { get; set; }
 
     private bool CanUndo => Snapshot.UndoHistory.Count > 0 || Snapshot.UndoDomainHistory.Count > 0;
     private bool CanRedo => Snapshot.RedoHistory.Count > 0 || Snapshot.RedoDomainHistory.Count > 0;
@@ -112,7 +113,14 @@ public partial class ProtocolToolbar : ComponentBase
             using var reader = new StreamReader(stream);
             var xml = await reader.ReadToEndAsync();
             var snapshot = Service.ImportXml(xml);
-            Repository.SaveCurrentProtocol(snapshot.Document, "ImportXml");
+            if (ActiveProtocolId.HasValue)
+            {
+                Repository.SaveProtocol(ActiveProtocolId.Value, snapshot.Document.Text, snapshot.Document, "ImportXml");
+            }
+            else
+            {
+                Repository.SaveCurrentProtocol(snapshot.Document, "ImportXml");
+            }
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
@@ -127,30 +135,20 @@ public partial class ProtocolToolbar : ComponentBase
         try
         {
             var snapshot = Service.Load();
-            Repository.SaveCurrentProtocol(snapshot.Document, "SaveXml");
+            if (ActiveProtocolId.HasValue)
+            {
+                Repository.SaveProtocol(ActiveProtocolId.Value, snapshot.Document.Text, snapshot.Document, "SaveXml");
+            }
+            else
+            {
+                Repository.SaveCurrentProtocol(snapshot.Document, "SaveXml");
+            }
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Save failed.");
             await OnError.InvokeAsync("Failed to save protocol.");
-        }
-    }
-
-    private async Task HandleSetDefault()
-    {
-        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Set this protocol as the default?");
-        if (!confirmed) return;
-        try
-        {
-            var snapshot = Service.Load();
-            Repository.SaveCurrentProtocol(snapshot.Document, "SetDefaultProtocol");
-            await OnMutation.InvokeAsync(snapshot);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "SetDefault failed.");
-            await OnError.InvokeAsync("Failed to set default protocol.");
         }
     }
 

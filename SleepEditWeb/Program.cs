@@ -46,6 +46,7 @@ public class Program
 		builder.Services.AddScoped<IProtocolCommandHandler<RemoveSubTextCommand>, RemoveSubTextCommandHandler>();
 		builder.Services.AddScoped<IProtocolQueryHandler<FindNodeByIdQuery, SleepEditWeb.Protocol.Domain.ProtocolTreeNode>, FindNodeByIdQueryHandler>();
 		builder.Services.AddScoped<IProtocolEditorService, ProtocolEditorService>();
+		builder.Services.AddScoped<IProtocolManagementService, ProtocolManagementService>();
 		builder.Services.AddHttpContextAccessor();
 
 		builder.Services.Configure<SleepNoteEditorFeatureOptions>(
