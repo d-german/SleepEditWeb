@@ -1,3 +1,4 @@
+using LiteDB;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SleepEditWeb.Infrastructure.ProtocolPersistence;
@@ -276,7 +277,19 @@ public sealed class ProtocolEditorController : Controller
         _logger.LogInformation("SaveXml requested.");
 
         var snapshot = _service.Load();
-        _repository.SaveCurrentProtocol(snapshot.Document, "SaveXml");
+        try
+        {
+            _repository.SaveCurrentProtocol(snapshot.Document, "SaveXml");
+        }
+        catch (Exception ex) when (
+            ex is IOException or
+            UnauthorizedAccessException or
+            LiteException)
+        {
+            _logger.LogWarning(ex, "SaveXml failed while persisting the current protocol.");
+            return StatusCode(500, new { error = "Failed to save protocol." });
+        }
+
         _logger.LogInformation("SaveXml completed successfully.");
         return Json(_responseMapper.ToStateResponse(snapshot));
     }
@@ -293,7 +306,19 @@ public sealed class ProtocolEditorController : Controller
         _logger.LogInformation("SetDefaultProtocol requested.");
 
         var snapshot = _service.Load();
-        _repository.SaveCurrentProtocol(snapshot.Document, "SetDefaultProtocol");
+        try
+        {
+            _repository.SaveCurrentProtocol(snapshot.Document, "SetDefaultProtocol");
+        }
+        catch (Exception ex) when (
+            ex is IOException or
+            UnauthorizedAccessException or
+            LiteException)
+        {
+            _logger.LogWarning(ex, "SetDefaultProtocol failed while persisting the current protocol.");
+            return StatusCode(500, new { error = "Failed to set default protocol." });
+        }
+
         _logger.LogInformation("SetDefaultProtocol completed successfully.");
         return Json(_responseMapper.ToStateResponse(snapshot));
     }
@@ -347,6 +372,15 @@ public sealed class ProtocolEditorController : Controller
         {
             _logger.LogWarning(ex, "Invalid uploaded protocol XML.");
             return BadRequest(new { error = "Invalid XML format for protocol import." });
+        }
+        catch (Exception ex) when (
+            ex is IOException or
+            UnauthorizedAccessException or
+            ObjectDisposedException or
+            LiteException)
+        {
+            _logger.LogWarning(ex, "Failed to import uploaded protocol XML.");
+            return StatusCode(500, new { error = "Failed to import uploaded XML." });
         }
     }
 

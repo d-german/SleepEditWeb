@@ -147,6 +147,26 @@ public class ProtocolEditorControllerTests
     }
 
     [Test]
+    public void SaveXml_WhenRepositoryPersistenceFails_ReturnsInternalServerError()
+    {
+        // Arrange
+        var service = CreateServiceMock();
+        var repository = CreateRepositoryMock();
+        repository
+            .Setup(x => x.SaveCurrentProtocol(It.IsAny<ProtocolDocument>(), "SaveXml"))
+            .Throws(new IOException("disk failure"));
+        var controller = CreateController(service.Object, repository);
+
+        // Act
+        var result = controller.SaveXml() as ObjectResult;
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.StatusCode, Is.EqualTo(500));
+        Assert.That(GetPropertyValue(result.Value, "error"), Is.EqualTo("Failed to save protocol."));
+    }
+
+    [Test]
     public void SetDefaultProtocol_PersistsToRepository()
     {
         // Arrange
@@ -163,6 +183,26 @@ public class ProtocolEditorControllerTests
             x => x.SaveCurrentProtocol(It.IsAny<ProtocolDocument>(), "SetDefaultProtocol"),
             Times.Once);
         Assert.That(GetPropertyValue(result!.Value, "document"), Is.Not.Null);
+    }
+
+    [Test]
+    public void SetDefaultProtocol_WhenRepositoryPersistenceFails_ReturnsInternalServerError()
+    {
+        // Arrange
+        var service = CreateServiceMock();
+        var repository = CreateRepositoryMock();
+        repository
+            .Setup(x => x.SaveCurrentProtocol(It.IsAny<ProtocolDocument>(), "SetDefaultProtocol"))
+            .Throws(new IOException("disk failure"));
+        var controller = CreateController(service.Object, repository);
+
+        // Act
+        var result = controller.SetDefaultProtocol() as ObjectResult;
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.StatusCode, Is.EqualTo(500));
+        Assert.That(GetPropertyValue(result.Value, "error"), Is.EqualTo("Failed to set default protocol."));
     }
 
     [Test]
@@ -234,6 +274,50 @@ public class ProtocolEditorControllerTests
             x => x.SaveCurrentProtocol(It.IsAny<ProtocolDocument>(), "ImportXmlUpload"),
             Times.Once);
         Assert.That(GetPropertyValue(result!.Value, "document"), Is.Not.Null);
+    }
+
+    [Test]
+    public async Task ImportXmlUpload_WhenUploadReadFails_ReturnsInternalServerError()
+    {
+        // Arrange
+        var service = CreateServiceMock();
+        var controller = CreateController(service.Object);
+        var file = new Mock<IFormFile>();
+        file.SetupGet(x => x.FileName).Returns("broken.xml");
+        file.SetupGet(x => x.Length).Returns(32);
+        file.Setup(x => x.OpenReadStream()).Throws(new IOException("stream failure"));
+
+        // Act
+        var result = await controller.ImportXmlUpload(file.Object) as ObjectResult;
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.StatusCode, Is.EqualTo(500));
+        Assert.That(GetPropertyValue(result.Value, "error"), Is.EqualTo("Failed to import uploaded XML."));
+    }
+
+    [Test]
+    public async Task ImportXmlUpload_WhenRepositoryPersistenceFails_ReturnsInternalServerError()
+    {
+        // Arrange
+        var service = CreateServiceMock();
+        var repository = CreateRepositoryMock();
+        repository
+            .Setup(x => x.SaveCurrentProtocol(It.IsAny<ProtocolDocument>(), "ImportXmlUpload"))
+            .Throws(new IOException("disk failure"));
+        var controller = CreateController(service.Object, repository);
+
+        var xmlContent = System.Text.Encoding.UTF8.GetBytes("<Protocol><Id>-1</Id><LinkId>-1</LinkId><LinkText></LinkText><text>Imported</text></Protocol>");
+        await using var stream = new MemoryStream(xmlContent);
+        IFormFile file = new FormFile(stream, 0, xmlContent.Length, "file", "import.xml");
+
+        // Act
+        var result = await controller.ImportXmlUpload(file) as ObjectResult;
+
+        // Assert
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.StatusCode, Is.EqualTo(500));
+        Assert.That(GetPropertyValue(result.Value, "error"), Is.EqualTo("Failed to import uploaded XML."));
     }
 
     [Test]

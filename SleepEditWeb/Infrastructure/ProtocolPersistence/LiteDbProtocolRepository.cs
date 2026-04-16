@@ -9,6 +9,7 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
     private const string VersionsCollection = "protocol_versions";
     private const string CurrentCollection = "current_protocol";
     private const string CurrentProtocolKey = "current";
+    private const string SaveCurrentProtocolNote = "SaveCurrentProtocol";
 
     private readonly LiteDatabase _database;
     private readonly IProtocolXmlService _xmlService;
@@ -31,18 +32,12 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
     {
         ArgumentNullException.ThrowIfNull(document);
 
-        var entity = new ProtocolVersionEntity
-        {
-            Id = Guid.NewGuid(),
-            SavedUtc = DateTime.UtcNow,
-            Source = source ?? string.Empty,
-            Note = note ?? string.Empty,
-            Xml = _xmlService.Serialize(document)
-        };
-
-        var collection = _database.GetCollection<ProtocolVersionEntity>(VersionsCollection);
-        collection.Insert(entity);
-        collection.EnsureIndex(version => version.SavedUtc);
+        var entity = CreateVersionEntity(
+            _xmlService.Serialize(document),
+            source ?? string.Empty,
+            note ?? string.Empty,
+            DateTime.UtcNow);
+        var version = InsertVersionEntity(entity, document);
 
         _logger.LogInformation(
             "Saved protocol version {VersionId} from source {Source} at {SavedUtc}.",
@@ -50,7 +45,7 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
             entity.Source,
             entity.SavedUtc);
 
-        return new ProtocolVersion(entity.Id, entity.SavedUtc, entity.Source, entity.Note, document);
+        return version;
     }
 
     public ProtocolVersion? GetLatestVersion()
@@ -85,26 +80,40 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
 
         var xml = _xmlService.Serialize(document);
         var now = DateTime.UtcNow;
+        var normalizedSource = source ?? string.Empty;
 
         var currentEntity = new CurrentProtocolEntity
         {
             Id = CurrentProtocolKey,
             SavedUtc = now,
-            Source = source ?? string.Empty,
+            Source = normalizedSource,
             Xml = xml
         };
 
-        var collection = _database.GetCollection<CurrentProtocolEntity>(CurrentCollection);
-        collection.Upsert(currentEntity);
+        var versionEntity = CreateVersionEntity(xml, normalizedSource, SaveCurrentProtocolNote, now);
 
-        _logger.LogInformation(
-            "Saved current protocol from source {Source} at {SavedUtc}.",
-            currentEntity.Source,
-            currentEntity.SavedUtc);
+        _database.BeginTrans();
+        try
+        {
+            var currentCollection = _database.GetCollection<CurrentProtocolEntity>(CurrentCollection);
+            currentCollection.Upsert(currentEntity);
 
-        var version = SaveVersion(document, source ?? string.Empty, "SaveCurrentProtocol");
+            var version = InsertVersionEntity(versionEntity, document);
+            _database.Commit();
 
-        return new ProtocolVersion(version.VersionId, now, source ?? string.Empty, "SaveCurrentProtocol", document);
+            _logger.LogInformation(
+                "Saved current protocol from source {Source} at {SavedUtc} with version {VersionId}.",
+                currentEntity.Source,
+                currentEntity.SavedUtc,
+                version.VersionId);
+
+            return version;
+        }
+        catch
+        {
+            _database.Rollback();
+            throw;
+        }
     }
 
     public ProtocolVersion? GetCurrentProtocol()
@@ -150,6 +159,31 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
             entity.Source,
             string.Empty,
             _xmlService.Deserialize(entity.Xml));
+    }
+
+    private static ProtocolVersionEntity CreateVersionEntity(
+        string xml,
+        string source,
+        string note,
+        DateTime savedUtc)
+    {
+        return new ProtocolVersionEntity
+        {
+            Id = Guid.NewGuid(),
+            SavedUtc = savedUtc,
+            Source = source,
+            Note = note,
+            Xml = xml
+        };
+    }
+
+    private ProtocolVersion InsertVersionEntity(ProtocolVersionEntity entity, ProtocolDocument document)
+    {
+        var collection = _database.GetCollection<ProtocolVersionEntity>(VersionsCollection);
+        collection.Insert(entity);
+        collection.EnsureIndex(version => version.SavedUtc);
+
+        return new ProtocolVersion(entity.Id, entity.SavedUtc, entity.Source, entity.Note, document);
     }
 
     private static string GetDatabasePath()
