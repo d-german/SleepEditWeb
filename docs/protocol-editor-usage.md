@@ -21,8 +21,7 @@
 - `Undo` / `Redo`: restore/reapply prior mutations.
 - `Reset`: reloads hardcoded starter protocol.
 - `Import Protocol`: uploads protocol content from file (XML transport currently).
-- `Save Protocol`: persists current protocol to configured save target.
-- `Set As Default`: persists current protocol to configured default/startup target.
+- `Save Protocol`: persists current protocol to the active saved protocol.
 - `Export Protocol`: opens generated protocol output in a new tab (XML transport currently).
 
 ## Tree Interaction
@@ -47,6 +46,58 @@
   - Collapse state persists in browser localStorage (`protocolEditor.collapsedSections`).
   - If a selected child becomes hidden by collapsing, selection is moved to the section node.
 
+## Multi-Protocol Management
+
+The Protocol Editor supports multiple independent protocols. Each protocol has its own document tree, name, and metadata.
+
+### Protocol Selector
+
+The Protocol Selector panel appears between the page header and the toolbar. It shows all saved protocols with action buttons.
+
+#### Creating a Protocol
+
+1. Click the **New** button in the Protocol Selector header.
+2. Enter a name in the inline input field.
+3. Click **Create** (or press Enter) to create the protocol with a seed document.
+4. The editor automatically switches to the new protocol.
+
+#### Switching Protocols
+
+1. Click on any protocol name in the Protocol Selector list.
+2. The current protocol is auto-saved before switching.
+3. The editor loads the selected protocol's document tree.
+4. The active protocol name is displayed in the page subtitle ("Editing: Protocol Name").
+
+#### Renaming a Protocol
+
+1. Click the pencil icon (✏️) next to the protocol name.
+2. Edit the name in the inline input field.
+3. Click **Save** to confirm, or press Escape to cancel.
+
+#### Deleting a Protocol
+
+1. Click the trash icon (🗑️) next to the protocol name.
+2. Confirm the deletion in the browser dialog.
+3. **Note**: You cannot delete the active protocol or the default protocol. Switch to a different protocol first.
+
+#### Setting a Default Protocol
+
+1. Click the star icon (⭐) next to a non-default protocol.
+2. The protocol is marked as default (shown with a green "Default" badge).
+3. The Protocol Viewer will load the default protocol for patients/viewers.
+4. Only one protocol can be default at a time.
+
+### Protocol Badges
+
+- **Default** (green): This protocol is served by the Protocol Viewer.
+- **Active** (blue): This protocol is currently loaded in the editor.
+
+### Import/Export with Multi-Protocol
+
+- **Import Protocol**: Imports XML content into the currently active protocol, replacing its document tree.
+- **Export Protocol**: Exports the currently active protocol's document tree as XML.
+- **Save Protocol**: Saves the current editor state to the active protocol in the database.
+
 ## Detail Panels
 
 - Statement text is editable.
@@ -56,7 +107,7 @@
 ## Validation Status
 
 - Build: `dotnet build SleepEditWeb.sln` passes.
-- Tests: `dotnet test SleepEditWeb.sln` passes (53 tests).
+- Tests: `dotnet test SleepEditWeb.sln` passes (120 tests).
 - Protocol test coverage includes:
   - XML serialization/deserialization hierarchy and field order.
   - Mutation paths and invalid move handling.

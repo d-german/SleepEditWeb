@@ -17,19 +17,26 @@ public interface IProtocolManagementService
 public sealed class ProtocolManagementService(
     IProtocolRepository repository,
     IProtocolEditorSessionStore sessionStore,
-    IProtocolStarterService starterService,
     ILogger<ProtocolManagementService> logger)
     : IProtocolManagementService
 {
     public SavedProtocolMetadata CreateProtocol(string name)
     {
         var protocolId = Guid.NewGuid();
-        var seedDocument = starterService.CreateSeedDocument();
-        repository.SaveProtocol(protocolId, name, seedDocument, "CreateProtocol");
+        var emptyDocument = new ProtocolDocument
+        {
+            Id = 0,
+            LinkId = -1,
+            LinkText = string.Empty,
+            Text = name,
+            Sections = []
+        };
+        repository.SaveProtocol(protocolId, name, emptyDocument, "CreateProtocol");
 
         logger.LogInformation("Created protocol {ProtocolId} with name '{Name}'", protocolId, name);
 
-        return new SavedProtocolMetadata(protocolId, name, DateTime.UtcNow, DateTime.UtcNow, false);
+        var protocols = repository.ListProtocols();
+        return protocols.First(p => p.ProtocolId == protocolId);
     }
 
     public IReadOnlyList<SavedProtocolMetadata> ListProtocols() =>

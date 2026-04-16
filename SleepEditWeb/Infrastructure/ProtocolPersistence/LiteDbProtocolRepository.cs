@@ -15,8 +15,9 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
     private readonly LiteDatabase _database;
     private readonly IProtocolXmlService _xmlService;
     private readonly ILogger<LiteDbProtocolRepository> _logger;
+    private readonly object _migrationLock = new();
     private bool _disposed;
-    private bool _migrationChecked;
+    private volatile bool _migrationChecked;
 
     public LiteDbProtocolRepository(
         IProtocolXmlService xmlService,
@@ -340,37 +341,45 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
             return;
         }
 
-        var savedCollection = _database.GetCollection<SavedProtocolEntity>(SavedProtocolsCollection);
-        if (savedCollection.Count() > 0)
+        lock (_migrationLock)
         {
-            _migrationChecked = true;
-            return;
-        }
-
-        var currentCollection = _database.GetCollection<CurrentProtocolEntity>(CurrentCollection);
-        var currentEntity = currentCollection.FindById(CurrentProtocolKey);
-
-        if (currentEntity != null)
-        {
-            var document = _xmlService.Deserialize(currentEntity.Xml);
-            var migrated = new SavedProtocolEntity
+            if (_migrationChecked)
             {
-                ProtocolId = Guid.NewGuid(),
-                Name = document.Text,
-                CreatedUtc = currentEntity.SavedUtc,
-                LastModifiedUtc = currentEntity.SavedUtc,
-                IsDefault = true,
-                Xml = currentEntity.Xml
-            };
-            savedCollection.Insert(migrated);
+                return;
+            }
 
-            _logger.LogInformation(
-                "Migrated current protocol to saved_protocols as {ProtocolId} with name {Name}.",
-                migrated.ProtocolId,
-                migrated.Name);
+            var savedCollection = _database.GetCollection<SavedProtocolEntity>(SavedProtocolsCollection);
+            if (savedCollection.Count() > 0)
+            {
+                _migrationChecked = true;
+                return;
+            }
+
+            var currentCollection = _database.GetCollection<CurrentProtocolEntity>(CurrentCollection);
+            var currentEntity = currentCollection.FindById(CurrentProtocolKey);
+
+            if (currentEntity != null)
+            {
+                var document = _xmlService.Deserialize(currentEntity.Xml);
+                var migrated = new SavedProtocolEntity
+                {
+                    ProtocolId = Guid.NewGuid(),
+                    Name = document.Text,
+                    CreatedUtc = currentEntity.SavedUtc,
+                    LastModifiedUtc = currentEntity.SavedUtc,
+                    IsDefault = true,
+                    Xml = currentEntity.Xml
+                };
+                savedCollection.Insert(migrated);
+
+                _logger.LogInformation(
+                    "Migrated current protocol to saved_protocols as {ProtocolId} with name {Name}.",
+                    migrated.ProtocolId,
+                    migrated.Name);
+            }
+
+            _migrationChecked = true;
         }
-
-        _migrationChecked = true;
     }
 
     private ProtocolVersion MapVersion(ProtocolVersionEntity entity)

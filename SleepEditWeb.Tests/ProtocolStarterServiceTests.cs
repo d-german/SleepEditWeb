@@ -92,6 +92,53 @@ public class ProtocolStarterServiceTests
         Assert.That(result.Sections.Any(s => s.Text == "End of Study:"), Is.True);
     }
 
+    [Test]
+    public void CreateWithGuid_LoadsSpecificProtocol_WhenFound()
+    {
+        var protocolId = Guid.NewGuid();
+        var repository = new Mock<IProtocolRepository>();
+        repository.Setup(r => r.GetProtocol(protocolId)).Returns(new ProtocolVersion(
+            VersionId: Guid.NewGuid(),
+            SavedUtc: DateTime.UtcNow,
+            Source: "test",
+            Note: "specific protocol",
+            Document: CreateDocument("Specific Protocol")));
+
+        var service = new ProtocolStarterService(repository.Object, NullLogger<ProtocolStarterService>.Instance);
+
+        var result = service.Create(protocolId);
+
+        Assert.That(result.Text, Is.EqualTo("Specific Protocol"));
+        repository.Verify(r => r.GetProtocol(protocolId), Times.Once);
+    }
+
+    [Test]
+    public void CreateWithGuid_FallsBackToSeed_WhenProtocolNotFound()
+    {
+        var repository = new Mock<IProtocolRepository>();
+        repository.Setup(r => r.GetProtocol(It.IsAny<Guid>())).Returns((ProtocolVersion?)null);
+
+        var service = new ProtocolStarterService(repository.Object, NullLogger<ProtocolStarterService>.Instance);
+
+        var result = service.Create(Guid.NewGuid());
+
+        Assert.That(result.Text, Is.EqualTo("Saint Luke's Protocol"));
+    }
+
+    [Test]
+    public void CreateSeedDocument_ReturnsDefaultSeedProtocol()
+    {
+        var repository = new Mock<IProtocolRepository>();
+        var service = new ProtocolStarterService(repository.Object, NullLogger<ProtocolStarterService>.Instance);
+
+        var result = service.CreateSeedDocument();
+
+        Assert.That(result.Text, Is.EqualTo("Saint Luke's Protocol"));
+        Assert.That(result.Sections.Count, Is.EqualTo(12));
+        repository.Verify(r => r.GetCurrentProtocol(), Times.Never);
+        repository.Verify(r => r.GetDefaultProtocol(), Times.Never);
+    }
+
     private static ProtocolDocument CreateDocument(string text)
     {
         return new ProtocolDocument

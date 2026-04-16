@@ -12,14 +12,29 @@ This runbook covers production configuration and diagnostics for:
 
 ## Protocol Persistence Model
 
-**As of the DB-only migration, all protocol persistence uses LiteDB.**
+**All protocol persistence uses LiteDB with multi-protocol support.**
 
-- **Save/Set Default**: Writes to the `current_protocol` collection in LiteDB and records a version in `protocol_versions`.
-- **Import (upload)**: Reads XML from the uploaded file, parses it, and persists the result to the database.
-- **Export**: Serializes the current session protocol to XML for browser download. No filesystem write occurs.
-- **Startup loading**: `ProtocolStarterService` loads from `GetCurrentProtocol()` (DB), falling back to a hardcoded seed protocol on first-ever startup.
+### Collections
 
-> **Migration Note**: Existing deployments that previously used file-based protocol persistence (`DefaultProtocolPath`, `SaveProtocolPath`, etc.) will start fresh from the seed protocol on first startup unless the protocol was previously saved to the version history database. The `ProtocolEditor` config section and all file path environment variables have been removed.
+- **`saved_protocols`**: Stores named protocol metadata (ID, name, default flag, timestamps). Each protocol is an independent document tree.
+- **`protocol_versions`**: Version history for all protocols. Each entry optionally tagged with a `ProtocolId` to associate with a saved protocol.
+- **`current_protocol`** (legacy): Retained for backward compatibility. New installations may not use this collection.
+
+### Operations
+
+- **Save**: Writes to both `current_protocol` (legacy compat) and the active protocol in `saved_protocols` + `protocol_versions`.
+- **Set Default**: Marks a protocol in `saved_protocols` as default. The Protocol Viewer loads the default protocol.
+- **Import (upload)**: Parses XML and saves to the active protocol.
+- **Export**: Serializes the current session protocol to XML for download.
+- **Create Protocol**: Creates a new entry in `saved_protocols` with a seed document.
+- **Switch Protocol**: Auto-saves current editor state, then loads the selected protocol.
+- **Delete Protocol**: Removes from `saved_protocols`. Cannot delete the active or default protocol.
+
+### Migration from Single to Multi-Protocol
+
+> **Important**: Existing deployments that used a single protocol will automatically migrate on first startup. The `EnsureMigration()` method in `LiteDbProtocolRepository` copies the existing `current_protocol` document into `saved_protocols` as the default protocol. This migration runs once (lazily) on the first call to `ListProtocols()` or `GetDefaultProtocol()`.
+
+No manual intervention is required. The migration is idempotent — running it multiple times is safe.
 
 ### Database Location
 
@@ -106,6 +121,7 @@ For incident debugging, temporarily raise categories to `Debug`:
 - `SleepEditWeb.Services.ProtocolXmlService`
 - `SleepEditWeb.Services.ProtocolEditorSessionStore`
 - `SleepEditWeb.Infrastructure.ProtocolPersistence.LiteDbProtocolRepository`
+- `SleepEditWeb.Services.ProtocolManagementService`
 
 Reset to `Information`/`Warning` after incident closure.
 
@@ -119,6 +135,10 @@ Reset to `Information`/`Warning` after incident closure.
 | `POST /ProtocolEditor/SetDefaultProtocol` | `500` | DB write failure | Same as SaveXml |
 | `POST /ProtocolEditor/ImportXmlUpload` | `400` | No file, oversized file, or invalid XML | Validate upload payload and size (< 2 MB) |
 | `POST /ProtocolEditor/ImportXmlUpload` | `500` | DB write failure after successful parse | Check Data directory and DB file health |
+| `POST /ProtocolEditor/CreateProtocol` | `400` | Missing or blank protocol name | Validate request body has non-empty `name` field |
+| `POST /ProtocolEditor/LoadProtocol/{id}` | `404` | Protocol ID not found in database | Verify protocol exists via `ListProtocols` endpoint |
+| `POST /ProtocolEditor/DeleteProtocol/{id}` | `400` | Attempting to delete active or default protocol | Switch to different protocol first, or unset as default |
+| `POST /ProtocolEditor/RenameProtocol/{id}` | `400` | Missing or blank new name | Validate request body has non-empty `name` field |
 
 ### Save XML returns 500
 
@@ -146,3 +166,8 @@ Reset to `Information`/`Warning` after incident closure.
 4. Import a valid XML file via upload and verify it appears in viewer/editor.
 5. Check logs contain success entries for each operation (look for `SaveCurrentProtocol` and `SaveXml completed` messages).
 6. Restart the application and verify the Protocol Viewer loads the saved protocol from the database.
+7. Create a new protocol via the Protocol Selector "New" button.
+8. Switch between protocols and verify the tree updates.
+9. Rename a protocol and verify the name change persists.
+10. Set a non-default protocol as default and verify the Viewer loads it.
+11. Delete a non-active, non-default protocol and verify it's removed from the list.

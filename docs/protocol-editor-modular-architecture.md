@@ -47,6 +47,45 @@ flowchart LR
 | `SleepEditWeb.Web` | Route contracts, auth/antiforgery filters, request validation, response shaping | Core tree mutation logic, XML schema rules | `Protocol.Application`, `Protocol.Infrastructure` via abstractions |
 | `SleepEditWeb.UI` | View bootstrap, API client calls, state store, rendering and interactions | Server-side path resolution, protocol invariants | Web endpoint contracts only |
 
+## Multi-Protocol Data Model
+
+The system supports multiple named protocols, each independently editable. Protocol data is organized across three LiteDB collections:
+
+### Collections
+
+| Collection | Purpose | Key Fields |
+| --- | --- | --- |
+| `saved_protocols` | Named protocol metadata and default flag | `ProtocolId` (Guid), `Name`, `IsDefault`, `CreatedUtc`, `LastModifiedUtc` |
+| `protocol_versions` | Version history for all protocols | `VersionId`, `ProtocolId` (nullable — null for legacy entries), `SavedUtc`, `Source`, `Note`, `DocumentXml` |
+| `current_protocol` | Legacy single-protocol storage (retained for backward compatibility) | `Source`, `SavedUtc`, `DocumentXml` |
+
+### Data Flow
+
+```mermaid
+flowchart LR
+    UI[ProtocolSelector + Toolbar] --> MGMT[ProtocolManagementService]
+    MGMT --> REPO[IProtocolRepository / LiteDbProtocolRepository]
+    REPO --> DB[(LiteDB: saved_protocols + protocol_versions)]
+    MGMT --> SS[ProtocolEditorSessionStore]
+    SS -->|ActiveProtocolId| MGMT
+```
+
+### Key Concepts
+
+- **Active Protocol**: The protocol currently loaded in the editor session. Tracked via `ProtocolEditorSessionStore.ActiveProtocolId`.
+- **Default Protocol**: The protocol served by the Protocol Viewer. Exactly one protocol has `IsDefault = true` in `saved_protocols`.
+- **Auto-Save on Switch**: When switching protocols, the management service auto-saves the current editor state to the active protocol before loading the new one.
+- **Migration**: On first access to `ListProtocols()` or `GetDefaultProtocol()`, the repository runs `EnsureMigration()` which copies the legacy `current_protocol` document into `saved_protocols` as the default protocol.
+
+### Service Layer
+
+| Service | Responsibility |
+| --- | --- |
+| `IProtocolManagementService` | Orchestrates create/load/delete/rename/set-default operations, auto-save on switch |
+| `IProtocolEditorSessionStore` | Tracks active protocol ID in HTTP session, manages in-memory snapshot |
+| `IProtocolStarterService` | Creates seed documents, loads specific protocols by ID |
+| `IProtocolRepository` | CRUD operations for protocols, version history, migration |
+
 ## Dependency Direction Rules
 
 1. `Domain` is dependency-free and side-effect-free.
@@ -132,6 +171,7 @@ Action templates:
 - `undoCount`
 - `redoCount`
 - `lastUpdatedUtc`
+- `activeProtocolId`
 
 Source: `SleepEditWeb/Controllers/ProtocolEditorController.cs:583`
 

@@ -146,6 +146,63 @@ public class ProtocolEditorSessionStoreTests
         session.Verify(x => x.Set(It.IsAny<string>(), It.IsAny<byte[]>()), Times.Once);
     }
 
+    [Test]
+    public void GetActiveProtocolId_ReturnsNull_WhenNotSet()
+    {
+        var accessor = new Mock<IHttpContextAccessor>();
+        accessor.Setup(x => x.HttpContext).Returns((HttpContext?)null);
+        var starter = new Mock<IProtocolStarterService>();
+        starter.Setup(x => x.Create()).Returns(CreateDocument("Starter"));
+        var repository = new Mock<IProtocolRepository>();
+
+        var store = new ProtocolEditorSessionStore(accessor.Object, starter.Object, repository.Object, NullLogger<ProtocolEditorSessionStore>.Instance);
+
+        Assert.That(store.GetActiveProtocolId(), Is.Null);
+    }
+
+    [Test]
+    public void SetActiveProtocolId_ThenGet_ReturnsSameId()
+    {
+        var protocolId = Guid.NewGuid();
+        var sessionData = new Dictionary<string, byte[]>();
+
+        var session = new Mock<ISession>();
+        session.Setup(s => s.Set(It.IsAny<string>(), It.IsAny<byte[]>()))
+            .Callback<string, byte[]>((k, v) => sessionData[k] = v);
+#pragma warning disable CS8601 // Moq delegate assignment for out parameter
+        session.Setup(s => s.TryGetValue(It.IsAny<string>(), out It.Ref<byte[]>.IsAny))
+            .Returns(new SessionTryGetValue((string key, out byte[]? value) =>
+            {
+                if (sessionData.TryGetValue(key, out var stored))
+                {
+                    value = stored;
+                    return true;
+                }
+
+                value = null;
+                return false;
+            }));
+#pragma warning restore CS8601
+
+        var httpContext = new Mock<HttpContext>();
+        httpContext.SetupGet(x => x.Session).Returns(session.Object);
+
+        var accessor = new Mock<IHttpContextAccessor>();
+        accessor.Setup(x => x.HttpContext).Returns(httpContext.Object);
+
+        var starter = new Mock<IProtocolStarterService>();
+        starter.Setup(x => x.Create()).Returns(CreateDocument("Starter"));
+        var repository = new Mock<IProtocolRepository>();
+
+        var store = new ProtocolEditorSessionStore(accessor.Object, starter.Object, repository.Object, NullLogger<ProtocolEditorSessionStore>.Instance);
+
+        store.SetActiveProtocolId(protocolId);
+
+        Assert.That(store.GetActiveProtocolId(), Is.EqualTo(protocolId));
+    }
+
+    private delegate bool SessionTryGetValue(string key, out byte[]? value);
+
     private static ProtocolDocument CreateDocument(string text)
     {
         return new ProtocolDocument

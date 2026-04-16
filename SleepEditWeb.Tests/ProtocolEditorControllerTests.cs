@@ -340,6 +340,172 @@ public class ProtocolEditorControllerTests
         Assert.That(GetPropertyValue(result!.Value, "error"), Is.EqualTo("Invalid XML format for protocol import."));
     }
 
+    [Test]
+    public void CreateProtocol_ReturnsMetadata_WhenNameProvided()
+    {
+        var service = CreateServiceMock();
+        var managementService = new Mock<IProtocolManagementService>();
+        var protocolId = Guid.NewGuid();
+        var metadata = new SavedProtocolMetadata(protocolId, "New Protocol", DateTime.UtcNow, DateTime.UtcNow, false);
+        managementService.Setup(x => x.CreateProtocol("New Protocol")).Returns(metadata);
+
+        var controller = CreateController(service.Object, managementServiceMock: managementService);
+        var request = new ProtocolEditorController.CreateProtocolRequest { Name = "New Protocol" };
+
+        var result = controller.CreateProtocol(request) as JsonResult;
+
+        Assert.That(result, Is.Not.Null);
+        managementService.Verify(x => x.CreateProtocol("New Protocol"), Times.Once);
+    }
+
+    [Test]
+    public void CreateProtocol_ReturnsBadRequest_WhenNameMissing()
+    {
+        var service = CreateServiceMock();
+        var controller = CreateController(service.Object);
+        var request = new ProtocolEditorController.CreateProtocolRequest { Name = "  " };
+
+        var result = controller.CreateProtocol(request) as BadRequestObjectResult;
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(GetPropertyValue(result!.Value, "error"), Is.EqualTo("Protocol name is required."));
+    }
+
+    [Test]
+    public void ListProtocols_ReturnsProtocolList()
+    {
+        var service = CreateServiceMock();
+        var managementService = new Mock<IProtocolManagementService>();
+        var list = new List<SavedProtocolMetadata>
+        {
+            new(Guid.NewGuid(), "Protocol A", DateTime.UtcNow, DateTime.UtcNow, true),
+            new(Guid.NewGuid(), "Protocol B", DateTime.UtcNow, DateTime.UtcNow, false)
+        };
+        managementService.Setup(x => x.ListProtocols()).Returns(list);
+
+        var controller = CreateController(service.Object, managementServiceMock: managementService);
+
+        var result = controller.ListProtocols() as JsonResult;
+
+        Assert.That(result, Is.Not.Null);
+        managementService.Verify(x => x.ListProtocols(), Times.Once);
+    }
+
+    [Test]
+    public void LoadProtocol_ReturnsSnapshot_WhenFound()
+    {
+        var service = CreateServiceMock();
+        var managementService = new Mock<IProtocolManagementService>();
+        var protocolId = Guid.NewGuid();
+        var snapshot = new ProtocolEditorSnapshot
+        {
+            Document = new ProtocolDocument { Id = -1, LinkId = -1, LinkText = string.Empty, Text = "Loaded", Sections = [] },
+            UndoHistory = [], RedoHistory = [], LastUpdatedUtc = DateTimeOffset.UtcNow,
+            ActiveProtocolId = protocolId
+        };
+        managementService.Setup(x => x.LoadProtocol(protocolId)).Returns(snapshot);
+
+        var controller = CreateController(service.Object, managementServiceMock: managementService);
+
+        var result = controller.LoadProtocol(protocolId) as JsonResult;
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(GetPropertyValue(result!.Value, "activeProtocolId"), Is.EqualTo(protocolId));
+    }
+
+    [Test]
+    public void LoadProtocol_ReturnsNotFound_WhenProtocolMissing()
+    {
+        var service = CreateServiceMock();
+        var managementService = new Mock<IProtocolManagementService>();
+        var protocolId = Guid.NewGuid();
+        managementService.Setup(x => x.LoadProtocol(protocolId))
+            .Throws(new InvalidOperationException("Not found"));
+
+        var controller = CreateController(service.Object, managementServiceMock: managementService);
+
+        var result = controller.LoadProtocol(protocolId) as NotFoundObjectResult;
+
+        Assert.That(result, Is.Not.Null);
+    }
+
+    [Test]
+    public void DeleteProtocol_ReturnsSuccess_WhenDeleted()
+    {
+        var service = CreateServiceMock();
+        var managementService = new Mock<IProtocolManagementService>();
+        var protocolId = Guid.NewGuid();
+        managementService.Setup(x => x.DeleteProtocol(protocolId)).Returns(true);
+
+        var controller = CreateController(service.Object, managementServiceMock: managementService);
+
+        var result = controller.DeleteProtocol(protocolId) as JsonResult;
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(GetPropertyValue(result!.Value, "success"), Is.True);
+    }
+
+    [Test]
+    public void DeleteProtocol_ReturnsBadRequest_WhenCannotDelete()
+    {
+        var service = CreateServiceMock();
+        var managementService = new Mock<IProtocolManagementService>();
+        var protocolId = Guid.NewGuid();
+        managementService.Setup(x => x.DeleteProtocol(protocolId)).Returns(false);
+
+        var controller = CreateController(service.Object, managementServiceMock: managementService);
+
+        var result = controller.DeleteProtocol(protocolId) as BadRequestObjectResult;
+
+        Assert.That(result, Is.Not.Null);
+    }
+
+    [Test]
+    public void RenameProtocol_ReturnsSuccess_WhenRenamed()
+    {
+        var service = CreateServiceMock();
+        var managementService = new Mock<IProtocolManagementService>();
+        var protocolId = Guid.NewGuid();
+
+        var controller = CreateController(service.Object, managementServiceMock: managementService);
+        var request = new ProtocolEditorController.RenameProtocolRequest { Name = "Renamed" };
+
+        var result = controller.RenameProtocol(protocolId, request) as JsonResult;
+
+        Assert.That(result, Is.Not.Null);
+        managementService.Verify(x => x.RenameProtocol(protocolId, "Renamed"), Times.Once);
+    }
+
+    [Test]
+    public void RenameProtocol_ReturnsBadRequest_WhenNameMissing()
+    {
+        var service = CreateServiceMock();
+        var controller = CreateController(service.Object);
+        var request = new ProtocolEditorController.RenameProtocolRequest { Name = null };
+
+        var result = controller.RenameProtocol(Guid.NewGuid(), request) as BadRequestObjectResult;
+
+        Assert.That(result, Is.Not.Null);
+        Assert.That(GetPropertyValue(result!.Value, "error"), Is.EqualTo("Protocol name is required."));
+    }
+
+    [Test]
+    public void SaveXml_SavesToActiveProtocol_WhenActiveIdExists()
+    {
+        var service = CreateServiceMock();
+        var repository = CreateRepositoryMock();
+        var managementService = new Mock<IProtocolManagementService>();
+        var activeId = Guid.NewGuid();
+        managementService.Setup(x => x.GetActiveProtocolId()).Returns(activeId);
+
+        var controller = CreateController(service.Object, repository, managementService);
+
+        var result = controller.SaveXml() as JsonResult;
+
+        Assert.That(result, Is.Not.Null);
+        repository.Verify(x => x.SaveProtocol(activeId, It.IsAny<string>(), It.IsAny<ProtocolDocument>(), "SaveXml"), Times.Once);
+    }
+
     private static ProtocolEditorController CreateController(
         IProtocolEditorService service,
         Mock<IProtocolRepository>? repositoryMock = null,
