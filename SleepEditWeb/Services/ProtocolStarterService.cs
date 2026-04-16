@@ -6,6 +6,8 @@ namespace SleepEditWeb.Services;
 public interface IProtocolStarterService
 {
     ProtocolDocument Create();
+    ProtocolDocument Create(Guid protocolId);
+    ProtocolDocument CreateSeedDocument();
 }
 
 public sealed class ProtocolStarterService : IProtocolStarterService
@@ -32,6 +34,33 @@ public sealed class ProtocolStarterService : IProtocolStarterService
             return current;
         }
 
+        return CreateSeedDocument();
+    }
+
+    public ProtocolDocument Create(Guid protocolId)
+    {
+        _logger.LogInformation("Protocol starter create requested for protocol {ProtocolId}.", protocolId);
+
+        try
+        {
+            var version = _repository.GetProtocol(protocolId);
+            if (version != null)
+            {
+                _logger.LogInformation("Protocol starter loaded document for protocol {ProtocolId}.", protocolId);
+                return version.Document;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load protocol {ProtocolId} from repository. Falling back to seed.", protocolId);
+        }
+
+        _logger.LogWarning("Protocol {ProtocolId} not found. Returning seed document.", protocolId);
+        return CreateSeedDocument();
+    }
+
+    public ProtocolDocument CreateSeedDocument()
+    {
         var nextId = 1;
         var sections = BuildSections(ref nextId);
         WireReferenceLinks(sections);
@@ -51,7 +80,7 @@ public sealed class ProtocolStarterService : IProtocolStarterService
     {
         try
         {
-            var version = _repository.GetCurrentProtocol();
+            var version = _repository.GetDefaultProtocol();
             return version?.Document;
         }
         catch (Exception ex)

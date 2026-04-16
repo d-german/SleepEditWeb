@@ -52,6 +52,8 @@ public sealed class ProtocolEditorSnapshot
     public List<ProtocolTreeDocument> RedoDomainHistory { get; set; } = [];
 
     public DateTimeOffset LastUpdatedUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public Guid? ActiveProtocolId { get; set; }
 }
 
 public sealed class ProtocolEditorViewModel

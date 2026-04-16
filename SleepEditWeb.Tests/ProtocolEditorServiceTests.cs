@@ -389,6 +389,7 @@ public class ProtocolEditorServiceTests
     {
         private readonly IProtocolStarterService _starterService;
         private ProtocolEditorSnapshot _snapshot;
+        private Guid? _activeProtocolId;
 
         public InMemoryProtocolEditorSessionStore(IProtocolStarterService starterService)
         {
@@ -409,6 +410,16 @@ public class ProtocolEditorServiceTests
         public void Reset()
         {
             _snapshot = CreateDefaultSnapshot();
+        }
+
+        public Guid? GetActiveProtocolId()
+        {
+            return _activeProtocolId;
+        }
+
+        public void SetActiveProtocolId(Guid protocolId)
+        {
+            _activeProtocolId = protocolId;
         }
 
         private ProtocolEditorSnapshot CreateDefaultSnapshot()

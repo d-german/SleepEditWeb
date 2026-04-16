@@ -14,7 +14,7 @@ public class ProtocolStarterServiceTests
     {
         // Arrange
         var repository = new Mock<IProtocolRepository>();
-        repository.Setup(r => r.GetCurrentProtocol()).Returns(new ProtocolVersion(
+        repository.Setup(r => r.GetDefaultProtocol()).Returns(new ProtocolVersion(
             VersionId: Guid.NewGuid(),
             SavedUtc: DateTime.UtcNow,
             Source: "test",
@@ -30,7 +30,7 @@ public class ProtocolStarterServiceTests
 
         // Assert
         Assert.That(result.Text, Is.EqualTo("DB Protocol"));
-        repository.Verify(r => r.GetCurrentProtocol(), Times.Once);
+        repository.Verify(r => r.GetDefaultProtocol(), Times.Once);
     }
 
     [Test]

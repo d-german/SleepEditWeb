@@ -21,7 +21,7 @@ public class ProtocolEditorSessionStoreTests
         starter.Setup(x => x.Create()).Returns(CreateDocument("Starter Protocol"));
 
         var repository = new Mock<IProtocolRepository>();
-        repository.Setup(x => x.GetCurrentProtocol()).Returns(new ProtocolVersion(
+        repository.Setup(x => x.GetDefaultProtocol()).Returns(new ProtocolVersion(
             VersionId: Guid.NewGuid(),
             SavedUtc: DateTime.UtcNow,
             Source: "test",
@@ -81,7 +81,7 @@ public class ProtocolEditorSessionStoreTests
         starter.Setup(x => x.Create()).Returns(CreateDocument("Starter Protocol"));
 
         var repository = new Mock<IProtocolRepository>();
-        repository.Setup(x => x.GetCurrentProtocol()).Returns(new ProtocolVersion(
+        repository.Setup(x => x.GetDefaultProtocol()).Returns(new ProtocolVersion(
             VersionId: Guid.NewGuid(),
             SavedUtc: DateTime.UtcNow,
             Source: "test",

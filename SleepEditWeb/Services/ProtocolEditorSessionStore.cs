@@ -11,11 +11,16 @@ public interface IProtocolEditorSessionStore
     void Save(ProtocolEditorSnapshot snapshot);
 
     void Reset();
+
+    Guid? GetActiveProtocolId();
+
+    void SetActiveProtocolId(Guid protocolId);
 }
 
 public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
 {
     private const string SnapshotKey = "ProtocolEditor.Snapshot";
+    private const string ActiveProtocolIdKey = "ProtocolEditor.ActiveProtocolId";
 
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IProtocolStarterService _starterService;
@@ -84,6 +89,12 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
         {
             var serialized = JsonSerializer.Serialize(snapshot);
             session.SetString(SnapshotKey, serialized);
+
+            if (snapshot.ActiveProtocolId.HasValue)
+            {
+                session.SetString(ActiveProtocolIdKey, snapshot.ActiveProtocolId.Value.ToString());
+            }
+
             _logger.LogDebug(
                 "ProtocolEditorSessionStore.Save persisted snapshot. UndoCount: {UndoCount}, RedoCount: {RedoCount}",
                 snapshot.UndoHistory.Count,
@@ -98,7 +109,33 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
     public void Reset()
     {
         _logger.LogInformation("ProtocolEditorSessionStore.Reset requested.");
-        Save(CreateStarterSnapshot());
+        var activeId = GetActiveProtocolId();
+        Save(CreateStarterSnapshot(activeId));
+    }
+
+    public Guid? GetActiveProtocolId()
+    {
+        var session = GetSession();
+        var raw = session?.GetString(ActiveProtocolIdKey);
+        if (Guid.TryParse(raw, out var id))
+        {
+            return id;
+        }
+
+        return null;
+    }
+
+    public void SetActiveProtocolId(Guid protocolId)
+    {
+        var session = GetSession();
+        if (session == null)
+        {
+            _logger.LogWarning("ProtocolEditorSessionStore.SetActiveProtocolId skipped because session was unavailable.");
+            return;
+        }
+
+        session.SetString(ActiveProtocolIdKey, protocolId.ToString());
+        _logger.LogInformation("Active protocol ID set to {ProtocolId}.", protocolId);
     }
 
     private ISession? GetSession()
@@ -129,14 +166,26 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
         };
     }
 
-    private ProtocolEditorSnapshot CreateStarterSnapshot()
+    private ProtocolEditorSnapshot CreateStarterSnapshot(Guid? activeProtocolId = null)
     {
+        ProtocolDocument document;
+        if (activeProtocolId.HasValue)
+        {
+            var version = _repository.GetProtocol(activeProtocolId.Value);
+            document = version?.Document ?? _starterService.Create();
+        }
+        else
+        {
+            document = _starterService.Create();
+        }
+
         return new ProtocolEditorSnapshot
         {
-            Document = _starterService.Create(),
+            Document = document,
             UndoHistory = [],
             RedoHistory = [],
-            LastUpdatedUtc = DateTimeOffset.UtcNow
+            LastUpdatedUtc = DateTimeOffset.UtcNow,
+            ActiveProtocolId = activeProtocolId
         };
     }
 
@@ -144,15 +193,19 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
     {
         try
         {
-            var latestVersion = _repository.GetCurrentProtocol();
+            var activeId = GetActiveProtocolId();
+            var latestVersion = activeId.HasValue
+                ? _repository.GetProtocol(activeId.Value)
+                : _repository.GetDefaultProtocol();
+
             if (latestVersion == null)
             {
                 return null;
             }
 
             _logger.LogInformation(
-                "ProtocolEditorSessionStore loaded default snapshot from current protocol {VersionId}.",
-                latestVersion.VersionId);
+                "ProtocolEditorSessionStore loaded default snapshot from protocol {ProtocolId}.",
+                activeId);
 
             var savedUtc = DateTime.SpecifyKind(latestVersion.SavedUtc, DateTimeKind.Utc);
             return new ProtocolEditorSnapshot
@@ -160,7 +213,8 @@ public sealed class ProtocolEditorSessionStore : IProtocolEditorSessionStore
                 Document = latestVersion.Document,
                 UndoHistory = [],
                 RedoHistory = [],
-                LastUpdatedUtc = new DateTimeOffset(savedUtc)
+                LastUpdatedUtc = new DateTimeOffset(savedUtc),
+                ActiveProtocolId = activeId
             };
         }
         catch (Exception ex)
