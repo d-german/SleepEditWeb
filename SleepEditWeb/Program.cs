@@ -31,8 +31,6 @@ public class Program
 		builder.Services.AddSingleton<IProtocolXmlService, ProtocolXmlService>();
 		builder.Services.AddScoped<IProtocolStarterService, ProtocolStarterService>();
 		builder.Services.AddScoped<IProtocolEditorSessionStore, ProtocolEditorSessionStore>();
-		builder.Services.AddScoped<IProtocolEditorPathPolicy, ProtocolEditorPathPolicy>();
-		builder.Services.AddScoped<IProtocolEditorFileStore, ProtocolEditorFileStore>();
 		builder.Services.AddScoped<IProtocolEditorRequestValidator, ProtocolEditorRequestValidator>();
 		builder.Services.AddScoped<IProtocolEditorResponseMapper, ProtocolEditorResponseMapper>();
 		builder.Services.AddSingleton<IProtocolXmlMapper, ProtocolXmlMapper>();
@@ -48,14 +46,13 @@ public class Program
 		builder.Services.AddScoped<IProtocolCommandHandler<RemoveSubTextCommand>, RemoveSubTextCommandHandler>();
 		builder.Services.AddScoped<IProtocolQueryHandler<FindNodeByIdQuery, SleepEditWeb.Protocol.Domain.ProtocolTreeNode>, FindNodeByIdQueryHandler>();
 		builder.Services.AddScoped<IProtocolEditorService, ProtocolEditorService>();
+		builder.Services.AddScoped<IProtocolManagementService, ProtocolManagementService>();
 		builder.Services.AddHttpContextAccessor();
 
 		builder.Services.Configure<SleepNoteEditorFeatureOptions>(
 			builder.Configuration.GetSection(SleepNoteEditorFeatureOptions.SectionName));
 		builder.Services.Configure<ProtocolEditorFeatureOptions>(
 			builder.Configuration.GetSection(ProtocolEditorFeatureOptions.SectionName));
-		builder.Services.Configure<ProtocolEditorStartupOptions>(
-			builder.Configuration.GetSection(ProtocolEditorStartupOptions.SectionName));
 
 		builder.Services.AddDistributedMemoryCache();
 		builder.Services.AddSession(options =>

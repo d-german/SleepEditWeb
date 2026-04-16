@@ -21,14 +21,29 @@ else
         <div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <div>
                 <h1 class="page-title">Protocol Editor</h1>
-                <p class="page-subtitle">Build, organize, and export protocol statements.</p>
+                <p class="page-subtitle">
+                    @if (!string.IsNullOrEmpty(_activeProtocolName))
+                    {
+                        <span>Editing: <strong>@_activeProtocolName</strong></span>
+                    }
+                    else
+                    {
+                        <span>Build, organize, and export protocol statements.</span>
+                    }
+                </p>
             </div>
         </div>
+
+        <ProtocolSelector ActiveProtocolId="_activeProtocolId"
+                          IsLoading="_isLoading"
+                          OnProtocolSwitched="HandleProtocolSwitched"
+                          OnError="HandleError" />
 
         <ProtocolToolbar
             Snapshot="_snapshot"
             SelectedNodeId="_selectedNodeId"
             IsLoading="_isLoading"
+            ActiveProtocolId="_activeProtocolId"
             OnMutation="HandleMutation"
             OnError="HandleError"
             OnAddSection="HandleAddSectionRequested"

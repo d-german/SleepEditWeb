@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
+using Moq;
+using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Models;
 using SleepEditWeb.Protocol.Domain;
 using SleepEditWeb.Services;
@@ -129,8 +130,7 @@ public class ProtocolTreeFunctionsTests
     private static ProtocolDocument CreateMutableDocument()
     {
         var starter = new ProtocolStarterService(
-            new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
-            Options.Create(new ProtocolEditorStartupOptions()),
+            new Mock<IProtocolRepository>().Object,
             NullLogger<ProtocolStarterService>.Instance);
 
         return starter.Create();

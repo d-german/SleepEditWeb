@@ -1,3 +1,4 @@
+using LiteDB;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SleepEditWeb.Infrastructure.ProtocolPersistence;
@@ -14,30 +15,27 @@ public sealed class ProtocolEditorController : Controller
 
     private readonly IProtocolEditorService _service;
     private readonly ProtocolEditorFeatureOptions _featureOptions;
-    private readonly IProtocolEditorPathPolicy _pathPolicy;
-    private readonly IProtocolEditorFileStore _fileStore;
     private readonly IProtocolRepository _repository;
     private readonly IProtocolEditorRequestValidator _requestValidator;
     private readonly IProtocolEditorResponseMapper _responseMapper;
+    private readonly IProtocolManagementService _managementService;
     private readonly ILogger<ProtocolEditorController> _logger;
 
     public ProtocolEditorController(
         IProtocolEditorService service,
         IOptions<ProtocolEditorFeatureOptions> featureOptions,
-        IProtocolEditorPathPolicy pathPolicy,
-        IProtocolEditorFileStore fileStore,
         IProtocolRepository repository,
         IProtocolEditorRequestValidator requestValidator,
         IProtocolEditorResponseMapper responseMapper,
+        IProtocolManagementService managementService,
         ILogger<ProtocolEditorController> logger)
     {
         _service = service;
         _featureOptions = featureOptions.Value;
-        _pathPolicy = pathPolicy;
-        _fileStore = fileStore;
         _repository = repository;
         _requestValidator = requestValidator;
         _responseMapper = responseMapper;
+        _managementService = managementService;
         _logger = logger;
     }
 
@@ -279,35 +277,30 @@ public sealed class ProtocolEditorController : Controller
             return denied!;
         }
 
-        var savePath = _pathPolicy.ResolveSavePath();
-        var pathValidationError = _requestValidator.ValidateResolvedPath(savePath, "No XML save path is configured.");
-        if (pathValidationError != null)
-        {
-            _logger.LogWarning("SaveXml aborted because no save path could be resolved.");
-            return BadRequest(new { error = pathValidationError });
-        }
+        _logger.LogInformation("SaveXml requested.");
 
-        _logger.LogInformation("SaveXml requested. Resolved save path: {Path}", savePath);
-
+        var snapshot = _service.Load();
         try
         {
-            var xml = _service.ExportXml();
-            _fileStore.WriteAllText(savePath, xml);
+            _repository.SaveCurrentProtocol(snapshot.Document, "SaveXml");
 
-            var snapshot = _service.Load();
-            TryPersistVersion(snapshot.Document, "SaveXml", savePath);
-            _logger.LogInformation("SaveXml completed successfully at path: {Path}", savePath);
-            return Json(_responseMapper.ToSavedPathResponse(snapshot, savePath));
+            var activeProtocolId = _managementService.GetActiveProtocolId();
+            if (activeProtocolId.HasValue)
+            {
+                _repository.SaveProtocol(activeProtocolId.Value, snapshot.Document.Text, snapshot.Document, "SaveXml");
+            }
         }
         catch (Exception ex) when (
             ex is IOException or
             UnauthorizedAccessException or
-            NotSupportedException or
-            ArgumentException)
+            LiteException)
         {
-            _logger.LogWarning(ex, "SaveXml failed for path: {Path}", savePath);
-            return StatusCode(500, new { error = "Failed to save XML to the configured path." });
+            _logger.LogWarning(ex, "SaveXml failed while persisting the current protocol.");
+            return StatusCode(500, new { error = "Failed to save protocol." });
         }
+
+        _logger.LogInformation("SaveXml completed successfully.");
+        return Json(_responseMapper.ToStateResponse(snapshot));
     }
 
     [HttpPost("SetDefaultProtocol")]
@@ -319,84 +312,33 @@ public sealed class ProtocolEditorController : Controller
             return denied!;
         }
 
-        var defaultPath = _pathPolicy.ResolveDefaultPath();
-        var pathValidationError = _requestValidator.ValidateResolvedPath(defaultPath, "No default protocol path is configured.");
-        if (pathValidationError != null)
-        {
-            _logger.LogWarning("SetDefaultProtocol aborted because no default path could be resolved.");
-            return BadRequest(new { error = pathValidationError });
-        }
+        _logger.LogInformation("SetDefaultProtocol requested.");
 
-        _logger.LogInformation("SetDefaultProtocol requested. Resolved default path: {Path}", defaultPath);
-
+        var snapshot = _service.Load();
         try
         {
-            var xml = _service.ExportXml();
-            _fileStore.WriteAllText(defaultPath, xml);
-
-            var snapshot = _service.Load();
-            TryPersistVersion(snapshot.Document, "SetDefaultProtocol", defaultPath);
-            _logger.LogInformation("SetDefaultProtocol completed successfully at path: {Path}", defaultPath);
-            return Json(_responseMapper.ToDefaultPathResponse(snapshot, defaultPath));
+            var activeProtocolId = _managementService.GetActiveProtocolId();
+            if (activeProtocolId.HasValue)
+            {
+                _managementService.SetDefaultProtocol(activeProtocolId.Value);
+            }
+            else
+            {
+                // Backward compat: save as current protocol if no active ID
+                _repository.SaveCurrentProtocol(snapshot.Document, "SetDefaultProtocol");
+            }
         }
         catch (Exception ex) when (
             ex is IOException or
             UnauthorizedAccessException or
-            NotSupportedException or
-            ArgumentException)
+            LiteException)
         {
-            _logger.LogWarning(ex, "SetDefaultProtocol failed for path: {Path}", defaultPath);
+            _logger.LogWarning(ex, "SetDefaultProtocol failed while persisting the current protocol.");
             return StatusCode(500, new { error = "Failed to set default protocol." });
         }
-    }
 
-    [HttpPost("ImportXml")]
-    [ValidateAntiForgeryToken]
-    public IActionResult ImportXml([FromBody] ImportXmlRequest? request)
-    {
-        if (!TryEnsureEnabled(nameof(ImportXml), out var denied))
-        {
-            return denied!;
-        }
-
-        var importPath = _pathPolicy.ResolveImportPath(request?.Path);
-        _logger.LogInformation("ImportXml requested. Resolved import path: {Path}", importPath);
-
-        var pathValidationError = _requestValidator.ValidateResolvedPath(importPath, "No XML import path is configured.");
-        if (pathValidationError != null)
-        {
-            _logger.LogWarning("ImportXml aborted because no import path could be resolved.");
-            return BadRequest(new { error = pathValidationError });
-        }
-
-        if (!_fileStore.Exists(importPath))
-        {
-            _logger.LogWarning("ImportXml aborted because file was not found at path: {Path}", importPath);
-            return BadRequest(new { error = "Import XML file was not found.", path = importPath });
-        }
-
-        try
-        {
-            var xml = _fileStore.ReadAllText(importPath);
-            var snapshot = _service.ImportXml(xml);
-            TryPersistVersion(snapshot.Document, "ImportXml", importPath);
-            _logger.LogInformation("ImportXml completed successfully from path: {Path}", importPath);
-            return Json(_responseMapper.ToLoadedPathResponse(snapshot, importPath));
-        }
-        catch (FormatException ex)
-        {
-            _logger.LogWarning(ex, "Invalid protocol XML format at path: {Path}", importPath);
-            return BadRequest(new { error = "Invalid XML format for protocol import." });
-        }
-        catch (Exception ex) when (
-            ex is IOException or
-            UnauthorizedAccessException or
-            NotSupportedException or
-            ArgumentException)
-        {
-            _logger.LogWarning(ex, "Failed to import protocol XML from path: {Path}", importPath);
-            return StatusCode(500, new { error = "Failed to import XML from the configured path." });
-        }
+        _logger.LogInformation("SetDefaultProtocol completed successfully.");
+        return Json(_responseMapper.ToStateResponse(snapshot));
     }
 
     [HttpPost("ImportXmlUpload")]
@@ -434,17 +376,15 @@ public sealed class ProtocolEditorController : Controller
 
         try
         {
-            var xml = await _fileStore.ReadUploadedXmlAsync(file);
+            using var reader = new StreamReader(file.OpenReadStream());
+            var xml = await reader.ReadToEndAsync();
             var snapshot = _service.ImportXml(xml);
-            var savedPath = _pathPolicy.ResolveUploadSavePath(file.FileName);
-            _fileStore.WriteAllText(savedPath, xml);
-            TryPersistVersion(snapshot.Document, "ImportXmlUpload", savedPath);
+            _repository.SaveCurrentProtocol(snapshot.Document, "ImportXmlUpload");
             _logger.LogInformation(
-                "ImportXmlUpload completed successfully for file '{FileName}'. Saved path: {Path}",
-                file.FileName,
-                savedPath);
+                "ImportXmlUpload completed successfully for file '{FileName}'.",
+                file.FileName);
 
-            return Json(_responseMapper.ToSavedPathResponse(snapshot, savedPath));
+            return Json(_responseMapper.ToStateResponse(snapshot));
         }
         catch (FormatException ex)
         {
@@ -454,11 +394,98 @@ public sealed class ProtocolEditorController : Controller
         catch (Exception ex) when (
             ex is IOException or
             UnauthorizedAccessException or
-            NotSupportedException or
-            ArgumentException)
+            ObjectDisposedException or
+            LiteException)
         {
             _logger.LogWarning(ex, "Failed to import uploaded protocol XML.");
             return StatusCode(500, new { error = "Failed to import uploaded XML." });
+        }
+    }
+
+
+    [HttpPost("CreateProtocol")]
+    [ValidateAntiForgeryToken]
+    public IActionResult CreateProtocol([FromBody] CreateProtocolRequest? request)
+    {
+        if (!TryEnsureEnabled(nameof(CreateProtocol), out var denied)) return denied!;
+
+        var name = request?.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return BadRequest(new { error = "Protocol name is required." });
+        }
+
+        _logger.LogInformation("CreateProtocol requested. Name: {Name}", name);
+        var metadata = _managementService.CreateProtocol(name);
+        return Json(metadata);
+    }
+
+    [HttpGet("ListProtocols")]
+    public IActionResult ListProtocols()
+    {
+        if (!TryEnsureEnabled(nameof(ListProtocols), out var denied)) return denied!;
+
+        _logger.LogDebug("ListProtocols requested.");
+        var protocols = _managementService.ListProtocols();
+        return Json(protocols);
+    }
+
+    [HttpPost("LoadProtocol/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public IActionResult LoadProtocol(Guid id)
+    {
+        if (!TryEnsureEnabled(nameof(LoadProtocol), out var denied)) return denied!;
+
+        _logger.LogInformation("LoadProtocol requested. ProtocolId: {ProtocolId}", id);
+        try
+        {
+            var snapshot = _managementService.LoadProtocol(id);
+            return Json(_responseMapper.ToStateResponse(snapshot));
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "LoadProtocol failed for {ProtocolId}.", id);
+            return NotFound(new { error = $"Protocol {id} not found." });
+        }
+    }
+
+    [HttpPost("DeleteProtocol/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public IActionResult DeleteProtocol(Guid id)
+    {
+        if (!TryEnsureEnabled(nameof(DeleteProtocol), out var denied)) return denied!;
+
+        _logger.LogInformation("DeleteProtocol requested. ProtocolId: {ProtocolId}", id);
+        var deleted = _managementService.DeleteProtocol(id);
+        if (!deleted)
+        {
+            return BadRequest(new { error = "Cannot delete the active or default protocol." });
+        }
+        return Json(new { success = true });
+    }
+
+    [HttpPost("RenameProtocol/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public IActionResult RenameProtocol(Guid id, [FromBody] RenameProtocolRequest? request)
+    {
+        if (!TryEnsureEnabled(nameof(RenameProtocol), out var denied)) return denied!;
+
+        var name = request?.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return BadRequest(new { error = "Protocol name is required." });
+        }
+
+        _logger.LogInformation("RenameProtocol requested. ProtocolId: {ProtocolId}, NewName: {Name}", id, name);
+        try
+        {
+            _managementService.RenameProtocol(id, name);
+            return Json(new { success = true });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "RenameProtocol failed for {ProtocolId}.", id);
+            return NotFound(new { error = $"Protocol {id} not found." });
         }
     }
 
@@ -480,29 +507,9 @@ public sealed class ProtocolEditorController : Controller
         return false;
     }
 
-    private void TryPersistVersion(ProtocolDocument document, string source, string note)
-    {
-        try
-        {
-            _repository.SaveVersion(document, source, note);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "Protocol version persistence failed for source {Source}. Continuing with session snapshot behavior.",
-                source);
-        }
-    }
-
     public sealed class AddSectionRequest
     {
         public string? Text { get; init; }
-    }
-
-    public sealed class ImportXmlRequest
-    {
-        public string? Path { get; init; }
     }
 
     public sealed class AddChildRequest
@@ -542,5 +549,15 @@ public sealed class ProtocolEditorController : Controller
         public int NodeId { get; init; }
 
         public string? Value { get; init; }
+    }
+
+    public sealed class CreateProtocolRequest
+    {
+        public string? Name { get; init; }
+    }
+
+    public sealed class RenameProtocolRequest
+    {
+        public string? Name { get; init; }
     }
 }

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Moq;
 using SleepEditWeb.Application.Protocol;
 using SleepEditWeb.Application.Protocol.Commands;
+using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Models;
 using SleepEditWeb.Protocol.Domain;
 using SleepEditWeb.Services;
@@ -19,8 +19,7 @@ public class ProtocolEditorServiceTests
     public void SetUp()
     {
         _sessionStore = new InMemoryProtocolEditorSessionStore(new ProtocolStarterService(
-            new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
-            Options.Create(new ProtocolEditorStartupOptions()),
+            new Mock<IProtocolRepository>().Object,
             NullLogger<ProtocolStarterService>.Instance));
         _service = new ProtocolEditorService(
             _sessionStore,
@@ -365,8 +364,7 @@ public class ProtocolEditorServiceTests
     private static ProtocolEditorSnapshot CreateSnapshot()
     {
         var starter = new ProtocolStarterService(
-            new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance),
-            Options.Create(new ProtocolEditorStartupOptions()),
+            new Mock<IProtocolRepository>().Object,
             NullLogger<ProtocolStarterService>.Instance);
 
         return new ProtocolEditorSnapshot
@@ -391,6 +389,7 @@ public class ProtocolEditorServiceTests
     {
         private readonly IProtocolStarterService _starterService;
         private ProtocolEditorSnapshot _snapshot;
+        private Guid? _activeProtocolId;
 
         public InMemoryProtocolEditorSessionStore(IProtocolStarterService starterService)
         {
@@ -411,6 +410,16 @@ public class ProtocolEditorServiceTests
         public void Reset()
         {
             _snapshot = CreateDefaultSnapshot();
+        }
+
+        public Guid? GetActiveProtocolId()
+        {
+            return _activeProtocolId;
+        }
+
+        public void SetActiveProtocolId(Guid protocolId)
+        {
+            _activeProtocolId = protocolId;
         }
 
         private ProtocolEditorSnapshot CreateDefaultSnapshot()

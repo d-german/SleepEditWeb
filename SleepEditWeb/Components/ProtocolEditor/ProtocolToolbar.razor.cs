@@ -4,15 +4,12 @@ using Microsoft.JSInterop;
 using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
-using SleepEditWeb.Web.ProtocolEditor;
 
 namespace SleepEditWeb.Components.ProtocolEditor;
 
 public partial class ProtocolToolbar : ComponentBase
 {
     [Inject] private IProtocolEditorService Service { get; set; } = null!;
-    [Inject] private IProtocolEditorPathPolicy PathPolicy { get; set; } = null!;
-    [Inject] private IProtocolEditorFileStore FileStore { get; set; } = null!;
     [Inject] private IProtocolRepository Repository { get; set; } = null!;
     [Inject] private IJSRuntime JsRuntime { get; set; } = null!;
     [Inject] private ILogger<ProtocolToolbar> Logger { get; set; } = null!;
@@ -24,6 +21,7 @@ public partial class ProtocolToolbar : ComponentBase
     [Parameter] public EventCallback OnToggleAllSections { get; set; }
     [Parameter] public int? SelectedNodeId { get; set; }
     [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public Guid? ActiveProtocolId { get; set; }
 
     private bool CanUndo => Snapshot.UndoHistory.Count > 0 || Snapshot.UndoDomainHistory.Count > 0;
     private bool CanRedo => Snapshot.RedoHistory.Count > 0 || Snapshot.RedoDomainHistory.Count > 0;
@@ -115,6 +113,14 @@ public partial class ProtocolToolbar : ComponentBase
             using var reader = new StreamReader(stream);
             var xml = await reader.ReadToEndAsync();
             var snapshot = Service.ImportXml(xml);
+            if (ActiveProtocolId.HasValue)
+            {
+                Repository.SaveProtocol(ActiveProtocolId.Value, snapshot.Document.Text, snapshot.Document, "ImportXml");
+            }
+            else
+            {
+                Repository.SaveCurrentProtocol(snapshot.Document, "ImportXml");
+            }
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
@@ -128,47 +134,21 @@ public partial class ProtocolToolbar : ComponentBase
     {
         try
         {
-            var savePath = PathPolicy.ResolveSavePath();
-            if (string.IsNullOrWhiteSpace(savePath))
-            {
-                await OnError.InvokeAsync("No save path is configured.");
-                return;
-            }
-            var xml = Service.ExportXml();
-            FileStore.WriteAllText(savePath, xml);
             var snapshot = Service.Load();
-            TryPersistVersion(snapshot.Document, "SaveXml", savePath);
+            if (ActiveProtocolId.HasValue)
+            {
+                Repository.SaveProtocol(ActiveProtocolId.Value, snapshot.Document.Text, snapshot.Document, "SaveXml");
+            }
+            else
+            {
+                Repository.SaveCurrentProtocol(snapshot.Document, "SaveXml");
+            }
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Save failed.");
             await OnError.InvokeAsync("Failed to save protocol.");
-        }
-    }
-
-    private async Task HandleSetDefault()
-    {
-        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Set this protocol as the default? This will overwrite the default protocol file.");
-        if (!confirmed) return;
-        try
-        {
-            var defaultPath = PathPolicy.ResolveDefaultPath();
-            if (string.IsNullOrWhiteSpace(defaultPath))
-            {
-                await OnError.InvokeAsync("No default protocol path is configured.");
-                return;
-            }
-            var xml = Service.ExportXml();
-            FileStore.WriteAllText(defaultPath, xml);
-            var snapshot = Service.Load();
-            TryPersistVersion(snapshot.Document, "SetDefaultProtocol", defaultPath);
-            await OnMutation.InvokeAsync(snapshot);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "SetDefault failed.");
-            await OnError.InvokeAsync("Failed to set default protocol.");
         }
     }
 
@@ -194,17 +174,5 @@ public partial class ProtocolToolbar : ComponentBase
             .Replace("`", "\\`")
             .Replace("${", "\\${");
         return $"(function(){{var b=new Blob([`{escaped}`],{{type:'application/xml'}});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='{fileName}';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);}})();";
-    }
-
-    private void TryPersistVersion(ProtocolDocument document, string source, string note)
-    {
-        try
-        {
-            Repository.SaveVersion(document, source, note);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Failed to persist protocol version. Source: {Source}", source);
-        }
     }
 }

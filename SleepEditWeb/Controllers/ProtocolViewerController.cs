@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SleepEditWeb.Models;
+using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Services;
 
 namespace SleepEditWeb.Controllers;
@@ -29,22 +30,25 @@ public sealed class ProtocolViewerController : Controller
     ];
 
     private readonly IProtocolStarterService _starterService;
+    private readonly IProtocolRepository _repository;
     private readonly ProtocolEditorFeatureOptions _featureOptions;
     private readonly ILogger<ProtocolViewerController> _logger;
 
     public ProtocolViewerController(
         IProtocolStarterService starterService,
+        IProtocolRepository repository,
         IOptions<ProtocolEditorFeatureOptions> featureOptions,
         ILogger<ProtocolViewerController> logger)
     {
         _starterService = starterService;
+        _repository = repository;
         _featureOptions = featureOptions.Value;
         _logger = logger;
     }
 
     [HttpGet("")]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Index()
+    public IActionResult Index([FromQuery] Guid? protocolId = null)
     {
         if (!IsEnabled())
         {
@@ -52,14 +56,31 @@ public sealed class ProtocolViewerController : Controller
             return NotFound();
         }
 
-        _logger.LogInformation("ProtocolViewer index requested.");
+        _logger.LogInformation("ProtocolViewer index requested. ProtocolId: {ProtocolId}", protocolId);
         Response.Headers.CacheControl = "no-store, no-cache, max-age=0";
         Response.Headers.Pragma = "no-cache";
 
-        var initialDocument = _starterService.Create();
+        var initialDocument = LoadProtocolDocument(protocolId);
         var model = BuildViewModel(initialDocument, DateTime.UtcNow);
         _logger.LogInformation("ProtocolViewer model created with {SectionCount} sections.", model.InitialDocument.Sections.Count);
         return View(model);
+    }
+
+    private ProtocolDocument LoadProtocolDocument(Guid? protocolId)
+    {
+        if (protocolId.HasValue)
+        {
+            var version = _repository.GetProtocol(protocolId.Value);
+            if (version != null)
+            {
+                _logger.LogInformation("ProtocolViewer loaded specific protocol {ProtocolId}.", protocolId.Value);
+                return version.Document;
+            }
+
+            _logger.LogWarning("ProtocolViewer could not find protocol {ProtocolId}. Falling back to default.", protocolId.Value);
+        }
+
+        return _starterService.Create();
     }
 
     private bool IsEnabled()

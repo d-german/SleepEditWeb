@@ -1,0 +1,92 @@
+<div class="protocol-selector mb-3">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <h6 class="mb-0"><i class="bi bi-collection me-1"></i>Protocols</h6>
+        @if (!_isCreating)
+        {
+            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="HandleStartCreate" disabled="@IsLoading">
+                <i class="bi bi-plus-lg"></i> New
+            </button>
+        }
+    </div>
+
+    @if (_isCreating)
+    {
+        <div class="input-group input-group-sm mb-2" style="max-width: 400px;">
+            <input type="text" class="form-control" placeholder="Protocol name"
+                   @bind="_newProtocolName" @bind:event="oninput"
+                   @onkeydown="HandleCreateKeyDown"
+                   @onkeydown:preventDefault="false" />
+            <button class="btn btn-primary" type="button" @onclick="HandleConfirmCreate"
+                    disabled="@string.IsNullOrWhiteSpace(_newProtocolName)">Create</button>
+            <button class="btn btn-outline-secondary" type="button" @onclick="HandleCancelCreate">Cancel</button>
+        </div>
+    }
+
+    @if (_protocols.Count == 0)
+    {
+        <p class="text-muted small">No saved protocols yet.</p>
+    }
+    else
+    {
+        <div class="list-group list-group-flush" style="max-width: 600px;">
+            @foreach (var protocol in _protocols)
+            {
+                var isActive = protocol.ProtocolId == ActiveProtocolId;
+                var isRenaming = _renamingProtocolId == protocol.ProtocolId;
+
+                <div class="list-group-item d-flex align-items-center gap-2 @(isActive ? "list-group-item-primary" : "")"
+                     style="padding: 0.4rem 0.75rem;">
+
+                    @if (isRenaming)
+                    {
+                        <div class="input-group input-group-sm flex-grow-1">
+                            <input type="text" class="form-control" @bind="_renameText" @bind:event="oninput"
+                                   @onkeydown="HandleRenameKeyDown" />
+                            <button class="btn btn-primary" type="button" @onclick="HandleConfirmRename"
+                                    disabled="@string.IsNullOrWhiteSpace(_renameText)">Save</button>
+                            <button class="btn btn-outline-secondary" type="button" @onclick="HandleCancelRename">Cancel</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <button type="button"
+                                class="btn btn-sm @(isActive ? "btn-primary" : "btn-outline-secondary") flex-grow-1 text-start"
+                                @onclick="() => HandleSwitchProtocol(protocol.ProtocolId)"
+                                disabled="@(IsLoading || isActive)">
+                            @protocol.Name
+                            @if (protocol.IsDefault)
+                            {
+                                <span class="badge bg-success ms-1">Default</span>
+                            }
+                            @if (isActive)
+                            {
+                                <span class="badge bg-info ms-1">Active</span>
+                            }
+                        </button>
+
+                        <button type="button" class="btn btn-sm btn-outline-secondary" title="Rename"
+                                @onclick="() => HandleStartRename(protocol)" disabled="@IsLoading">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+
+                        @if (!protocol.IsDefault)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-success" title="Set as Default"
+                                    @onclick="() => HandleSetDefault(protocol)" disabled="@IsLoading">
+                                <i class="bi bi-star"></i>
+                            </button>
+                        }
+
+                        @if (!protocol.IsDefault && !isActive)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-danger" title="Delete"
+                                    @onclick="() => HandleDelete(protocol)" disabled="@IsLoading">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        }
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>

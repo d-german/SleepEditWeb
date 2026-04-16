@@ -1,5 +1,4 @@
-using System.Xml;
-using Microsoft.Extensions.Options;
+using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Models;
 
 namespace SleepEditWeb.Services;
@@ -7,38 +6,65 @@ namespace SleepEditWeb.Services;
 public interface IProtocolStarterService
 {
     ProtocolDocument Create();
+    ProtocolDocument Create(Guid protocolId);
+    ProtocolDocument CreateSeedDocument();
 }
 
 public sealed class ProtocolStarterService : IProtocolStarterService
 {
-    private readonly IProtocolXmlService _xmlService;
-    private readonly ProtocolEditorStartupOptions _startupOptions;
+    private readonly IProtocolRepository _repository;
     private readonly ILogger<ProtocolStarterService> _logger;
 
     public ProtocolStarterService(
-        IProtocolXmlService xmlService,
-        IOptions<ProtocolEditorStartupOptions> startupOptions,
+        IProtocolRepository repository,
         ILogger<ProtocolStarterService> logger)
     {
-        _xmlService = xmlService;
-        _startupOptions = startupOptions.Value;
+        _repository = repository;
         _logger = logger;
     }
 
     public ProtocolDocument Create()
     {
         _logger.LogInformation("Protocol starter create requested.");
-        var configuredDocument = TryCreateFromConfiguredProtocolFile();
-        if (configuredDocument != null)
+
+        var current = TryLoadFromRepository();
+        if (current != null)
         {
-            _logger.LogInformation("Protocol starter loaded document from configured path.");
-            return configuredDocument;
+            _logger.LogInformation("Protocol starter loaded document from database.");
+            return current;
         }
 
+        return CreateSeedDocument();
+    }
+
+    public ProtocolDocument Create(Guid protocolId)
+    {
+        _logger.LogInformation("Protocol starter create requested for protocol {ProtocolId}.", protocolId);
+
+        try
+        {
+            var version = _repository.GetProtocol(protocolId);
+            if (version != null)
+            {
+                _logger.LogInformation("Protocol starter loaded document for protocol {ProtocolId}.", protocolId);
+                return version.Document;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load protocol {ProtocolId} from repository. Falling back to seed.", protocolId);
+        }
+
+        _logger.LogWarning("Protocol {ProtocolId} not found. Returning seed document.", protocolId);
+        return CreateSeedDocument();
+    }
+
+    public ProtocolDocument CreateSeedDocument()
+    {
         var nextId = 1;
         var sections = BuildSections(ref nextId);
         WireReferenceLinks(sections);
-        _logger.LogInformation("Protocol starter created fallback document. SectionCount: {SectionCount}", sections.Count);
+        _logger.LogInformation("Protocol starter created seed document. SectionCount: {SectionCount}", sections.Count);
 
         return new ProtocolDocument
         {
@@ -50,56 +76,17 @@ public sealed class ProtocolStarterService : IProtocolStarterService
         };
     }
 
-    private ProtocolDocument? TryCreateFromConfiguredProtocolFile()
+    private ProtocolDocument? TryLoadFromRepository()
     {
-        foreach (var protocolPath in GetStartupCandidatePaths())
+        try
         {
-            if (!File.Exists(protocolPath))
-            {
-                _logger.LogWarning("Protocol startup file not found at configured path: {Path}", protocolPath);
-                continue;
-            }
-
-            try
-            {
-                var xml = File.ReadAllText(protocolPath);
-                _logger.LogInformation("Protocol startup file loaded from path: {Path}", protocolPath);
-                return _xmlService.Deserialize(xml);
-            }
-            catch (Exception ex) when (
-                ex is IOException or
-                UnauthorizedAccessException or
-                XmlException or
-                FormatException or
-                ArgumentException)
-            {
-                _logger.LogWarning(ex, "Failed to load protocol startup file from: {Path}", protocolPath);
-            }
+            var version = _repository.GetDefaultProtocol();
+            return version?.Document;
         }
-
-        return null;
-    }
-
-    private IEnumerable<string> GetStartupCandidatePaths()
-    {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var candidates = new[]
+        catch (Exception ex)
         {
-            _startupOptions.DefaultProtocolPath,
-            _startupOptions.SaveProtocolPath,
-            _startupOptions.StartupProtocolPath,
-            Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "default-protocol.xml"),
-            Path.Combine(AppContext.BaseDirectory, "Data", "protocols", "protocol.xml")
-        };
-
-        foreach (var candidate in candidates)
-        {
-            if (string.IsNullOrWhiteSpace(candidate) || !seen.Add(candidate))
-            {
-                continue;
-            }
-
-            yield return candidate;
+            _logger.LogWarning(ex, "Failed to load protocol from repository. Falling back to seed.");
+            return null;
         }
     }
 

@@ -10,6 +10,7 @@ namespace SleepEditWeb.Components.ProtocolEditor;
 public partial class ProtocolEditorShell : ComponentBase
 {
     [Inject] private IProtocolEditorService Service { get; set; } = null!;
+    [Inject] private IProtocolManagementService ManagementService { get; set; } = null!;
     [Inject] private IOptions<ProtocolEditorFeatureOptions> FeatureOptions { get; set; } = null!;
     [Inject] private IJSRuntime JsRuntime { get; set; } = null!;
     [Inject] private ILogger<ProtocolEditorShell> Logger { get; set; } = null!;
@@ -21,12 +22,16 @@ public partial class ProtocolEditorShell : ComponentBase
     private bool _addSectionPanelOpen;
     private string _newSectionText = string.Empty;
     private bool _allSectionsCollapsed;
+    private Guid? _activeProtocolId;
+    private string _activeProtocolName = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             _snapshot = await Task.Run(() => Service.Load());
+            _activeProtocolId = _snapshot.ActiveProtocolId ?? ManagementService.GetActiveProtocolId();
+            UpdateActiveProtocolName();
             Logger.LogInformation("ProtocolEditorShell loaded document with {SectionCount} sections.", _snapshot.Document.Sections.Count);
         }
         catch (Exception ex)
@@ -110,6 +115,36 @@ public partial class ProtocolEditorShell : ComponentBase
     {
         if (e.Key == "Enter") HandleAddSectionConfirm();
         if (e.Key == "Escape") { _addSectionPanelOpen = false; _newSectionText = string.Empty; }
+    }
+
+    private void HandleProtocolSwitched(ProtocolEditorSnapshot snapshot)
+    {
+        _snapshot = snapshot;
+        _selectedNodeId = null;
+        _activeProtocolId = snapshot.ActiveProtocolId;
+        UpdateActiveProtocolName();
+        _statusMessage = $"Switched to protocol: {_activeProtocolName}";
+        StateHasChanged();
+    }
+
+    private void UpdateActiveProtocolName()
+    {
+        if (_activeProtocolId is null)
+        {
+            _activeProtocolName = string.Empty;
+            return;
+        }
+
+        try
+        {
+            var protocols = ManagementService.ListProtocols();
+            var active = protocols.FirstOrDefault(p => p.ProtocolId == _activeProtocolId);
+            _activeProtocolName = active?.Name ?? "Unknown";
+        }
+        catch
+        {
+            _activeProtocolName = "Unknown";
+        }
     }
 
     private void HandleToggleAllSections()

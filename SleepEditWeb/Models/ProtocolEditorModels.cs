@@ -52,6 +52,8 @@ public sealed class ProtocolEditorSnapshot
     public List<ProtocolTreeDocument> RedoDomainHistory { get; set; } = [];
 
     public DateTimeOffset LastUpdatedUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public Guid? ActiveProtocolId { get; set; }
 }
 
 public sealed class ProtocolEditorViewModel
@@ -64,15 +66,4 @@ public sealed class ProtocolEditorFeatureOptions
     public const string SectionName = "Features";
 
     public bool ProtocolEditorEnabled { get; init; } = true;
-}
-
-public sealed class ProtocolEditorStartupOptions
-{
-    public const string SectionName = "ProtocolEditor";
-
-    public string DefaultProtocolPath { get; init; } = string.Empty;
-
-    public string StartupProtocolPath { get; init; } = string.Empty;
-
-    public string SaveProtocolPath { get; init; } = string.Empty;
 }
