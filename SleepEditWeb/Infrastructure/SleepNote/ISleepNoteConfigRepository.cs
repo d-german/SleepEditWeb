@@ -10,4 +10,5 @@ public interface ISleepNoteConfigRepository
     void RemoveMaskType(string maskType);
     void AddMaskSize(string maskSize);
     void RemoveMaskSize(string maskSize);
+    void ResetToDefaults();
 }

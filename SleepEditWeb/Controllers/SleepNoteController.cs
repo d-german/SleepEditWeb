@@ -75,6 +75,14 @@ public sealed class SleepNoteController(
         return NoContent();
     }
 
+    [HttpPost("api/config/reset")]
+    [ValidateAntiForgeryToken]
+    public IActionResult ResetConfig()
+    {
+        sleepNoteService.ResetConfigToDefaults();
+        return Ok(sleepNoteService.GetConfiguration());
+    }
+
     public sealed class ValueRequest
     {
         public string Value { get; init; } = string.Empty;

@@ -26,7 +26,18 @@ The Sleep Note is a clinical checklist-based note generator ported from the WinF
 |------|--------|
 | `SleepEditWeb/Program.cs` | Added DI: `ISleepNoteConfigRepository` (Singleton), `ISleepNoteService` (Scoped) |
 | `SleepEditWeb/SleepEditWeb.csproj` | Added `InternalsVisibleTo` for test project |
-| `SleepEditWeb/Views/Admin/Medications.cshtml` | Sleep Note as first tab (before Protocol Editor and Medication) |
+| `SleepEditWeb/Views/SleepNoteEditor/Index.cshtml` | Added Sleep Note button to toolbar + fullscreen modal with iframe + JS message handler |
+
+### Integration (Modal in Sleep Note Editor)
+The Sleep Note is accessed via a **button in the Sleep Note Editor toolbar** (next to Medication Tool and Protocol Viewer), NOT as a standalone page.
+
+- **Button**: `#openSleepNoteBtn` in toolbar
+- **Modal**: Bootstrap `modal-fullscreen` with iframe → `/SleepNote?embed=1`
+- **Embedded view**: `Views/SleepNote/Index.cshtml` sets `Layout = null` when `embed=1` (no sidebar)
+- **Communication**: Blazor → `window.parent.postMessage({type: 'sleepNote:done', content: text})`
+- **Parent handler**: `onSleepNoteMessage()` calls `insertTextAtCursor(text)` then auto-saves
+- **Cancel**: `postMessage({type: 'sleepNote:cancel'})` closes the modal
+- Follows the same pattern as Protocol Viewer iframe integration
 
 ## Domain Models
 - `StudyType` enum: Polysomnogram, CpapBipapTitration, SplitNight

@@ -83,4 +83,11 @@ public sealed class SleepNoteServiceTests
         _service.RemoveMaskSize("small");
         _mockRepo.Verify(r => r.RemoveMaskSize("small"), Times.Once);
     }
+
+    [Test]
+    public void ResetConfigToDefaults_DelegatesToRepository()
+    {
+        _service.ResetConfigToDefaults();
+        _mockRepo.Verify(r => r.ResetToDefaults(), Times.Once);
+    }
 }

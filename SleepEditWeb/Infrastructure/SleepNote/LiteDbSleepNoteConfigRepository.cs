@@ -98,6 +98,13 @@ public sealed class LiteDbSleepNoteConfigRepository : ISleepNoteConfigRepository
         _logger.LogInformation("Removed mask size: {MaskSize}", maskSize);
     }
 
+    public void ResetToDefaults()
+    {
+        var collection = _database.GetCollection<SleepNoteConfigEntity>(CollectionName);
+        collection.Delete(ConfigKey);
+        _logger.LogInformation("Sleep note configuration reset to defaults.");
+    }
+
     public void Dispose()
     {
         if (!_disposed)

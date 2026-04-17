@@ -40,14 +40,21 @@
 
             <fieldset class="border rounded p-2 mb-3">
                 <legend class="w-auto px-2 fs-6 fw-semibold">Snoring</legend>
-                @foreach (var level in new[] { "Mild", "Moderate", "Loud" })
+                @if (_studyType == StudyType.CpapBipapTitration)
                 {
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="snore_@level"
-                               checked="@_snoringLevels.Contains(level)"
-                               @onchange="e => ToggleSetItem(_snoringLevels, level, (bool)e.Value!)" />
-                        <label class="form-check-label" for="snore_@level">@level</label>
-                    </div>
+                    <div class="text-muted small fst-italic">Snoring is not reported for CPAP/BIPAP Titration studies.</div>
+                }
+                else
+                {
+                    @foreach (var level in new[] { "Mild", "Moderate", "Loud" })
+                    {
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="snore_@level"
+                                   checked="@_snoringLevels.Contains(level)"
+                                   @onchange="e => ToggleSetItem(_snoringLevels, level, (bool)e.Value!)" />
+                            <label class="form-check-label" for="snore_@level">@level</label>
+                        </div>
+                    }
                 }
             </fieldset>
 
@@ -219,6 +226,7 @@
                     <legend class="w-auto px-2 fs-6 fw-semibold">Manage Config</legend>
                     <div class="row g-2 mb-2">
                         <div class="col">
+                            <label class="form-label small fw-semibold mb-1">Mask Types</label>
                             <div class="input-group input-group-sm">
                                 <input type="text" class="form-control" placeholder="New mask type" @bind="_newMaskType" />
                                 <button class="btn btn-outline-primary btn-sm" @onclick="AddMaskType">Add</button>
@@ -232,11 +240,16 @@
                                                 @onclick="() => RemoveMaskType(t)"></button>
                                     </span>
                                 }
+                                @if (_config.MaskTypes.Count == 0)
+                                {
+                                    <span class="text-muted small fst-italic">No mask types configured.</span>
+                                }
                             </div>
                         </div>
                     </div>
-                    <div class="row g-2">
+                    <div class="row g-2 mb-2">
                         <div class="col">
+                            <label class="form-label small fw-semibold mb-1">Mask Sizes</label>
                             <div class="input-group input-group-sm">
                                 <input type="text" class="form-control" placeholder="New mask size" @bind="_newMaskSize" />
                                 <button class="btn btn-outline-primary btn-sm" @onclick="AddMaskSize">Add</button>
@@ -250,8 +263,17 @@
                                                 @onclick="() => RemoveMaskSize(s)"></button>
                                     </span>
                                 }
+                                @if (_config.MaskSizes.Count == 0)
+                                {
+                                    <span class="text-muted small fst-italic">No mask sizes configured.</span>
+                                }
                             </div>
                         </div>
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-outline-warning btn-sm" @onclick="ResetConfigToDefaults">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to Defaults
+                        </button>
                     </div>
                 </fieldset>
             }

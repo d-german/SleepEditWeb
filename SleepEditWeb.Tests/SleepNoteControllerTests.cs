@@ -167,4 +167,22 @@ public sealed class SleepNoteControllerTests : IDisposable
         var result = _controller.RemoveMaskSize("");
         Assert.That(result, Is.InstanceOf<BadRequestObjectResult>());
     }
+
+    [Test]
+    public void ResetConfig_ReturnsOkWithConfiguration()
+    {
+        var defaultConfig = new SleepNoteConfiguration
+        {
+            MaskTypes = ["Respironics Comfort Select", "F&P Flexifit HC407"],
+            MaskSizes = ["small", "medium", "large"],
+            TechnicianNames = [],
+            PressureValues = Enumerable.Range(4, 17).ToList()
+        };
+        _mockService.Setup(s => s.GetConfiguration()).Returns(defaultConfig);
+
+        var result = _controller.ResetConfig();
+
+        _mockService.Verify(s => s.ResetConfigToDefaults(), Times.Once);
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+    }
 }

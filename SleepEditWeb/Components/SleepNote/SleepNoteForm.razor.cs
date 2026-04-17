@@ -253,4 +253,11 @@ public partial class SleepNoteForm : ComponentBase
         if (_maskSize == maskSize && _config.MaskSizes.Count > 0)
             _maskSize = _config.MaskSizes[0];
     }
+
+    private void ResetConfigToDefaults()
+    {
+        SleepNoteService.ResetConfigToDefaults();
+        LoadConfiguration();
+        _statusMessage = "Configuration reset to defaults.";
+    }
 }

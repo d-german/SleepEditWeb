@@ -11,6 +11,7 @@ public interface ISleepNoteService
     void RemoveMaskType(string maskType);
     void AddMaskSize(string maskSize);
     void RemoveMaskSize(string maskSize);
+    void ResetConfigToDefaults();
 }
 
 public sealed class SleepNoteService(
@@ -39,4 +40,10 @@ public sealed class SleepNoteService(
 
     public void RemoveMaskSize(string maskSize) =>
         configRepository.RemoveMaskSize(maskSize);
+
+    public void ResetConfigToDefaults()
+    {
+        configRepository.ResetToDefaults();
+        logger.LogInformation("Sleep note configuration reset to defaults.");
+    }
 }
