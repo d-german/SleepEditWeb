@@ -17,7 +17,7 @@
     <div class="col-12 col-xl-8">
         <div class="dashboard-card h-100">
             <div class="dashboard-card-header">
-                <i class="bi bi-search"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
                 Select a Medication
             </div>
             <div class="dashboard-card-body">
@@ -32,7 +32,7 @@
                                autocomplete="off"
                                autofocus>
                         <button type="button" id="infoBtn" class="btn btn-outline-info btn-lg" title="Look up drug information" disabled>
-                            <i class="bi bi-info-circle"></i>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>
                         </button>
                     </div>
                 </form>
@@ -40,14 +40,14 @@
                 <div id="selectedMedsSection" class="selected-meds-section mt-4 @(selectedMeds.Length == 0 ? "d-none" : "")">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="selected-meds-label mb-0">
-                            <i class="bi bi-clipboard-check me-2"></i>Selected Medications (<span id="medCount">@selectedMeds.Length</span>):
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-2" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10.854 7.146a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708 0l-1.5-1.5a.5.5 0 1 1 .708-.708L7.5 9.793l2.646-2.647a.5.5 0 0 1 .708 0"/><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0z"/></svg>Selected Medications (<span id="medCount">@selectedMeds.Length</span>):
                         </label>
                         <div class="d-flex gap-3">
                             <button type="button" id="copyBtn" class="btn btn-outline-secondary" title="Copy to clipboard">
-                                <i class="bi bi-copy me-1"></i>Copy
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1z"/></svg>Copy
                             </button>
                             <button type="button" id="clearBtn" class="btn btn-outline-danger" title="Clear all selections">
-                                <i class="bi bi-trash me-1"></i>Clear
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>Clear
                             </button>
                         </div>
                     </div>
@@ -61,7 +61,7 @@
     <div class="col-12 col-xl-4">
         <div class="dashboard-card h-100">
             <div class="dashboard-card-header instructions-header">
-                <i class="bi bi-info-circle"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>
                 Quick Reference
             </div>
             <div class="dashboard-card-body">
@@ -83,7 +83,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="drugInfoModalLabel">
-                    <i class="bi bi-capsule me-2"></i>Drug Information
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-2" viewBox="0 0 16 16"><path d="M1.828 8.9 8.9 1.827a4 4 0 1 1 5.657 5.657l-7.07 7.071A4 4 0 1 1 1.827 8.9Zm9.128.771 2.893-2.893a3 3 0 1 0-4.243-4.242L6.713 5.429z"/></svg>Drug Information
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -106,6 +106,16 @@
 @section Scripts {
     <script>
         $(document).ready(function () {
+            var svgIcon = Object.freeze({
+                check: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/></svg>',
+                capsule: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-2" viewBox="0 0 16 16"><path d="M1.828 8.9 8.9 1.827a4 4 0 1 1 5.657 5.657l-7.07 7.071A4 4 0 1 1 1.827 8.9Zm9.128.771 2.893-2.893a3 3 0 1 0-4.243-4.242L6.713 5.429z"/></svg>',
+                exclamationCircle: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-2" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.553.553 0 0 1-1.1 0z"/></svg>',
+                infoCircle: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-2" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/></svg>',
+                bullseye: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M8 13A5 5 0 1 1 8 3a5 5 0 0 1 0 10m0 1A6 6 0 1 0 8 2a6 6 0 0 0 0 12"/><path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8"/><path d="M9.5 8a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/></svg>',
+                checkCircle: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="m10.97 4.97-.02.022-3.473 4.425-2.093-2.094a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05"/></svg>',
+                exclamationTriangle: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M7.938 2.016A.13.13 0 0 1 8.002 2a.13.13 0 0 1 .063.016.15.15 0 0 1 .054.057l6.857 11.667c.036.06.035.124.002.183a.2.2 0 0 1-.054.06.1.1 0 0 1-.066.017H1.146a.1.1 0 0 1-.066-.017.2.2 0 0 1-.054-.06.18.18 0 0 1 .002-.183L7.884 2.073a.15.15 0 0 1 .054-.057m1.044-.45a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767z"/><path d="M7.002 12a1 1 0 1 1 2 0 1 1 0 0 1-2 0M7.1 5.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0z"/></svg>',
+                clock: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V8a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 7.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>'
+            });
             var meds = @Html.Raw(Json.Serialize(Model));
             
             var antiForgeryToken = $('input[name="__RequestVerificationToken"]').val();
@@ -203,7 +213,7 @@
                     navigator.clipboard.writeText(text).then(function() {
                         var btn = $('#copyBtn');
                         var originalHtml = btn.html();
-                        btn.html('<i class="bi bi-check me-1"></i>Copied!');
+                        btn.html(svgIcon.check + 'Copied!');
                         btn.removeClass('btn-outline-secondary').addClass('btn-success');
                         setTimeout(function() {
                             btn.html(originalHtml);
@@ -229,7 +239,7 @@
                 if (drugName.length < 2) return;
 
                 var modal = new bootstrap.Modal(document.getElementById('drugInfoModal'));
-                $('#drugInfoModalLabel').html('<i class="bi bi-capsule me-2"></i>' + drugName);
+                $('#drugInfoModalLabel').html(svgIcon.capsule + drugName);
                 $('#drugInfoContent').html(
                     '<div class="text-center py-4">' +
                     '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>' +
@@ -252,20 +262,20 @@
                                 html += '<p class="text-muted mb-3"><strong>Manufacturer:</strong> ' + info.manufacturer + '</p>';
                             }
                             if (info.purpose) {
-                                html += '<div class="mb-3"><h6 class="text-primary"><i class="bi bi-bullseye me-1"></i>Purpose</h6><p>' + info.purpose + '</p></div>';
+                                html += '<div class="mb-3"><h6 class="text-primary">' + svgIcon.bullseye + 'Purpose</h6><p>' + info.purpose + '</p></div>';
                             }
                             if (info.uses) {
-                                html += '<div class="mb-3"><h6 class="text-success"><i class="bi bi-check-circle me-1"></i>Uses</h6><p>' + info.uses + '</p></div>';
+                                html += '<div class="mb-3"><h6 class="text-success">' + svgIcon.checkCircle + 'Uses</h6><p>' + info.uses + '</p></div>';
                             }
                             if (info.warnings) {
-                                html += '<div class="mb-3"><h6 class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Warnings</h6><p class="small">' + info.warnings + '</p></div>';
+                                html += '<div class="mb-3"><h6 class="text-warning">' + svgIcon.exclamationTriangle + 'Warnings</h6><p class="small">' + info.warnings + '</p></div>';
                             }
                             if (info.dosage) {
-                                html += '<div class="mb-3"><h6 class="text-info"><i class="bi bi-clock me-1"></i>Dosage</h6><p>' + info.dosage + '</p></div>';
+                                html += '<div class="mb-3"><h6 class="text-info">' + svgIcon.clock + 'Dosage</h6><p>' + info.dosage + '</p></div>';
                             }
                             html += '</div>';
                         } else {
-                            html = '<div class="alert alert-info"><i class="bi bi-info-circle me-2"></i>' + 
+                            html = '<div class="alert alert-info">' + svgIcon.infoCircle + 
                                    (info.errorMessage || 'No information found for this medication.') + '</div>' +
                                    '<p>Try searching on <a href="https://www.drugs.com/search.php?searchterm=' + encodeURIComponent(drugName) + '" target="_blank">Drugs.com</a> or ' +
                                    '<a href="https://www.google.com/search?q=' + encodeURIComponent(drugName + ' medication') + '" target="_blank">Google</a>.</p>';
@@ -274,7 +284,7 @@
                     },
                     error: function() {
                         $('#drugInfoContent').html(
-                            '<div class="alert alert-danger"><i class="bi bi-exclamation-circle me-2"></i>Failed to load drug information. Please try again.</div>'
+                            '<div class="alert alert-danger">' + svgIcon.exclamationCircle + 'Failed to load drug information. Please try again.</div>'
                         );
                     }
                 });
