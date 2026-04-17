@@ -40,21 +40,14 @@
 
             <fieldset class="border rounded p-2 mb-3">
                 <legend class="w-auto px-2 fs-6 fw-semibold">Snoring</legend>
-                @if (_studyType == StudyType.CpapBipapTitration)
+                @foreach (var level in new[] { "Mild", "Moderate", "Loud" })
                 {
-                    <div class="text-muted small fst-italic">Snoring is not reported for CPAP/BIPAP Titration studies.</div>
-                }
-                else
-                {
-                    @foreach (var level in new[] { "Mild", "Moderate", "Loud" })
-                    {
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="snore_@level"
-                                   checked="@_snoringLevels.Contains(level)"
-                                   @onchange="e => ToggleSetItem(_snoringLevels, level, (bool)e.Value!)" />
-                            <label class="form-check-label" for="snore_@level">@level</label>
-                        </div>
-                    }
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="snore_@level"
+                               checked="@_snoringLevels.Contains(level)"
+                               @onchange="e => ToggleSetItem(_snoringLevels, level, (bool)e.Value!)" />
+                        <label class="form-check-label" for="snore_@level">@level</label>
+                    </div>
                 }
             </fieldset>
 

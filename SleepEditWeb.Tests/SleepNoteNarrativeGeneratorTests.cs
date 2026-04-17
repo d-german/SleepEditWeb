@@ -123,10 +123,10 @@ public sealed class SleepNoteNarrativeGeneratorTests
     }
 
     [Test]
-    public void GenerateSnoring_CpapTitration_ReturnsEmpty()
+    public void GenerateSnoring_CpapTitration_StillReportsSnoring()
     {
         var result = SleepNoteNarrativeGenerator.GenerateSnoring(Set("Mild", "Loud"), StudyType.CpapBipapTitration);
-        Assert.That(result, Is.Empty);
+        Assert.That(result, Is.EqualTo(" Mild to loud snoring was heard."));
     }
 
     // ── Respiratory Info ───────────────────────────────────────────────
@@ -347,7 +347,7 @@ public sealed class SleepNoteNarrativeGeneratorTests
     }
 
     [Test]
-    public void Generate_CpapTitration_SuppressesSnoringAndRespiratory()
+    public void Generate_CpapTitration_IncludesSnoringButSuppressesRespiratory()
     {
         var data = CreateFormData() with
         {
@@ -363,7 +363,7 @@ public sealed class SleepNoteNarrativeGeneratorTests
 
         var result = SleepNoteNarrativeGenerator.Generate(data);
 
-        Assert.That(result, Does.Not.Contain("snoring"));
+        Assert.That(result, Does.Contain("snoring was heard"));
         Assert.That(result, Does.Not.Contain("Respiratory events"));
         Assert.That(result, Does.Contain("CPAP was initiated"));
         Assert.That(result, Does.Contain("F&P Flexifit HC407 mask was used"));

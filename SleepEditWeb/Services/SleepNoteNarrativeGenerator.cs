@@ -45,9 +45,6 @@ public static class SleepNoteNarrativeGenerator
 
     internal static string GenerateSnoring(IReadOnlySet<string> levels, StudyType studyType)
     {
-        if (studyType == StudyType.CpapBipapTitration)
-            return string.Empty;
-
         var mild = levels.Contains("Mild");
         var moderate = levels.Contains("Moderate");
         var loud = levels.Contains("Loud");
