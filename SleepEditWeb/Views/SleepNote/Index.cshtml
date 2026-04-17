@@ -1,0 +1,78 @@
+@using SleepEditWeb.Components.SleepNote
+@{
+    ViewData["Title"] = "Sleep Note";
+    var isEmbedded = string.Equals(Context.Request.Query["embed"], "1", StringComparison.Ordinal);
+    if (isEmbedded)
+    {
+        Layout = null;
+    }
+}
+
+@if (isEmbedded)
+{
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sleep Note</title>
+        <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+        <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+        <base href="~/" />
+        <script>
+            (function() {
+                var theme = localStorage.getItem('theme') || 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            })();
+        </script>
+        <style>
+            body {
+                background-color: var(--main-bg) !important;
+                color: var(--main-text) !important;
+            }
+            .card {
+                background-color: var(--card-bg);
+                border-color: var(--card-border);
+                color: var(--main-text);
+            }
+            .card-header {
+                background-color: var(--card-header-bg);
+                color: var(--card-header-text);
+                border-color: var(--card-border);
+            }
+            .form-control, .form-select {
+                background-color: var(--input-bg);
+                border-color: var(--input-border);
+                color: var(--input-text);
+            }
+            .form-control:focus, .form-select:focus {
+                background-color: var(--input-bg);
+                color: var(--input-text);
+                border-color: var(--btn-primary-bg);
+                box-shadow: 0 0 0 0.2rem var(--focus-ring);
+            }
+            .form-control::placeholder { color: var(--input-placeholder); }
+            .form-check-label { color: var(--main-text); }
+            legend { color: var(--main-text); }
+            fieldset { border-color: var(--card-border) !important; }
+            .alert-info {
+                background-color: var(--accent-cyan-bg);
+                color: var(--accent-cyan);
+                border-color: var(--accent-cyan);
+            }
+            .text-muted { color: var(--main-text-muted) !important; }
+        </style>
+    </head>
+    <body class="p-3">
+        <component type="typeof(SleepNoteForm)" render-mode="Server" />
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="_framework/blazor.server.js"></script>
+    </body>
+    </html>
+}
+else
+{
+    <component type="typeof(SleepNoteForm)" render-mode="Server" />
+}

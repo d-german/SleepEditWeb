@@ -1,0 +1,306 @@
+@namespace SleepEditWeb.Components.SleepNote
+
+<div class="container-fluid p-3">
+    <div class="row">
+        <div class="col-lg-6">
+            <fieldset class="border rounded p-2 mb-3">
+                <legend class="w-auto px-2 fs-6 fw-semibold">Study Performed</legend>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" id="studyPsg"
+                           checked="@(_studyType == StudyType.Polysomnogram)"
+                           @onchange="() => OnStudyTypeChanged(StudyType.Polysomnogram)" />
+                    <label class="form-check-label" for="studyPsg">Polysomnogram (PSG)</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" id="studyTitration"
+                           checked="@(_studyType == StudyType.CpapBipapTitration)"
+                           @onchange="() => OnStudyTypeChanged(StudyType.CpapBipapTitration)" />
+                    <label class="form-check-label" for="studyTitration">CPAP/BIPAP Titration</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" id="studySplit"
+                           checked="@(_studyType == StudyType.SplitNight)"
+                           @onchange="() => OnStudyTypeChanged(StudyType.SplitNight)" />
+                    <label class="form-check-label" for="studySplit">Split Night</label>
+                </div>
+            </fieldset>
+
+            <fieldset class="border rounded p-2 mb-3">
+                <legend class="w-auto px-2 fs-6 fw-semibold">Body Position</legend>
+                @foreach (var pos in new[] { "Supine", "Lateral", "Prone" })
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="pos_@pos"
+                               checked="@_bodyPositions.Contains(pos)"
+                               @onchange="e => ToggleSetItem(_bodyPositions, pos, (bool)e.Value!)" />
+                        <label class="form-check-label" for="pos_@pos">@pos</label>
+                    </div>
+                }
+            </fieldset>
+
+            <fieldset class="border rounded p-2 mb-3">
+                <legend class="w-auto px-2 fs-6 fw-semibold">Snoring</legend>
+                @foreach (var level in new[] { "Mild", "Moderate", "Loud" })
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="snore_@level"
+                               checked="@_snoringLevels.Contains(level)"
+                               @onchange="e => ToggleSetItem(_snoringLevels, level, (bool)e.Value!)" />
+                        <label class="form-check-label" for="snore_@level">@level</label>
+                    </div>
+                }
+            </fieldset>
+
+            <fieldset class="border rounded p-2 mb-3">
+                <legend class="w-auto px-2 fs-6 fw-semibold">Events</legend>
+                @foreach (var (key, label) in new[] { ("RespiratoryEvents", "Respiratory Events"), ("PLMs", "PLM's"), ("Arrhythmias", "Arrhythmias") })
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="evt_@key"
+                               checked="@_events.Contains(key)"
+                               @onchange="e => ToggleSetItem(_events, key, (bool)e.Value!)" />
+                        <label class="form-check-label" for="evt_@key">@label</label>
+                    </div>
+                }
+            </fieldset>
+
+            <fieldset class="border rounded p-2 mb-3">
+                <legend class="w-auto px-2 fs-6 fw-semibold">Miscellaneous</legend>
+                @foreach (var (key, label) in new[] {
+                    ("Ambien", "Ambien (10 mg)"),
+                    ("O2Mask", "O₂ NRB Mask (15 lpm)"),
+                    ("TooLateForCpap", "Too late for CPAP"),
+                    ("NoSplitNightCriteria", "No split night criteria")
+                })
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="misc_@key"
+                               checked="@_miscOptions.Contains(key)"
+                               @onchange="e => ToggleSetItem(_miscOptions, key, (bool)e.Value!)" />
+                        <label class="form-check-label" for="misc_@key">@label</label>
+                    </div>
+                }
+            </fieldset>
+
+            <fieldset class="border rounded p-2 mb-3">
+                <legend class="w-auto px-2 fs-6 fw-semibold">Effects</legend>
+                @foreach (var (key, label) in new[] { ("PositionEffect", "Position Effect"), ("RemEffect", "REM Effect") })
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="eff_@key"
+                               checked="@_effects.Contains(key)"
+                               @onchange="e => ToggleSetItem(_effects, key, (bool)e.Value!)" />
+                        <label class="form-check-label" for="eff_@key">@label</label>
+                    </div>
+                }
+            </fieldset>
+        </div>
+
+        <div class="col-lg-6">
+            @if (ShowTitrationControls)
+            {
+                    <fieldset class="border rounded p-2 mb-3">
+                    <legend class="w-auto px-2 fs-6 fw-semibold">CPAP / BIPAP Info</legend>
+
+                    <div class="d-flex gap-3 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="modeCpap"
+                                   checked="@(_titrationMode == TitrationMode.Cpap)"
+                                   @onchange="() => OnTitrationModeChanged(TitrationMode.Cpap)" />
+                            <label class="form-check-label" for="modeCpap">CPAP</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" id="modeBipap"
+                                   checked="@(_titrationMode == TitrationMode.Bipap)"
+                                   @onchange="() => OnTitrationModeChanged(TitrationMode.Bipap)" />
+                            <label class="form-check-label" for="modeBipap">BIPAP</label>
+                        </div>
+                    </div>
+
+                    @if (ShowCpapPanel)
+                    {
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small">Initial CPAP</label>
+                                <select class="form-select form-select-sm" @bind="_initialCpap">
+                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Final CPAP</label>
+                                <select class="form-select form-select-sm" @bind="_finalCpap">
+                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
+                                </select>
+                            </div>
+                        </div>
+                    }
+
+                    @if (ShowBipapPanel)
+                    {
+                        <div class="row g-2 mb-2">
+                            <div class="col-3">
+                                <label class="form-label small">Init IPAP</label>
+                                <select class="form-select form-select-sm" @bind="_initialIpap">
+                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label small">Init EPAP</label>
+                                <select class="form-select form-select-sm" @bind="_initialEpap">
+                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label small">Final IPAP</label>
+                                <select class="form-select form-select-sm" @bind="_finalIpap">
+                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
+                                </select>
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label small">Final EPAP</label>
+                                <select class="form-select form-select-sm" @bind="_finalEpap">
+                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
+                                </select>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label small">Mask Type</label>
+                            <select class="form-select form-select-sm" @bind="_maskType">
+                                @foreach (var t in _config.MaskTypes) { <option value="@t">@t</option> }
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Mask Size</label>
+                            <select class="form-select form-select-sm" @bind="_maskSize">
+                                @foreach (var s in _config.MaskSizes) { <option value="@s">@s</option> }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-3 mb-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="chinStrap" @bind="_chinStrap" />
+                            <label class="form-check-label" for="chinStrap">Chin Strap</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="heatedHumid" @bind="_heatedHumidifier" />
+                            <label class="form-check-label" for="heatedHumid">Heated Humidifier</label>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="ptMachine" @bind="_patientHasMachine" />
+                        <label class="form-check-label" for="ptMachine">Patient Has Machine</label>
+                    </div>
+
+                    @if (_patientHasMachine)
+                    {
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label small">Pressure Verified At</label>
+                                <select class="form-select form-select-sm" @bind="_pressureVerifiedAt">
+                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Changed To</label>
+                                <select class="form-select form-select-sm" @bind="_pressureChangedTo">
+                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
+                                </select>
+                            </div>
+                        </div>
+                    }
+                </fieldset>
+
+                    <fieldset class="border rounded p-2 mb-3">
+                    <legend class="w-auto px-2 fs-6 fw-semibold">Manage Config</legend>
+                    <div class="row g-2 mb-2">
+                        <div class="col">
+                            <label class="form-label small fw-semibold mb-1">Mask Types</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" placeholder="New mask type" @bind="_newMaskType" />
+                                <button class="btn btn-outline-primary btn-sm" @onclick="AddMaskType">Add</button>
+                            </div>
+                            <div class="mt-1">
+                                @foreach (var t in _config.MaskTypes)
+                                {
+                                    <span class="badge bg-secondary me-1">
+                                        @t
+                                        <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5em"
+                                                @onclick="() => RemoveMaskType(t)"></button>
+                                    </span>
+                                }
+                                @if (_config.MaskTypes.Count == 0)
+                                {
+                                    <span class="text-muted small fst-italic">No mask types configured.</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col">
+                            <label class="form-label small fw-semibold mb-1">Mask Sizes</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" placeholder="New mask size" @bind="_newMaskSize" />
+                                <button class="btn btn-outline-primary btn-sm" @onclick="AddMaskSize">Add</button>
+                            </div>
+                            <div class="mt-1">
+                                @foreach (var s in _config.MaskSizes)
+                                {
+                                    <span class="badge bg-secondary me-1">
+                                        @s
+                                        <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5em"
+                                                @onclick="() => RemoveMaskSize(s)"></button>
+                                    </span>
+                                }
+                                @if (_config.MaskSizes.Count == 0)
+                                {
+                                    <span class="text-muted small fst-italic">No mask sizes configured.</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <button class="btn btn-outline-warning btn-sm" @onclick="ResetConfigToDefaults">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to Defaults
+                        </button>
+                    </div>
+                </fieldset>
+            }
+
+            <div class="d-flex gap-2 mb-3">
+                <button class="btn btn-primary" @onclick="GenerateNote" disabled="@_isGenerating">
+                    @if (_isGenerating) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                    Generate Note
+                </button>
+                @if (!string.IsNullOrEmpty(_narrativeText))
+                {
+                    <button class="btn btn-success" @onclick="InsertIntoEditor">
+                        <i class="bi bi-box-arrow-in-down me-1"></i>Insert into Editor
+                    </button>
+                    <button class="btn btn-outline-success" @onclick="CopyToClipboard">📋 Copy</button>
+                }
+                <button class="btn btn-outline-secondary" @onclick="ResetForm">Reset</button>
+                <button class="btn btn-outline-danger" @onclick="CancelSleepNote">Cancel</button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(_statusMessage))
+            {
+                <div class="alert alert-info py-1 px-2 small">@_statusMessage</div>
+            }
+
+            @if (!string.IsNullOrEmpty(_narrativeText))
+            {
+                <div class="card">
+                    <div class="card-header fw-semibold">Generated Narrative</div>
+                    <div class="card-body">
+                        <textarea class="form-control" rows="10" readonly>@_narrativeText</textarea>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

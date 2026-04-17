@@ -5,6 +5,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
     </PropertyGroup>
     <ItemGroup>
+        <InternalsVisibleTo Include="SleepEditWeb.Tests" />
+    </ItemGroup>
+    <ItemGroup>
         <PackageReference Include="LiteDB" Version="5.0.21" />
     </ItemGroup>
     <ItemGroup>
