@@ -20,8 +20,14 @@
         <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
         <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
         <base href="~/" />
+        <script>
+            (function() {
+                var theme = localStorage.getItem('theme') || 'dark';
+                document.documentElement.setAttribute('data-theme', theme);
+            })();
+        </script>
     </head>
-    <body class="p-3">
+    <body class="p-3" style="background-color: var(--main-bg); color: var(--main-text);">
         <component type="typeof(SleepNoteForm)" render-mode="Server" />
         <script src="~/lib/jquery/dist/jquery.min.js"></script>
         <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

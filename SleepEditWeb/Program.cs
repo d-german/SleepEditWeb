@@ -37,6 +37,14 @@ public class Program
 		builder.Services.AddSingleton<IProtocolXmlMapper, ProtocolXmlMapper>();
 		builder.Services.AddSingleton<IProtocolXmlSerializer, ProtocolXmlSerializer>();
 		builder.Services.AddSingleton<IProtocolXmlDeserializer, ProtocolXmlDeserializer>();
+		builder.Services.AddSingleton<LiteDB.LiteDatabase>(_ =>
+		{
+			var basePath = Environment.OSVersion.Platform == PlatformID.Unix
+				? "/app/Data"
+				: Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+			Directory.CreateDirectory(basePath);
+			return new LiteDB.LiteDatabase(Path.Combine(basePath, "sleepeditweb.db"));
+		});
 		builder.Services.AddSingleton<IProtocolRepository, LiteDbProtocolRepository>();
 		builder.Services.AddSingleton<ISleepNoteConfigRepository, LiteDbSleepNoteConfigRepository>();
 		builder.Services.AddScoped<ISleepNoteService, SleepNoteService>();

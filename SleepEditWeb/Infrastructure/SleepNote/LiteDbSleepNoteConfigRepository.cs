@@ -10,14 +10,11 @@ public sealed class LiteDbSleepNoteConfigRepository : ISleepNoteConfigRepository
 
     private readonly LiteDatabase _database;
     private readonly ILogger<LiteDbSleepNoteConfigRepository> _logger;
-    private bool _disposed;
 
-    public LiteDbSleepNoteConfigRepository(ILogger<LiteDbSleepNoteConfigRepository> logger)
+    public LiteDbSleepNoteConfigRepository(LiteDatabase database, ILogger<LiteDbSleepNoteConfigRepository> logger)
     {
+        _database = database;
         _logger = logger;
-        var databasePath = GetDatabasePath();
-        EnsureDirectoryExists(databasePath);
-        _database = new LiteDatabase(databasePath);
     }
 
     public SleepNoteConfiguration GetConfiguration()
@@ -107,11 +104,7 @@ public sealed class LiteDbSleepNoteConfigRepository : ISleepNoteConfigRepository
 
     public void Dispose()
     {
-        if (!_disposed)
-        {
-            _database.Dispose();
-            _disposed = true;
-        }
+        // LiteDatabase lifecycle is managed by DI container
     }
 
     private static SleepNoteConfigEntity CreateDefaults() =>
@@ -133,23 +126,9 @@ public sealed class LiteDbSleepNoteConfigRepository : ISleepNoteConfigRepository
             PressureValues = entity.PressureValues
         };
 
-    private static string GetDatabasePath()
-    {
-        var basePath = Environment.OSVersion.Platform == PlatformID.Unix
-            ? "/app/Data"
-            : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+    
 
-        return Path.Combine(basePath, "sleepnote-config.db");
-    }
-
-    private static void EnsureDirectoryExists(string filePath)
-    {
-        var directory = Path.GetDirectoryName(filePath);
-        if (directory != null && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-    }
+    
 
     private sealed class SleepNoteConfigEntity
     {

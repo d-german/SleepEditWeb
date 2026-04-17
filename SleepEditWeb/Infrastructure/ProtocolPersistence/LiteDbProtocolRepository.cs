@@ -16,19 +16,16 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
     private readonly IProtocolXmlService _xmlService;
     private readonly ILogger<LiteDbProtocolRepository> _logger;
     private readonly object _migrationLock = new();
-    private bool _disposed;
     private volatile bool _migrationChecked;
 
     public LiteDbProtocolRepository(
+        LiteDatabase database,
         IProtocolXmlService xmlService,
         ILogger<LiteDbProtocolRepository> logger)
     {
         _xmlService = xmlService;
         _logger = logger;
-
-        var databasePath = GetDatabasePath();
-        EnsureDirectoryExists(databasePath);
-        _database = new LiteDatabase(databasePath);
+        _database = database;
     }
 
     public ProtocolVersion SaveVersion(ProtocolDocument document, string source, string note)
@@ -325,13 +322,7 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
 
     public void Dispose()
     {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _database.Dispose();
-        _disposed = true;
+        // LiteDatabase lifecycle is managed by DI container
     }
 
     private void EnsureMigration()
@@ -427,23 +418,9 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
         return new ProtocolVersion(entity.Id, entity.SavedUtc, entity.Source, entity.Note, document);
     }
 
-    private static string GetDatabasePath()
-    {
-        var basePath = Environment.OSVersion.Platform == PlatformID.Unix
-            ? "/app/Data"
-            : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+    
 
-        return Path.Combine(basePath, "protocol-versions.db");
-    }
-
-    private static void EnsureDirectoryExists(string filePath)
-    {
-        var directory = Path.GetDirectoryName(filePath);
-        if (directory != null && !Directory.Exists(directory))
-        {
-            Directory.CreateDirectory(directory);
-        }
-    }
+    
 
     private sealed class ProtocolVersionEntity
     {

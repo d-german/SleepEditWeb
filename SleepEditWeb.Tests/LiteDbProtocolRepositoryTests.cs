@@ -13,7 +13,9 @@ public class LiteDbProtocolRepositoryTests
     {
         // Arrange
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
+        var db = new LiteDB.LiteDatabase(":memory:");
         using var repository = new LiteDbProtocolRepository(
+            db,
             xmlService,
             NullLogger<LiteDbProtocolRepository>.Instance);
 
@@ -43,7 +45,9 @@ public class LiteDbProtocolRepositoryTests
     {
         // Arrange
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
+        var db = new LiteDB.LiteDatabase(":memory:");
         using var repository = new LiteDbProtocolRepository(
+            db,
             xmlService,
             NullLogger<LiteDbProtocolRepository>.Instance);
 
@@ -64,7 +68,9 @@ public class LiteDbProtocolRepositoryTests
     {
         // Arrange
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
+        var db = new LiteDB.LiteDatabase(":memory:");
         using var repository = new LiteDbProtocolRepository(
+            db,
             xmlService,
             NullLogger<LiteDbProtocolRepository>.Instance);
 
@@ -84,7 +90,9 @@ public class LiteDbProtocolRepositoryTests
     {
         // Arrange
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
+        var db = new LiteDB.LiteDatabase(":memory:");
         using var repository = new LiteDbProtocolRepository(
+            db,
             xmlService,
             NullLogger<LiteDbProtocolRepository>.Instance);
 
@@ -107,7 +115,9 @@ public class LiteDbProtocolRepositoryTests
     {
         // Arrange
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
+        var db = new LiteDB.LiteDatabase(":memory:");
         using var repository = new LiteDbProtocolRepository(
+            db,
             xmlService,
             NullLogger<LiteDbProtocolRepository>.Instance);
 
@@ -126,7 +136,9 @@ public class LiteDbProtocolRepositoryTests
     {
         // Arrange
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
+        var db = new LiteDB.LiteDatabase(":memory:");
         using var repository = new LiteDbProtocolRepository(
+            db,
             xmlService,
             NullLogger<LiteDbProtocolRepository>.Instance);
 
@@ -149,7 +161,8 @@ public class LiteDbProtocolRepositoryTests
     public void SaveProtocol_ThenGetProtocol_ReturnsSavedVersion()
     {
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
-        using var repository = new LiteDbProtocolRepository(xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
+        var db2 = new LiteDB.LiteDatabase(":memory:");
+        using var repository = new LiteDbProtocolRepository(db2, xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
         var protocolId = Guid.NewGuid();
         var document = CreateDocument("Multi-Protocol Test");
 
@@ -165,7 +178,8 @@ public class LiteDbProtocolRepositoryTests
     public void SaveProtocol_UpsertsSameProtocolId()
     {
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
-        using var repository = new LiteDbProtocolRepository(xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
+        var db2 = new LiteDB.LiteDatabase(":memory:");
+        using var repository = new LiteDbProtocolRepository(db2, xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
         var protocolId = Guid.NewGuid();
 
         repository.SaveProtocol(protocolId, "First", CreateDocument("First"), "save-1");
@@ -180,7 +194,8 @@ public class LiteDbProtocolRepositoryTests
     public void GetProtocol_ReturnsNull_ForUnknownId()
     {
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
-        using var repository = new LiteDbProtocolRepository(xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
+        var db2 = new LiteDB.LiteDatabase(":memory:");
+        using var repository = new LiteDbProtocolRepository(db2, xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
 
         var result = repository.GetProtocol(Guid.NewGuid());
 
@@ -191,7 +206,8 @@ public class LiteDbProtocolRepositoryTests
     public void ListProtocols_ReturnsAllSavedProtocols()
     {
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
-        using var repository = new LiteDbProtocolRepository(xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
+        var db2 = new LiteDB.LiteDatabase(":memory:");
+        using var repository = new LiteDbProtocolRepository(db2, xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
 
         repository.SaveProtocol(Guid.NewGuid(), "Protocol A", CreateDocument("A"), "test");
         repository.SaveProtocol(Guid.NewGuid(), "Protocol B", CreateDocument("B"), "test");
@@ -207,7 +223,8 @@ public class LiteDbProtocolRepositoryTests
     public void DeleteProtocol_RemovesProtocol()
     {
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
-        using var repository = new LiteDbProtocolRepository(xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
+        var db2 = new LiteDB.LiteDatabase(":memory:");
+        using var repository = new LiteDbProtocolRepository(db2, xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
         var protocolId = Guid.NewGuid();
 
         repository.SaveProtocol(protocolId, "To Delete", CreateDocument("Delete Me"), "test");
@@ -222,7 +239,8 @@ public class LiteDbProtocolRepositoryTests
     public void DeleteProtocol_ReturnsFalse_ForUnknownId()
     {
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
-        using var repository = new LiteDbProtocolRepository(xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
+        var db2 = new LiteDB.LiteDatabase(":memory:");
+        using var repository = new LiteDbProtocolRepository(db2, xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
 
         var result = repository.DeleteProtocol(Guid.NewGuid());
 
@@ -233,7 +251,8 @@ public class LiteDbProtocolRepositoryTests
     public void RenameProtocol_UpdatesName()
     {
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
-        using var repository = new LiteDbProtocolRepository(xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
+        var db2 = new LiteDB.LiteDatabase(":memory:");
+        using var repository = new LiteDbProtocolRepository(db2, xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
         var protocolId = Guid.NewGuid();
 
         repository.SaveProtocol(protocolId, "Original Name", CreateDocument("Test"), "test");
@@ -247,7 +266,8 @@ public class LiteDbProtocolRepositoryTests
     public void SetDefaultProtocol_ChangesDefaultFlag()
     {
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
-        using var repository = new LiteDbProtocolRepository(xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
+        var db2 = new LiteDB.LiteDatabase(":memory:");
+        using var repository = new LiteDbProtocolRepository(db2, xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
         var id1 = Guid.NewGuid();
         var id2 = Guid.NewGuid();
 
@@ -264,7 +284,8 @@ public class LiteDbProtocolRepositoryTests
     public void GetDefaultProtocol_DoesNotThrow_WhenCalledOnSharedDatabase()
     {
         var xmlService = new ProtocolXmlService(NullLogger<ProtocolXmlService>.Instance);
-        using var repository = new LiteDbProtocolRepository(xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
+        var db2 = new LiteDB.LiteDatabase(":memory:");
+        using var repository = new LiteDbProtocolRepository(db2, xmlService, NullLogger<LiteDbProtocolRepository>.Instance);
 
         // Should not throw regardless of database state (may return null or a migrated protocol)
         Assert.DoesNotThrow(() => repository.GetDefaultProtocol());
