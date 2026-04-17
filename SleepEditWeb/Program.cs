@@ -8,6 +8,7 @@ using SleepEditWeb.Infrastructure.ProtocolXml;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
 using SleepEditWeb.Components;
+using SleepEditWeb.Infrastructure.SleepNote;
 using SleepEditWeb.Web.ProtocolEditor;
 
 namespace SleepEditWeb;
@@ -37,6 +38,8 @@ public class Program
 		builder.Services.AddSingleton<IProtocolXmlSerializer, ProtocolXmlSerializer>();
 		builder.Services.AddSingleton<IProtocolXmlDeserializer, ProtocolXmlDeserializer>();
 		builder.Services.AddSingleton<IProtocolRepository, LiteDbProtocolRepository>();
+		builder.Services.AddSingleton<ISleepNoteConfigRepository, LiteDbSleepNoteConfigRepository>();
+		builder.Services.AddScoped<ISleepNoteService, SleepNoteService>();
 		builder.Services.AddScoped<IProtocolCommandHandler<AddSectionCommand>, AddSectionCommandHandler>();
 		builder.Services.AddScoped<IProtocolCommandHandler<AddChildCommand>, AddChildCommandHandler>();
 		builder.Services.AddScoped<IProtocolCommandHandler<RemoveNodeCommand>, RemoveNodeCommandHandler>();

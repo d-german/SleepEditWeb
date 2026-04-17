@@ -11,6 +11,9 @@
         <p class="page-subtitle">Document-first editing with medication tool integration</p>
     </div>
     <div class="d-flex gap-2">
+        <button type="button" id="openSleepNoteBtn" class="btn btn-primary">
+            <i class="bi bi-clipboard-pulse me-1"></i>Sleep Note
+        </button>
         <button type="button" id="openMedToolBtn" class="btn btn-primary">
             <i class="bi bi-capsule me-1"></i>Medication Tool
         </button>
@@ -174,6 +177,25 @@
     </div>
 </div>
 
+<div class="modal fade" id="sleepNoteModal" tabindex="-1" aria-labelledby="sleepNoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sleepNoteModalLabel">
+                    <i class="bi bi-clipboard-pulse me-2"></i>Sleep Note
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 overflow-hidden">
+                <iframe id="sleepNoteFrame"
+                        title="Sleep Note"
+                        class="w-100 h-100 border-0"
+                        loading="lazy"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
     (function() {
@@ -197,7 +219,12 @@
         const medModal = new bootstrap.Modal(document.getElementById('medToolModal'));
         const drugInfoModal = new bootstrap.Modal(document.getElementById('drugInfoModal'));
         const protocolViewerModal = new bootstrap.Modal(document.getElementById('protocolViewerModal'));
+        const sleepNoteFrame = document.getElementById('sleepNoteFrame');
+        const sleepNoteModal = new bootstrap.Modal(document.getElementById('sleepNoteModal'));
+        const sleepNoteUrl = '@Url.Action("Index", "SleepNote", new { embed = 1 })';
         let selectedMeds = initialSelections.map(item => item.name);
+
+        document.getElementById('openSleepNoteBtn').addEventListener('click', openSleepNote);
 
         document.getElementById('openMedToolBtn').addEventListener('click', () => {
             medModal.show();
@@ -211,6 +238,7 @@
         document.getElementById('printEditorBtn').addEventListener('click', printEditorContent);
         medInfoBtn.addEventListener('click', showDrugInformation);
         window.addEventListener('message', onProtocolViewerMessage);
+        window.addEventListener('message', onSleepNoteMessage);
 
         document.querySelectorAll('.format-btn').forEach(button => {
             button.addEventListener('click', () => {
@@ -580,6 +608,33 @@
             protocolViewerModal.hide();
             await saveEditorContent();
             setStatus('Protocol content inserted');
+        }
+
+        function openSleepNote() {
+            const separator = sleepNoteUrl.includes('?') ? '&' : '?';
+            sleepNoteFrame.src = `${sleepNoteUrl}${separator}ts=${Date.now()}`;
+            sleepNoteModal.show();
+        }
+
+        async function onSleepNoteMessage(event) {
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+
+            const data = event.data || {};
+            if (data.type === 'sleepNote:cancel') {
+                sleepNoteModal.hide();
+                return;
+            }
+
+            if (data.type !== 'sleepNote:done' || typeof data.content !== 'string') {
+                return;
+            }
+
+            insertTextAtCursor((data.content || '') + '\n');
+            sleepNoteModal.hide();
+            await saveEditorContent();
+            setStatus('Sleep note inserted');
         }
 
         function debounce(callback, wait) {

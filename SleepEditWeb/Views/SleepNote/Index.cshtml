@@ -1,0 +1,35 @@
+@using SleepEditWeb.Components.SleepNote
+@{
+    ViewData["Title"] = "Sleep Note";
+    var isEmbedded = string.Equals(Context.Request.Query["embed"], "1", StringComparison.Ordinal);
+    if (isEmbedded)
+    {
+        Layout = null;
+    }
+}
+
+@if (isEmbedded)
+{
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sleep Note</title>
+        <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+        <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+        <base href="~/" />
+    </head>
+    <body class="p-3">
+        <component type="typeof(SleepNoteForm)" render-mode="Server" />
+        <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="_framework/blazor.server.js"></script>
+    </body>
+    </html>
+}
+else
+{
+    <component type="typeof(SleepNoteForm)" render-mode="Server" />
+}
