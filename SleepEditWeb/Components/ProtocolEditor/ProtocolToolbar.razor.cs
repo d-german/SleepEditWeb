@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
-using SleepEditWeb.Infrastructure.ProtocolPersistence;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
 
@@ -10,12 +9,13 @@ namespace SleepEditWeb.Components.ProtocolEditor;
 public partial class ProtocolToolbar : ComponentBase
 {
     [Inject] private IProtocolEditorService Service { get; set; } = null!;
-    [Inject] private IProtocolRepository Repository { get; set; } = null!;
+    [Inject] private IProtocolManagementService ManagementService { get; set; } = null!;
     [Inject] private IJSRuntime JsRuntime { get; set; } = null!;
     [Inject] private ILogger<ProtocolToolbar> Logger { get; set; } = null!;
 
     [Parameter] public ProtocolEditorSnapshot Snapshot { get; set; } = new();
     [Parameter] public EventCallback<ProtocolEditorSnapshot> OnMutation { get; set; }
+    [Parameter] public EventCallback OnSetDefault { get; set; }
     [Parameter] public EventCallback<string> OnError { get; set; }
     [Parameter] public EventCallback OnAddSection { get; set; }
     [Parameter] public EventCallback OnToggleAllSections { get; set; }
@@ -113,14 +113,7 @@ public partial class ProtocolToolbar : ComponentBase
             using var reader = new StreamReader(stream);
             var xml = await reader.ReadToEndAsync();
             var snapshot = Service.ImportXml(xml);
-            if (ActiveProtocolId.HasValue)
-            {
-                Repository.SaveProtocol(ActiveProtocolId.Value, snapshot.Document.Text, snapshot.Document, "ImportXml");
-            }
-            else
-            {
-                Repository.SaveCurrentProtocol(snapshot.Document, "ImportXml");
-            }
+            ManagementService.SaveActiveProtocol(snapshot.Document, "ImportXml");
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
@@ -135,20 +128,28 @@ public partial class ProtocolToolbar : ComponentBase
         try
         {
             var snapshot = Service.Load();
-            if (ActiveProtocolId.HasValue)
-            {
-                Repository.SaveProtocol(ActiveProtocolId.Value, snapshot.Document.Text, snapshot.Document, "SaveXml");
-            }
-            else
-            {
-                Repository.SaveCurrentProtocol(snapshot.Document, "SaveXml");
-            }
+            ManagementService.SaveActiveProtocol(snapshot.Document, "SaveXml");
             await OnMutation.InvokeAsync(snapshot);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Save failed.");
             await OnError.InvokeAsync("Failed to save protocol.");
+        }
+    }
+
+    private async Task HandleSetDefault()
+    {
+        if (!ActiveProtocolId.HasValue) return;
+        try
+        {
+            ManagementService.SetDefaultProtocol(ActiveProtocolId.Value);
+            await OnSetDefault.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "SetDefault failed.");
+            await OnError.InvokeAsync("Failed to set default protocol.");
         }
     }
 

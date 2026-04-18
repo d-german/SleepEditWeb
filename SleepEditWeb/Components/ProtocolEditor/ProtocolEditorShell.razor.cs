@@ -24,6 +24,7 @@ public partial class ProtocolEditorShell : ComponentBase
     private bool _allSectionsCollapsed;
     private Guid? _activeProtocolId;
     private string _activeProtocolName = string.Empty;
+    private ProtocolSelector? _protocolSelector;
 
     protected override async Task OnInitializedAsync()
     {
@@ -145,6 +146,13 @@ public partial class ProtocolEditorShell : ComponentBase
         {
             _activeProtocolName = "Unknown";
         }
+    }
+
+    private void HandleDefaultChanged()
+    {
+        _protocolSelector?.Refresh();
+        _statusMessage = "Default protocol updated.";
+        StateHasChanged();
     }
 
     private void HandleToggleAllSections()

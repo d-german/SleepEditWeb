@@ -31,6 +31,10 @@
     <button type="button" class="btn btn-sm btn-outline-primary" @onclick="HandleSave" disabled="@IsLoading">
         Save Protocol
     </button>
+    <button type="button" class="btn btn-sm btn-outline-success" @onclick="HandleSetDefault"
+            disabled="@(IsLoading || !ActiveProtocolId.HasValue)" title="Mark the active protocol as the default">
+        Set As Default
+    </button>
     <button type="button" class="btn btn-sm btn-primary" @onclick="HandleExport" disabled="@IsLoading">
         Export Protocol
     </button>

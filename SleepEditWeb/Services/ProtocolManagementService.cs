@@ -11,6 +11,7 @@ public interface IProtocolManagementService
     bool DeleteProtocol(Guid protocolId);
     void RenameProtocol(Guid protocolId, string newName);
     void SetDefaultProtocol(Guid protocolId);
+    void SaveActiveProtocol(ProtocolDocument document, string source);
     Guid? GetActiveProtocolId();
 }
 
@@ -108,6 +109,17 @@ public sealed class ProtocolManagementService(
     {
         repository.SetDefaultProtocol(protocolId);
         logger.LogInformation("Set protocol {ProtocolId} as default", protocolId);
+    }
+
+    public void SaveActiveProtocol(ProtocolDocument document, string source)
+    {
+        var activeId = sessionStore.GetActiveProtocolId();
+        if (activeId.HasValue)
+            repository.SaveProtocol(activeId.Value, document.Text, document, source);
+        else
+            repository.SaveCurrentProtocol(document, source);
+
+        logger.LogInformation("Saved active protocol from source {Source}", source);
     }
 
     public Guid? GetActiveProtocolId() =>

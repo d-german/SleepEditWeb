@@ -28,6 +28,12 @@ public partial class ProtocolSelector : ComponentBase
         RefreshProtocolList();
     }
 
+    public void Refresh()
+    {
+        RefreshProtocolList();
+        StateHasChanged();
+    }
+
     private void RefreshProtocolList()
     {
         try

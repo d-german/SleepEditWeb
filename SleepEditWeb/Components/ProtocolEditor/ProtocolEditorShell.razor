@@ -34,7 +34,8 @@ else
             </div>
         </div>
 
-        <ProtocolSelector ActiveProtocolId="_activeProtocolId"
+        <ProtocolSelector @ref="_protocolSelector"
+                          ActiveProtocolId="_activeProtocolId"
                           IsLoading="_isLoading"
                           OnProtocolSwitched="HandleProtocolSwitched"
                           OnError="HandleError" />
@@ -45,6 +46,7 @@ else
             IsLoading="_isLoading"
             ActiveProtocolId="_activeProtocolId"
             OnMutation="HandleMutation"
+            OnSetDefault="HandleDefaultChanged"
             OnError="HandleError"
             OnAddSection="HandleAddSectionRequested"
             OnToggleAllSections="HandleToggleAllSections" />
