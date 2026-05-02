@@ -50,6 +50,13 @@
                     <button type="button" class="btn btn-sm btn-outline-secondary format-btn" data-command="insertUnorderedList" title="Bullet list">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m-3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2m0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2"/></svg>
                     </button>
+                    @if (Model.DictationEnabled)
+                    {
+                        <button type="button" id="dictateBtn" class="btn btn-sm btn-outline-secondary format-btn dictation-btn" title="Dictate (speech-to-text)" aria-label="Toggle dictation">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5"/><path d="M10 8a2 2 0 1 1-4 0V3a2 2 0 1 1 4 0zM8 0a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V3a3 3 0 0 0-3-3"/></svg>
+                        </button>
+                        <span id="dictationStatus" class="dictation-status ms-2"></span>
+                    }
                 </div>
 
                 <div id="sleepNoteEditor"
@@ -205,6 +212,11 @@
 </div>
 
 @section Scripts {
+@if (Model.DictationEnabled)
+{
+<script src="~/lib/vosk-browser/vosk.js"></script>
+<script src="~/js/dictation.js"></script>
+}
 <script>
     (function() {
         const svgIcon = Object.freeze({
@@ -681,6 +693,92 @@
                 .replaceAll('>', '&gt;')
                 .replaceAll('"', '&quot;')
                 .replaceAll("'", '&#39;');
+        }
+        // --- Dictation wiring ---
+        const dictationEnabled = @Json.Serialize(Model.DictationEnabled);
+        if (dictationEnabled && typeof createDictationController === 'function') {
+            const dictateBtn = document.getElementById('dictateBtn');
+            const dictationStatusEl = document.getElementById('dictationStatus');
+            let savedRange = null;
+
+            function saveCursorPosition() {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+                    savedRange = sel.getRangeAt(0).cloneRange();
+                }
+            }
+
+            function restoreCursorPosition() {
+                if (savedRange) {
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(savedRange);
+                    editor.focus();
+                }
+            }
+
+            const dictation = createDictationController({
+                modelUrl: '/vosk-model/model.tar.gz',
+                workletUrl: '/js/vosk-recognizer-processor.js',
+                onResult: (text) => {
+                    restoreCursorPosition();
+                    insertTextAtCursor(text);
+                    saveCursorPosition();
+                },
+                onPartial: (text) => {
+                    if (dictationStatusEl) {
+                        dictationStatusEl.textContent = text || '';
+                    }
+                },
+                onStatusChange: (status) => {
+                    if (dictateBtn) {
+                        dictateBtn.classList.toggle('dictation-listening', status === 'listening');
+                        dictateBtn.classList.toggle('dictation-loading', status === 'loading');
+                        dictateBtn.disabled = status === 'loading';
+                    }
+                    if (dictationStatusEl) {
+                        switch (status) {
+                            case 'loading':
+                                dictationStatusEl.textContent = 'Loading speech model…';
+                                break;
+                            case 'ready':
+                                dictationStatusEl.textContent = '';
+                                break;
+                            case 'listening':
+                                dictationStatusEl.textContent = 'Listening…';
+                                break;
+                            case 'error':
+                                break;
+                            default:
+                                dictationStatusEl.textContent = '';
+                        }
+                    }
+                },
+                onError: (message) => {
+                    if (dictationStatusEl) {
+                        dictationStatusEl.textContent = message;
+                        dictationStatusEl.classList.add('text-danger');
+                        setTimeout(() => {
+                            dictationStatusEl.textContent = '';
+                            dictationStatusEl.classList.remove('text-danger');
+                        }, 5000);
+                    }
+                }
+            });
+
+            if (dictateBtn) {
+                dictateBtn.addEventListener('click', () => {
+                    if (dictation.isListening()) {
+                        dictation.stop();
+                    } else {
+                        saveCursorPosition();
+                        dictation.start();
+                    }
+                });
+            }
+
+            // Pre-load model in background
+            dictation.loadModel();
         }
     })();
 </script>

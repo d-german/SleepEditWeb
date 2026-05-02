@@ -1421,3 +1421,44 @@ a:hover {
 .protocol-editor-toolbar {
     gap: 0.2rem !important;
 }
+
+/* ── Dictation button & recording indicator ── */
+
+.dictation-btn {
+    position: relative;
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.dictation-btn.dictation-listening {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+    animation: dictation-pulse 1.4s ease-in-out infinite;
+}
+
+.dictation-btn.dictation-loading {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+@keyframes dictation-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.5); }
+    50%      { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+}
+
+.dictation-status {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--bs-secondary);
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+    display: inline-block;
+}
+
+.dictation-status.text-danger {
+    font-style: normal;
+    font-weight: 500;
+}

@@ -307,3 +307,7 @@ _tests/
 # LiteDB database files
 *.db
 **/Data/medications.db
+
+# Vosk speech model (downloaded at build time, ~40MB)
+SleepEditWeb/wwwroot/vosk-model/*.tar.gz
+SleepEditWeb/wwwroot/vosk-model/*.zip

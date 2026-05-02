@@ -10,6 +10,17 @@ RUN dotnet restore
 COPY . .
 RUN dotnet publish -c Release -o /app/publish
 
+# Download Vosk speech model and bake into published output
+RUN apt-get update && apt-get install -y --no-install-recommends curl unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app/publish/wwwroot/vosk-model \
+    && curl -sL https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip \
+       -o /tmp/vosk-model.zip \
+    && unzip -q /tmp/vosk-model.zip -d /tmp/vosk-model \
+    && tar -czf /app/publish/wwwroot/vosk-model/model.tar.gz \
+       -C /tmp/vosk-model/vosk-model-small-en-us-0.15 . \
+    && rm -rf /tmp/vosk-model /tmp/vosk-model.zip
+
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
