@@ -58,6 +58,8 @@ function createDictationController(options) {
     let mediaStream = null;
     /** @type {AudioWorkletNode|null} */
     let workletNode = null;
+    /** @type {MediaStreamAudioSourceNode|null} */
+    let mediaStreamSource = null;
 
     function transition(newState) {
         if (!VALID_TRANSITIONS[state]?.includes(newState)) {
@@ -154,8 +156,8 @@ function createDictationController(options) {
                 }
             };
 
-            const source = audioContext.createMediaStreamSource(mediaStream);
-            source.connect(workletNode);
+            mediaStreamSource = audioContext.createMediaStreamSource(mediaStream);
+            mediaStreamSource.connect(workletNode);
 
             transition('listening');
         } catch (err) {
@@ -171,6 +173,10 @@ function createDictationController(options) {
     }
 
     function cleanupAudio() {
+        if (mediaStreamSource) {
+            mediaStreamSource.disconnect();
+            mediaStreamSource = null;
+        }
         if (workletNode) {
             workletNode.disconnect();
             workletNode = null;
