@@ -87,11 +87,13 @@ function createDictationController(options) {
         if (!transition('loading')) return;
 
         try {
-            if (typeof Vosk === 'undefined') {
+            if (typeof Vosk === 'undefined' || !Vosk.createModel) {
                 throw new Error('Vosk library not loaded. Ensure vosk.js is included before dictation.js.');
             }
 
-            Vosk.setLogLevel(-1);
+            if (typeof Vosk.setLogLevel === 'function') {
+                Vosk.setLogLevel(-1);
+            }
             model = await Vosk.createModel(modelUrl);
 
             transition('ready');

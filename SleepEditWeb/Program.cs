@@ -87,7 +87,7 @@ public class Program
 			context.Response.Headers.Append("Cross-Origin-Embedder-Policy", "require-corp");
 			context.Response.Headers.Append("Content-Security-Policy",
 				"default-src 'self'; " +
-				"script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline'; " +
+				"script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline'; " +
 				"style-src 'self' 'unsafe-inline'; " +
 				"connect-src 'self' ws: wss:; " +
 				"img-src 'self' data:; " +
