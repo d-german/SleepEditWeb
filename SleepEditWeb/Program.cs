@@ -10,6 +10,7 @@ using SleepEditWeb.Services;
 using SleepEditWeb.Components;
 using SleepEditWeb.Infrastructure.SleepNote;
 using SleepEditWeb.Web.ProtocolEditor;
+using Microsoft.AspNetCore.StaticFiles;
 
 namespace SleepEditWeb;
 
@@ -78,6 +79,24 @@ public class Program
 
 		var app = builder.Build();
 
+		// Cross-Origin Isolation + CSP for WASM-based speech recognition (Vosk-Browser).
+		// COOP/COEP enable SharedArrayBuffer required by multi-threaded WASM.
+		app.Use(async (context, next) =>
+		{
+			context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin");
+			context.Response.Headers.Append("Cross-Origin-Embedder-Policy", "require-corp");
+			context.Response.Headers.Append("Content-Security-Policy",
+				"default-src 'self'; " +
+				"script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline'; " +
+				"style-src 'self' 'unsafe-inline'; " +
+				"connect-src 'self' ws: wss:; " +
+				"img-src 'self' data:; " +
+				"font-src 'self' data:; " +
+				"worker-src 'self' blob:; " +
+				"object-src 'none'");
+			await next(context);
+		});
+
 		if (!app.Environment.IsDevelopment())
 		{
 			app.UseExceptionHandler("/Home/Error");
@@ -87,7 +106,29 @@ public class Program
 		app.UseForwardedHeaders();
 		app.UseSession();
 		app.UseHttpsRedirection();
-		app.UseStaticFiles();
+		var mimeProvider = new FileExtensionContentTypeProvider();
+		mimeProvider.Mappings[".gz"] = "application/gzip";
+		mimeProvider.Mappings[".wasm"] = "application/wasm";
+		mimeProvider.Mappings[".onnx"] = "application/octet-stream";
+
+		app.UseStaticFiles(new StaticFileOptions
+		{
+			ContentTypeProvider = mimeProvider,
+			OnPrepareResponse = ctx =>
+			{
+				ctx.Context.Response.Headers.Append(
+					"Cross-Origin-Resource-Policy", "same-origin");
+
+				var path = ctx.Context.Request.Path.Value ?? string.Empty;
+				if (path.EndsWith(".gz", StringComparison.OrdinalIgnoreCase) ||
+					path.EndsWith(".wasm", StringComparison.OrdinalIgnoreCase) ||
+					path.EndsWith(".onnx", StringComparison.OrdinalIgnoreCase))
+				{
+					ctx.Context.Response.Headers["Cache-Control"] =
+						"public, max-age=604800, immutable";
+				}
+			}
+		});
 		app.UseRouting();
 		app.UseAuthorization();
 

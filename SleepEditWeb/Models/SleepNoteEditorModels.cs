@@ -46,6 +46,8 @@ public sealed class SleepNoteEditorViewModel
     public required IReadOnlyList<MedicationSelection> SelectedMedications { get; init; }
 
     public required IReadOnlyList<string> MedicationSuggestions { get; init; }
+
+    public bool DictationEnabled { get; init; }
 }
 
 public sealed class SleepNoteEditorFeatureOptions
@@ -53,4 +55,6 @@ public sealed class SleepNoteEditorFeatureOptions
     public const string SectionName = "Features";
 
     public bool SleepNoteEditorEnabled { get; init; } = true;
+
+    public bool DictationEnabled { get; init; } = true;
 }
