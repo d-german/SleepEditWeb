@@ -125,8 +125,6 @@ function createDictationController(options) {
             audioContext = new AudioContext();
             const sampleRate = audioContext.sampleRate;
 
-            const channel = new MessageChannel();
-
             recognizer = new model.KaldiRecognizer(sampleRate);
             recognizer.setWords(false);
 
@@ -147,9 +145,14 @@ function createDictationController(options) {
             await audioContext.audioWorklet.addModule(workletUrl);
 
             workletNode = new AudioWorkletNode(audioContext, 'vosk-recognizer-processor');
-            workletNode.port.postMessage({ type: 'setPort', port: channel.port1 }, [channel.port1]);
 
-            recognizer.connectAudioPort(channel.port2);
+            // Bridge audio from worklet to recognizer via main thread
+            workletNode.port.onmessage = (event) => {
+                if (event.data.type === 'audioData' && recognizer) {
+                    const float32 = new Float32Array(event.data.data);
+                    recognizer.acceptWaveformFloat(float32, sampleRate);
+                }
+            };
 
             const source = audioContext.createMediaStreamSource(mediaStream);
             source.connect(workletNode);
