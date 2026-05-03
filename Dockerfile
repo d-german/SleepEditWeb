@@ -31,15 +31,18 @@ RUN echo "=== Checking publish ===" && \
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
+# Install curl and unzip for runtime vosk model download
+RUN apt-get update && apt-get install -y --no-install-recommends curl unzip \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy published app
 COPY --from=build /publish .
 
-# Final verification
-RUN echo "=== Final check ===" && \
-    ls -la /app/Resources/ && \
-    head -3 /app/Resources/medlist.txt
+# Copy entrypoint script (downloads vosk model on first start if missing)
+COPY SleepEditWeb/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 ENV ASPNETCORE_URLS=http://+:8000
 EXPOSE 8000
 
-ENTRYPOINT ["dotnet", "SleepEditWeb.dll"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
