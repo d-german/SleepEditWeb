@@ -89,7 +89,7 @@ public class Program
 				"default-src 'self'; " +
 				"script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline'; " +
 				"style-src 'self' 'unsafe-inline'; " +
-				"connect-src 'self' https://alphacephei.com ws: wss:; " +
+				"connect-src 'self' data: ws: wss:; " +
 				"img-src 'self' data:; " +
 				"font-src 'self' data:; " +
 				"worker-src 'self' blob:; " +
