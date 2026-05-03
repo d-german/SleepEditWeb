@@ -84,12 +84,12 @@ public class Program
 		app.Use(async (context, next) =>
 		{
 			context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin");
-			context.Response.Headers.Append("Cross-Origin-Embedder-Policy", "require-corp");
+			context.Response.Headers.Append("Cross-Origin-Embedder-Policy", "credentialless");
 			context.Response.Headers.Append("Content-Security-Policy",
 				"default-src 'self'; " +
 				"script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline'; " +
 				"style-src 'self' 'unsafe-inline'; " +
-				"connect-src 'self' ws: wss:; " +
+				"connect-src 'self' https://alphacephei.com ws: wss:; " +
 				"img-src 'self' data:; " +
 				"font-src 'self' data:; " +
 				"worker-src 'self' blob:; " +
