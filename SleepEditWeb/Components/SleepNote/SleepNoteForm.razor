@@ -92,22 +92,6 @@
                         </div>
                     </details>
 
-                    @if (_arrhythmias.Count > 0)
-                    {
-                        <div class="arrhythmia-chips mt-2" aria-label="Selected arrhythmias">
-                            @foreach (var option in SelectedArrhythmias)
-                            {
-                                <span class="arrhythmia-chip">
-                                    @option.DisplayName
-                                    <button type="button"
-                                            class="arrhythmia-chip-remove"
-                                            aria-label="Remove @option.DisplayName"
-                                            @onclick="() => _arrhythmias.Remove(option.Id)">×</button>
-                                </span>
-                            }
-                        </div>
-                    }
-
                     <div class="arrhythmia-preview mt-2" aria-live="polite">
                         <span class="arrhythmia-preview-label">Note preview</span>
                         <span>@ArrhythmiaNarrativePreview</span>

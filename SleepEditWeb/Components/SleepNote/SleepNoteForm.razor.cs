@@ -61,9 +61,6 @@ public partial class SleepNoteForm : ComponentBase
     private bool ShowBipapPanel =>
         ShowTitrationControls && _titrationMode == TitrationMode.Bipap;
 
-    private IEnumerable<ArrhythmiaOption> SelectedArrhythmias =>
-        ArrhythmiaCatalog.Common.Where(option => _arrhythmias.Contains(option.Id));
-
     private string ArrhythmiaSelectionSummary =>
         _arrhythmias.Count == 0
             ? "Select arrhythmias"
