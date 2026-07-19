@@ -14,7 +14,7 @@ public static class SleepNoteNarrativeGenerator
         AppendRespiratoryInfo(parts, data.Events, data.StudyType);
         AppendCpapCriteria(parts, data.MiscOptions);
         AppendTreatmentInfo(parts, data);
-        AppendEventsAndArrhythmias(parts, data.Events);
+        AppendEventsAndArrhythmias(parts, data.Events, data.Arrhythmias);
         AppendPatientMachine(parts, data);
         AppendEffects(parts, data.Effects);
 
@@ -102,18 +102,35 @@ public static class SleepNoteNarrativeGenerator
         return string.Join("", parts);
     }
 
-    internal static string GenerateEventsAndArrhythmias(IReadOnlySet<string> events)
+    internal static string GenerateEventsAndArrhythmias(
+        IReadOnlySet<string> events,
+        IReadOnlySet<string> arrhythmias)
     {
-        var arr = events.Contains("Arrhythmias");
         var plm = events.Contains("PLMs");
+        var hasArrhythmias = arrhythmias.Count > 0;
 
-        return (arr, plm) switch
+        return (hasArrhythmias, plm) switch
         {
-            (true, true) => " Arrhythmias and PLM's were noted.",
-            (true, false) => " Arrhythmias were noted. No PLM's were noted.",
-            (false, true) => " PLM's were noted. No arrhythmias were noted.",
-            (false, false) => " Neither arrhythmias nor PLM's were noted.",
+            (true, true) => $"{GenerateArrhythmiaSentence(arrhythmias)} PLMs were also noted.",
+            (true, false) => $"{GenerateArrhythmiaSentence(arrhythmias)} No PLMs were noted.",
+            (false, true) => " PLMs were noted. No arrhythmias were noted.",
+            (false, false) => " Neither arrhythmias nor PLMs were noted.",
         };
+    }
+
+    internal static string GenerateArrhythmiaSentence(IReadOnlySet<string> arrhythmias)
+    {
+        var phrases = ArrhythmiaCatalog.Common
+            .Where(option => arrhythmias.Contains(option.Id))
+            .Select(option => option.NarrativePhrase)
+            .ToList();
+
+        if (phrases.Count == 0)
+            return " No arrhythmias were noted.";
+
+        var list = FormatNaturalLanguageList(phrases);
+        var sentenceStart = char.ToUpperInvariant(list[0]) + list[1..];
+        return $" {sentenceStart} were noted.";
     }
 
     internal static string GenerateEffects(IReadOnlySet<string> effects)
@@ -198,9 +215,12 @@ public static class SleepNoteNarrativeGenerator
             parts.Add(text);
     }
 
-    private static void AppendEventsAndArrhythmias(List<string> parts, IReadOnlySet<string> events)
+    private static void AppendEventsAndArrhythmias(
+        List<string> parts,
+        IReadOnlySet<string> events,
+        IReadOnlySet<string> arrhythmias)
     {
-        parts.Add(GenerateEventsAndArrhythmias(events));
+        parts.Add(GenerateEventsAndArrhythmias(events, arrhythmias));
     }
 
     private static void AppendPatientMachine(List<string> parts, SleepNoteFormData data)
@@ -215,5 +235,16 @@ public static class SleepNoteNarrativeGenerator
         var text = GenerateEffects(effects);
         if (!string.IsNullOrEmpty(text))
             parts.Add(text);
+    }
+
+    private static string FormatNaturalLanguageList(IReadOnlyList<string> items)
+    {
+        return items.Count switch
+        {
+            0 => string.Empty,
+            1 => items[0],
+            2 => $"{items[0]} and {items[1]}",
+            _ => $"{string.Join(", ", items.Take(items.Count - 1))}, and {items[^1]}"
+        };
     }
 }

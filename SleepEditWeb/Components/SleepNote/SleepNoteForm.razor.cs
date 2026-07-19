@@ -24,6 +24,7 @@ public partial class SleepNoteForm : ComponentBase
     private readonly HashSet<string> _bodyPositions = [];
     private readonly HashSet<string> _snoringLevels = [];
     private readonly HashSet<string> _events = [];
+    private readonly HashSet<string> _arrhythmias = [];
     private readonly HashSet<string> _effects = [];
     private readonly HashSet<string> _miscOptions = [];
 
@@ -59,6 +60,17 @@ public partial class SleepNoteForm : ComponentBase
 
     private bool ShowBipapPanel =>
         ShowTitrationControls && _titrationMode == TitrationMode.Bipap;
+
+    private IEnumerable<ArrhythmiaOption> SelectedArrhythmias =>
+        ArrhythmiaCatalog.Common.Where(option => _arrhythmias.Contains(option.Id));
+
+    private string ArrhythmiaSelectionSummary =>
+        _arrhythmias.Count == 0
+            ? "Select arrhythmias"
+            : $"{_arrhythmias.Count} selected";
+
+    private string ArrhythmiaNarrativePreview =>
+        SleepNoteNarrativeGenerator.GenerateArrhythmiaSentence(_arrhythmias).Trim();
 
     protected override void OnInitialized()
     {
@@ -135,6 +147,7 @@ public partial class SleepNoteForm : ComponentBase
             BodyPositions = new HashSet<string>(_bodyPositions),
             SnoringLevels = new HashSet<string>(_snoringLevels),
             Events = new HashSet<string>(_events),
+            Arrhythmias = new HashSet<string>(_arrhythmias),
             Effects = new HashSet<string>(_effects),
             MiscOptions = new HashSet<string>(_miscOptions),
             Pressures = new PressureSettings
@@ -208,6 +221,7 @@ public partial class SleepNoteForm : ComponentBase
         _bodyPositions.Clear();
         _snoringLevels.Clear();
         _events.Clear();
+        _arrhythmias.Clear();
         _effects.Clear();
         _miscOptions.Clear();
         _initialCpap = _finalCpap = 4;

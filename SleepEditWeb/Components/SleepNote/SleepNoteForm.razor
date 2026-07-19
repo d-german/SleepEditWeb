@@ -53,7 +53,7 @@
 
             <fieldset class="border rounded p-2 mb-3">
                 <legend class="w-auto px-2 fs-6 fw-semibold">Events</legend>
-                @foreach (var (key, label) in new[] { ("RespiratoryEvents", "Respiratory Events"), ("PLMs", "PLM's"), ("Arrhythmias", "Arrhythmias") })
+                @foreach (var (key, label) in new[] { ("RespiratoryEvents", "Respiratory Events"), ("PLMs", "PLMs") })
                 {
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="evt_@key"
@@ -62,6 +62,57 @@
                         <label class="form-check-label" for="evt_@key">@label</label>
                     </div>
                 }
+
+                <div class="arrhythmia-control mt-3">
+                    <label class="form-label fw-semibold mb-1" id="arrhythmiaPickerLabel">
+                        Arrhythmias
+                    </label>
+                    <details class="arrhythmia-picker">
+                        <summary class="arrhythmia-picker-summary"
+                                 aria-labelledby="arrhythmiaPickerLabel">
+                            <span>@ArrhythmiaSelectionSummary</span>
+                            <span class="arrhythmia-picker-count" aria-hidden="true">@_arrhythmias.Count</span>
+                        </summary>
+                        <div class="arrhythmia-picker-menu"
+                             role="group"
+                             aria-labelledby="arrhythmiaPickerLabel">
+                            @foreach (var option in ArrhythmiaCatalog.Common)
+                            {
+                                <div class="form-check arrhythmia-option">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="arrhythmia_@option.Id"
+                                           checked="@_arrhythmias.Contains(option.Id)"
+                                           @onchange="e => ToggleSetItem(_arrhythmias, option.Id, (bool)e.Value!)" />
+                                    <label class="form-check-label" for="arrhythmia_@option.Id">
+                                        @option.DisplayName
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    </details>
+
+                    @if (_arrhythmias.Count > 0)
+                    {
+                        <div class="arrhythmia-chips mt-2" aria-label="Selected arrhythmias">
+                            @foreach (var option in SelectedArrhythmias)
+                            {
+                                <span class="arrhythmia-chip">
+                                    @option.DisplayName
+                                    <button type="button"
+                                            class="arrhythmia-chip-remove"
+                                            aria-label="Remove @option.DisplayName"
+                                            @onclick="() => _arrhythmias.Remove(option.Id)">×</button>
+                                </span>
+                            }
+                        </div>
+                    }
+
+                    <div class="arrhythmia-preview mt-2" aria-live="polite">
+                        <span class="arrhythmia-preview-label">Note preview</span>
+                        <span>@ArrhythmiaNarrativePreview</span>
+                    </div>
+                </div>
             </fieldset>
 
             <fieldset class="border rounded p-2 mb-3">

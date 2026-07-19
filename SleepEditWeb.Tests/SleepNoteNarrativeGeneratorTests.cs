@@ -155,31 +155,75 @@ public sealed class SleepNoteNarrativeGeneratorTests
     // ── Events and Arrhythmias ─────────────────────────────────────────
 
     [Test]
-    public void GenerateEventsAndArrhythmias_Both_ReturnsCombined()
+    public void GenerateEventsAndArrhythmias_WithArrhythmiaAndPlms_ReturnsTwoGrammaticalSentences()
     {
-        var result = SleepNoteNarrativeGenerator.GenerateEventsAndArrhythmias(Set("Arrhythmias", "PLMs"));
-        Assert.That(result, Is.EqualTo(" Arrhythmias and PLM's were noted."));
+        var result = SleepNoteNarrativeGenerator.GenerateEventsAndArrhythmias(
+            Set("PLMs"),
+            Set("pvc"));
+
+        Assert.That(result, Is.EqualTo(
+            " Premature ventricular contractions (PVCs) were noted. PLMs were also noted."));
     }
 
     [Test]
-    public void GenerateEventsAndArrhythmias_ArrhythmiasOnly_ReturnsArrhythmias()
+    public void GenerateEventsAndArrhythmias_WithArrhythmiaOnly_ReportsNoPlms()
     {
-        var result = SleepNoteNarrativeGenerator.GenerateEventsAndArrhythmias(Set("Arrhythmias"));
-        Assert.That(result, Is.EqualTo(" Arrhythmias were noted. No PLM's were noted."));
+        var result = SleepNoteNarrativeGenerator.GenerateEventsAndArrhythmias(
+            Set(),
+            Set("pvc"));
+
+        Assert.That(result, Is.EqualTo(
+            " Premature ventricular contractions (PVCs) were noted. No PLMs were noted."));
     }
 
     [Test]
     public void GenerateEventsAndArrhythmias_PlmsOnly_ReturnsPlms()
     {
-        var result = SleepNoteNarrativeGenerator.GenerateEventsAndArrhythmias(Set("PLMs"));
-        Assert.That(result, Is.EqualTo(" PLM's were noted. No arrhythmias were noted."));
+        var result = SleepNoteNarrativeGenerator.GenerateEventsAndArrhythmias(Set("PLMs"), Set());
+        Assert.That(result, Is.EqualTo(" PLMs were noted. No arrhythmias were noted."));
     }
 
     [Test]
     public void GenerateEventsAndArrhythmias_Neither_ReturnsNeither()
     {
-        var result = SleepNoteNarrativeGenerator.GenerateEventsAndArrhythmias(Set());
-        Assert.That(result, Is.EqualTo(" Neither arrhythmias nor PLM's were noted."));
+        var result = SleepNoteNarrativeGenerator.GenerateEventsAndArrhythmias(Set(), Set());
+        Assert.That(result, Is.EqualTo(" Neither arrhythmias nor PLMs were noted."));
+    }
+
+    [Test]
+    public void GenerateArrhythmiaSentence_OneSelection_ReturnsSingleFinding()
+    {
+        var result = SleepNoteNarrativeGenerator.GenerateArrhythmiaSentence(Set("pvc"));
+
+        Assert.That(result, Is.EqualTo(
+            " Premature ventricular contractions (PVCs) were noted."));
+    }
+
+    [Test]
+    public void GenerateArrhythmiaSentence_TwoSelections_UsesAnd()
+    {
+        var result = SleepNoteNarrativeGenerator.GenerateArrhythmiaSentence(Set("pac", "pvc"));
+
+        Assert.That(result, Is.EqualTo(
+            " Premature atrial contractions (PACs) and premature ventricular contractions (PVCs) were noted."));
+    }
+
+    [Test]
+    public void GenerateArrhythmiaSentence_ThreeSelections_UsesOxfordComma()
+    {
+        var result = SleepNoteNarrativeGenerator.GenerateArrhythmiaSentence(
+            Set("atrial-fibrillation", "pvc", "sinus-bradycardia"));
+
+        Assert.That(result, Is.EqualTo(
+            " Premature ventricular contractions (PVCs), sinus bradycardia, and atrial fibrillation (AFib) were noted."));
+    }
+
+    [Test]
+    public void GenerateArrhythmiaSentence_UnknownSelection_IgnoresUnsupportedValue()
+    {
+        var result = SleepNoteNarrativeGenerator.GenerateArrhythmiaSentence(Set("unsupported"));
+
+        Assert.That(result, Is.EqualTo(" No arrhythmias were noted."));
     }
 
     // ── Effects ────────────────────────────────────────────────────────
@@ -342,7 +386,7 @@ public sealed class SleepNoteNarrativeGeneratorTests
 
         Assert.That(result, Does.Contain("laterally and supine"));
         Assert.That(result, Does.Contain("Mild snoring was heard"));
-        Assert.That(result, Does.Contain("PLM's were noted"));
+        Assert.That(result, Does.Contain("PLMs were noted"));
         Assert.That(result, Does.Contain("position effect is noted"));
     }
 
@@ -400,6 +444,7 @@ public sealed class SleepNoteNarrativeGeneratorTests
             BodyPositions = Set(),
             SnoringLevels = Set(),
             Events = Set(),
+            Arrhythmias = Set(),
             Effects = Set(),
             MiscOptions = Set()
         };

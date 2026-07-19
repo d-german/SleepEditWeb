@@ -14,6 +14,23 @@ public enum TitrationMode
     Bipap
 }
 
+public sealed record ArrhythmiaOption(
+    string Id,
+    string DisplayName,
+    string NarrativePhrase);
+
+public static class ArrhythmiaCatalog
+{
+    public static IReadOnlyList<ArrhythmiaOption> Common { get; } =
+    [
+        new("pac", "Premature atrial contractions (PACs)", "premature atrial contractions (PACs)"),
+        new("pvc", "Premature ventricular contractions (PVCs)", "premature ventricular contractions (PVCs)"),
+        new("sinus-bradycardia", "Sinus bradycardia", "sinus bradycardia"),
+        new("sinus-tachycardia", "Sinus tachycardia", "sinus tachycardia"),
+        new("atrial-fibrillation", "Atrial fibrillation (AFib)", "atrial fibrillation (AFib)")
+    ];
+}
+
 public sealed record PressureSettings
 {
     public int? InitialCpap { get; init; }
@@ -32,6 +49,7 @@ public sealed record SleepNoteFormData
     public IReadOnlySet<string> BodyPositions { get; init; } = new HashSet<string>();
     public IReadOnlySet<string> SnoringLevels { get; init; } = new HashSet<string>();
     public IReadOnlySet<string> Events { get; init; } = new HashSet<string>();
+    public IReadOnlySet<string> Arrhythmias { get; init; } = new HashSet<string>();
     public IReadOnlySet<string> MiscOptions { get; init; } = new HashSet<string>();
     public IReadOnlySet<string> Effects { get; init; } = new HashSet<string>();
 
