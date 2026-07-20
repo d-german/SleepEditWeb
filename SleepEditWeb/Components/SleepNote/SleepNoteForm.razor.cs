@@ -18,7 +18,7 @@ public partial class SleepNoteForm : ComponentBase
 
     // Form state
     private StudyType _studyType = StudyType.Polysomnogram;
-    private TitrationMode _titrationMode = TitrationMode.None;
+    private readonly List<TherapyStageState> _therapyStages = [];
 
     // Checkbox groups
     private readonly HashSet<string> _bodyPositions = [];
@@ -28,13 +28,26 @@ public partial class SleepNoteForm : ComponentBase
     private readonly HashSet<string> _effects = [];
     private readonly HashSet<string> _miscOptions = [];
 
-    // Pressure settings
-    private int _initialCpap = 4;
-    private int _finalCpap = 4;
-    private int _initialIpap = 4;
-    private int _initialEpap = 4;
-    private int _finalIpap = 4;
-    private int _finalEpap = 4;
+    private static readonly IReadOnlyList<PapTherapyMode> StartingTherapyModes =
+    [
+        PapTherapyMode.Cpap,
+        PapTherapyMode.Bipap,
+        PapTherapyMode.BipapSt
+    ];
+
+    private static readonly IReadOnlyList<int> BipapIpapValues =
+        Enumerable.Range(8, 23).ToArray();
+
+    private static readonly IReadOnlyList<int> BipapEpapValues =
+        Enumerable.Range(4, 23).ToArray();
+
+    private static readonly IReadOnlyList<string> TransitionReasons =
+    [
+        "Persistent obstructive events",
+        "Persistent central apneas",
+        "CPAP intolerance",
+        "Other"
+    ];
 
     // Treatment accessories
     private string _maskType = string.Empty;
@@ -54,12 +67,6 @@ public partial class SleepNoteForm : ComponentBase
     // Computed properties for conditional visibility
     private bool ShowTitrationControls =>
         _studyType is StudyType.CpapBipapTitration or StudyType.SplitNight;
-
-    private bool ShowCpapPanel =>
-        ShowTitrationControls && _titrationMode == TitrationMode.Cpap;
-
-    private bool ShowBipapPanel =>
-        ShowTitrationControls && _titrationMode == TitrationMode.Bipap;
 
     private string ArrhythmiaSelectionSummary =>
         _arrhythmias.Count == 0
@@ -95,15 +102,100 @@ public partial class SleepNoteForm : ComponentBase
     {
         _studyType = studyType;
         if (!ShowTitrationControls)
-            _titrationMode = TitrationMode.None;
-        else if (_titrationMode == TitrationMode.None)
-            _titrationMode = TitrationMode.Cpap;
+        {
+            _therapyStages.Clear();
+        }
+        else if (_therapyStages.Count == 0)
+        {
+            _therapyStages.Add(CreateTherapyStageState(PapTherapyMode.Cpap));
+        }
     }
 
-    private void OnTitrationModeChanged(TitrationMode mode)
+    private void OnTherapyModeChanged(int stageIndex, PapTherapyMode mode)
     {
-        _titrationMode = mode;
+        var current = _therapyStages[stageIndex];
+        if (current.Mode == mode)
+            return;
+
+        var replacement = CreateTherapyStageState(mode);
+        replacement.TransitionReason = current.TransitionReason;
+        replacement.OtherTransitionReason = current.OtherTransitionReason;
+        _therapyStages[stageIndex] = replacement;
+
+        if (_therapyStages.Count > stageIndex + 1)
+            _therapyStages.RemoveRange(stageIndex + 1, _therapyStages.Count - stageIndex - 1);
     }
+
+    private void SetTransitionAfter(int stageIndex, bool enabled)
+    {
+        if (!enabled)
+        {
+            if (_therapyStages.Count > stageIndex + 1)
+                _therapyStages.RemoveRange(stageIndex + 1, _therapyStages.Count - stageIndex - 1);
+
+            return;
+        }
+
+        if (_therapyStages.Count > stageIndex + 1)
+            return;
+
+        var nextModes = GetAllowedNextModes(_therapyStages[stageIndex].Mode);
+        if (nextModes.Count > 0)
+            _therapyStages.Add(CreateTherapyStageState(nextModes[0]));
+    }
+
+    private IReadOnlyList<PapTherapyMode> GetAvailableModesForStage(int stageIndex) =>
+        stageIndex == 0
+            ? StartingTherapyModes
+            : GetAllowedNextModes(_therapyStages[stageIndex - 1].Mode);
+
+    private static IReadOnlyList<PapTherapyMode> GetAllowedNextModes(PapTherapyMode mode) =>
+        mode switch
+        {
+            PapTherapyMode.Cpap => [PapTherapyMode.Bipap],
+            PapTherapyMode.Bipap => [PapTherapyMode.BipapSt],
+            _ => []
+        };
+
+    private static string GetTherapyModeLabel(PapTherapyMode mode) =>
+        mode switch
+        {
+            PapTherapyMode.Cpap => "CPAP",
+            PapTherapyMode.Bipap => "BIPAP",
+            PapTherapyMode.BipapSt => "BIPAP ST",
+            _ => mode.ToString()
+        };
+
+    private static bool HasLowPressureSupport(TherapyStageState stage) =>
+        stage.InitialIpap - stage.InitialEpap < 4 ||
+        stage.FinalIpap - stage.FinalEpap < 4;
+
+    private static string GetLowPressureSupportMessage(TherapyStageState stage)
+    {
+        var initialIsLow = stage.InitialIpap - stage.InitialEpap < 4;
+        var finalIsLow = stage.FinalIpap - stage.FinalEpap < 4;
+
+        return (initialIsLow, finalIsLow) switch
+        {
+            (true, true) => "The initial and final IPAP/EPAP differences are below 4 cm H2O.",
+            (true, false) => "The initial IPAP/EPAP difference is below 4 cm H2O.",
+            (false, true) => "The final IPAP/EPAP difference is below 4 cm H2O.",
+            _ => string.Empty
+        };
+    }
+
+    private static TherapyStageState CreateTherapyStageState(PapTherapyMode mode) =>
+        new()
+        {
+            Mode = mode,
+            InitialCpap = 4,
+            FinalCpap = 4,
+            InitialIpap = 8,
+            InitialEpap = 4,
+            FinalIpap = 8,
+            FinalEpap = 4,
+            BackupRate = 10
+        };
 
     private static void ToggleSetItem(HashSet<string> set, string item, bool isChecked)
     {
@@ -140,22 +232,29 @@ public partial class SleepNoteForm : ComponentBase
         new()
         {
             StudyType = _studyType,
-            TitrationMode = _titrationMode,
+            TherapyCourse = ShowTitrationControls
+                ? _therapyStages.Select((stage, index) => new PapTherapyStage
+                {
+                    Mode = stage.Mode,
+                    Pressures = new PressureSettings
+                    {
+                        InitialCpap = stage.Mode == PapTherapyMode.Cpap ? stage.InitialCpap : null,
+                        FinalCpap = stage.Mode == PapTherapyMode.Cpap ? stage.FinalCpap : null,
+                        InitialIpap = stage.Mode != PapTherapyMode.Cpap ? stage.InitialIpap : null,
+                        InitialEpap = stage.Mode != PapTherapyMode.Cpap ? stage.InitialEpap : null,
+                        FinalIpap = stage.Mode != PapTherapyMode.Cpap ? stage.FinalIpap : null,
+                        FinalEpap = stage.Mode != PapTherapyMode.Cpap ? stage.FinalEpap : null
+                    },
+                    BackupRate = stage.Mode == PapTherapyMode.BipapSt ? stage.BackupRate : null,
+                    TransitionReason = index == 0 ? null : ResolveTransitionReason(stage)
+                }).ToList()
+                : [],
             BodyPositions = new HashSet<string>(_bodyPositions),
             SnoringLevels = new HashSet<string>(_snoringLevels),
             Events = new HashSet<string>(_events),
             Arrhythmias = new HashSet<string>(_arrhythmias),
             Effects = new HashSet<string>(_effects),
             MiscOptions = new HashSet<string>(_miscOptions),
-            Pressures = new PressureSettings
-            {
-                InitialCpap = _initialCpap,
-                FinalCpap = _finalCpap,
-                InitialIpap = _initialIpap,
-                InitialEpap = _initialEpap,
-                FinalIpap = _finalIpap,
-                FinalEpap = _finalEpap
-            },
             MaskType = _maskType,
             MaskSize = _maskSize,
             ChinStrap = _chinStrap,
@@ -164,6 +263,18 @@ public partial class SleepNoteForm : ComponentBase
             PressureVerifiedAt = _pressureVerifiedAt,
             PressureChangedTo = _pressureChangedTo
         };
+
+    private static string? ResolveTransitionReason(TherapyStageState stage)
+    {
+        if (stage.TransitionReason == "Other")
+            return string.IsNullOrWhiteSpace(stage.OtherTransitionReason)
+                ? null
+                : stage.OtherTransitionReason.Trim();
+
+        return string.IsNullOrWhiteSpace(stage.TransitionReason)
+            ? null
+            : stage.TransitionReason;
+    }
 
     private async Task CopyToClipboard()
     {
@@ -214,15 +325,13 @@ public partial class SleepNoteForm : ComponentBase
     private void ResetForm()
     {
         _studyType = StudyType.Polysomnogram;
-        _titrationMode = TitrationMode.None;
+        _therapyStages.Clear();
         _bodyPositions.Clear();
         _snoringLevels.Clear();
         _events.Clear();
         _arrhythmias.Clear();
         _effects.Clear();
         _miscOptions.Clear();
-        _initialCpap = _finalCpap = 4;
-        _initialIpap = _initialEpap = _finalIpap = _finalEpap = 4;
         _maskType = _config.MaskTypes.Count > 0 ? _config.MaskTypes[0] : string.Empty;
         _maskSize = _config.MaskSizes.Count > 0 ? _config.MaskSizes[0] : string.Empty;
         _chinStrap = false;
@@ -270,5 +379,19 @@ public partial class SleepNoteForm : ComponentBase
         SleepNoteService.ResetConfigToDefaults();
         LoadConfiguration();
         _statusMessage = "Configuration reset to defaults.";
+    }
+
+    private sealed class TherapyStageState
+    {
+        public PapTherapyMode Mode { get; set; }
+        public int InitialCpap { get; set; }
+        public int FinalCpap { get; set; }
+        public int InitialIpap { get; set; }
+        public int InitialEpap { get; set; }
+        public int FinalIpap { get; set; }
+        public int FinalEpap { get; set; }
+        public int BackupRate { get; set; }
+        public string TransitionReason { get; set; } = string.Empty;
+        public string OtherTransitionReason { get; set; } = string.Empty;
     }
 }

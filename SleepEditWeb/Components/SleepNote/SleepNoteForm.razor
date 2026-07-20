@@ -134,71 +134,185 @@
         <div class="col-lg-6">
             @if (ShowTitrationControls)
             {
-                    <fieldset class="border rounded p-2 mb-3">
-                    <legend class="w-auto px-2 fs-6 fw-semibold">CPAP / BIPAP Info</legend>
+                <fieldset class="border rounded p-2 mb-3">
+                    <legend class="w-auto px-2 fs-6 fw-semibold">PAP Therapy Course</legend>
 
-                    <div class="d-flex gap-3 mb-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" id="modeCpap"
-                                   checked="@(_titrationMode == TitrationMode.Cpap)"
-                                   @onchange="() => OnTitrationModeChanged(TitrationMode.Cpap)" />
-                            <label class="form-check-label" for="modeCpap">CPAP</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" id="modeBipap"
-                                   checked="@(_titrationMode == TitrationMode.Bipap)"
-                                   @onchange="() => OnTitrationModeChanged(TitrationMode.Bipap)" />
-                            <label class="form-check-label" for="modeBipap">BIPAP</label>
-                        </div>
-                    </div>
-
-                    @if (ShowCpapPanel)
+                    @for (var i = 0; i < _therapyStages.Count; i++)
                     {
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label small">Initial CPAP</label>
-                                <select class="form-select form-select-sm" @bind="_initialCpap">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
+                        var stageIndex = i;
+                        var stage = _therapyStages[stageIndex];
+
+                        <section class="therapy-stage @(stageIndex > 0 ? "therapy-stage-transition" : null)">
+                            <div class="therapy-stage-heading">
+                                <span>@(stageIndex == 0 ? "Therapy started with" : "Changed to")</span>
+                                <span class="badge bg-secondary">Stage @(stageIndex + 1)</span>
                             </div>
-                            <div class="col-6">
-                                <label class="form-label small">Final CPAP</label>
-                                <select class="form-select form-select-sm" @bind="_finalCpap">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
+
+                            <div class="d-flex flex-wrap gap-3 mb-2">
+                                @foreach (var mode in GetAvailableModesForStage(stageIndex))
+                                {
+                                    var modeId = $"therapyMode_{stageIndex}_{mode}";
+                                    <div class="form-check">
+                                        <input class="form-check-input"
+                                               type="radio"
+                                               id="@modeId"
+                                               name="@($"therapyMode_{stageIndex}")"
+                                               checked="@(stage.Mode == mode)"
+                                               @onchange="() => OnTherapyModeChanged(stageIndex, mode)" />
+                                        <label class="form-check-label" for="@modeId">@GetTherapyModeLabel(mode)</label>
+                                    </div>
+                                }
                             </div>
-                        </div>
+
+                            @if (stageIndex > 0)
+                            {
+                                <div class="mb-2">
+                                    <label class="form-label small" for="@($"transitionReason_{stageIndex}")">
+                                        Reason for modality change <span class="text-muted">(optional)</span>
+                                    </label>
+                                    <select class="form-select form-select-sm"
+                                            id="@($"transitionReason_{stageIndex}")"
+                                            @bind="stage.TransitionReason">
+                                        <option value="">Select a reason</option>
+                                        @foreach (var reason in TransitionReasons)
+                                        {
+                                            <option value="@reason">@reason</option>
+                                        }
+                                    </select>
+                                </div>
+
+                                @if (stage.TransitionReason == "Other")
+                                {
+                                    <div class="mb-2">
+                                        <label class="form-label small" for="@($"transitionReasonOther_{stageIndex}")">
+                                            Other reason
+                                        </label>
+                                        <input class="form-control form-control-sm"
+                                               id="@($"transitionReasonOther_{stageIndex}")"
+                                               type="text"
+                                               @bind="stage.OtherTransitionReason" />
+                                    </div>
+                                }
+                            }
+
+                            @if (stage.Mode == PapTherapyMode.Cpap)
+                            {
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label small">Initial CPAP</label>
+                                        <select class="form-select form-select-sm" @bind="stage.InitialCpap">
+                                            @foreach (var p in _config.PressureValues)
+                                            {
+                                                <option value="@p">@p</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">Final CPAP</label>
+                                        <select class="form-select form-select-sm" @bind="stage.FinalCpap">
+                                            @foreach (var p in _config.PressureValues)
+                                            {
+                                                <option value="@p">@p</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label small" for="@($"initialIpap_{stageIndex}")">Initial IPAP</label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"initialIpap_{stageIndex}")"
+                                                @bind="stage.InitialIpap">
+                                            @foreach (var p in BipapIpapValues)
+                                            {
+                                                <option value="@p">@p</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label small" for="@($"initialEpap_{stageIndex}")">Initial EPAP</label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"initialEpap_{stageIndex}")"
+                                                @bind="stage.InitialEpap">
+                                            @foreach (var p in BipapEpapValues)
+                                            {
+                                                <option value="@p">@p</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label small" for="@($"finalIpap_{stageIndex}")">Final IPAP</label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"finalIpap_{stageIndex}")"
+                                                @bind="stage.FinalIpap">
+                                            @foreach (var p in BipapIpapValues)
+                                            {
+                                                <option value="@p">@p</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-6 col-md-3">
+                                        <label class="form-label small" for="@($"finalEpap_{stageIndex}")">Final EPAP</label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"finalEpap_{stageIndex}")"
+                                                @bind="stage.FinalEpap">
+                                            @foreach (var p in BipapEpapValues)
+                                            {
+                                                <option value="@p">@p</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+
+                                @if (HasLowPressureSupport(stage))
+                                {
+                                    <div class="alert alert-warning px-3 py-2 mb-2 small" role="status">
+                                        Review pressure support: @GetLowPressureSupportMessage(stage)
+                                        Values remain exactly as selected.
+                                    </div>
+                                }
+
+                                @if (stage.Mode == PapTherapyMode.BipapSt)
+                                {
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label small" for="@($"backupRate_{stageIndex}")">
+                                                Backup rate
+                                            </label>
+                                            <div class="input-group input-group-sm">
+                                                <input class="form-control"
+                                                       id="@($"backupRate_{stageIndex}")"
+                                                       type="number"
+                                                       min="1"
+                                                       @bind="stage.BackupRate" />
+                                                <span class="input-group-text">bpm</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </section>
+
+                        @if (GetAllowedNextModes(stage.Mode).Count > 0)
+                        {
+                            var hasFollowingStage = _therapyStages.Count > stageIndex + 1;
+                            <div class="form-check therapy-transition-toggle mb-3">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="@($"transitionAfter_{stageIndex}")"
+                                       checked="@hasFollowingStage"
+                                       @onchange="e => SetTransitionAfter(stageIndex, (bool)e.Value!)" />
+                                <label class="form-check-label" for="@($"transitionAfter_{stageIndex}")">
+                                    @(stageIndex == 0 ? "Therapy changed during the study" : "Therapy changed again")
+                                </label>
+                            </div>
+                        }
                     }
 
-                    @if (ShowBipapPanel)
-                    {
-                        <div class="row g-2 mb-2">
-                            <div class="col-3">
-                                <label class="form-label small">Init IPAP</label>
-                                <select class="form-select form-select-sm" @bind="_initialIpap">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
-                            </div>
-                            <div class="col-3">
-                                <label class="form-label small">Init EPAP</label>
-                                <select class="form-select form-select-sm" @bind="_initialEpap">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
-                            </div>
-                            <div class="col-3">
-                                <label class="form-label small">Final IPAP</label>
-                                <select class="form-select form-select-sm" @bind="_finalIpap">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
-                            </div>
-                            <div class="col-3">
-                                <label class="form-label small">Final EPAP</label>
-                                <select class="form-select form-select-sm" @bind="_finalEpap">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
-                            </div>
-                        </div>
-                    }
+                    <hr class="my-3" />
 
                     <div class="row g-2 mb-2">
                         <div class="col-6">
