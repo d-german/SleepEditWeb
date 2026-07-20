@@ -76,18 +76,17 @@ public static class SleepNoteNarrativeGenerator
 
     internal static string GenerateTreatmentInfo(SleepNoteFormData data)
     {
-        if (data.TitrationMode != TitrationMode.Cpap && data.TitrationMode != TitrationMode.Bipap)
+        if (data.TherapyCourse.Count == 0)
             return string.Empty;
 
         var parts = new List<string>();
 
-        if (data.TitrationMode == TitrationMode.Cpap)
+        for (var index = 0; index < data.TherapyCourse.Count; index++)
         {
-            parts.Add($" CPAP was initiated at {data.Pressures?.InitialCpap} cm H2O and was titrated to {data.Pressures?.FinalCpap} cm H2O.");
-        }
-        else
-        {
-            parts.Add($" BIPAP was initiated at {data.Pressures?.InitialIpap}/{data.Pressures?.InitialEpap} cm H2O and was increased to {data.Pressures?.FinalIpap}/{data.Pressures?.FinalEpap} cm H2O.");
+            var stage = data.TherapyCourse[index];
+            parts.Add(index == 0
+                ? GenerateInitialTherapyStage(stage)
+                : GenerateTherapyTransition(stage));
         }
 
         if (!string.IsNullOrEmpty(data.MaskType))
@@ -100,6 +99,64 @@ public static class SleepNoteNarrativeGenerator
             parts.Add(" Heated humidity was used.");
 
         return string.Join("", parts);
+    }
+
+    private static string GenerateInitialTherapyStage(PapTherapyStage stage) =>
+        stage.Mode switch
+        {
+            PapTherapyMode.Cpap =>
+                $" CPAP was initiated at {stage.Pressures.InitialCpap} cm H2O and was titrated to {stage.Pressures.FinalCpap} cm H2O.",
+            PapTherapyMode.Bipap =>
+                $" BIPAP was initiated at {stage.Pressures.InitialIpap}/{stage.Pressures.InitialEpap} cm H2O and was titrated to {stage.Pressures.FinalIpap}/{stage.Pressures.FinalEpap} cm H2O.",
+            PapTherapyMode.BipapSt =>
+                $" BIPAP ST was initiated at {stage.Pressures.InitialIpap}/{stage.Pressures.InitialEpap} cm H2O{GenerateBackupRatePhrase(stage.BackupRate)} and was titrated to {stage.Pressures.FinalIpap}/{stage.Pressures.FinalEpap} cm H2O.",
+            _ => string.Empty
+        };
+
+    private static string GenerateTherapyTransition(PapTherapyStage stage)
+    {
+        var reason = string.IsNullOrWhiteSpace(stage.TransitionReason)
+            ? string.Empty
+            : $" Due to {FormatSentenceFragment(stage.TransitionReason)},";
+        var prefix = reason.Length == 0
+            ? " Therapy"
+            : $"{reason} therapy";
+
+        var treatment = stage.Mode switch
+        {
+            PapTherapyMode.Cpap =>
+                $"CPAP at {stage.Pressures.InitialCpap} cm H2O and was titrated to {stage.Pressures.FinalCpap} cm H2O.",
+            PapTherapyMode.Bipap =>
+                $"BIPAP at {stage.Pressures.InitialIpap}/{stage.Pressures.InitialEpap} cm H2O and was titrated to {stage.Pressures.FinalIpap}/{stage.Pressures.FinalEpap} cm H2O.",
+            PapTherapyMode.BipapSt =>
+                $"BIPAP ST at {stage.Pressures.InitialIpap}/{stage.Pressures.InitialEpap} cm H2O{GenerateBackupRatePhrase(stage.BackupRate)} and was titrated to {stage.Pressures.FinalIpap}/{stage.Pressures.FinalEpap} cm H2O.",
+            _ => string.Empty
+        };
+
+        return treatment.Length == 0
+            ? string.Empty
+            : $"{prefix} was changed to {treatment}";
+    }
+
+    private static string GenerateBackupRatePhrase(int? backupRate) =>
+        backupRate is > 0
+            ? $" with a backup rate of {backupRate} bpm"
+            : string.Empty;
+
+    private static string FormatSentenceFragment(string value)
+    {
+        value = value.Trim();
+        if (value.Length == 0)
+            return value;
+
+        var startsWithAcronym =
+            value.Length > 1 &&
+            char.IsUpper(value[0]) &&
+            char.IsUpper(value[1]);
+
+        return startsWithAcronym
+            ? value
+            : char.ToLowerInvariant(value[0]) + value[1..];
     }
 
     internal static string GenerateEventsAndArrhythmias(
@@ -204,7 +261,7 @@ public static class SleepNoteNarrativeGenerator
 
     private static void AppendTreatmentInfo(List<string> parts, SleepNoteFormData data)
     {
-        if (data.TitrationMode is not (TitrationMode.Cpap or TitrationMode.Bipap))
+        if (data.TherapyCourse.Count == 0)
             return;
 
         if (data.StudyType is not (StudyType.CpapBipapTitration or StudyType.SplitNight))

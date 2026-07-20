@@ -7,11 +7,11 @@ public enum StudyType
     SplitNight
 }
 
-public enum TitrationMode
+public enum PapTherapyMode
 {
-    None,
     Cpap,
-    Bipap
+    Bipap,
+    BipapSt
 }
 
 public sealed record ArrhythmiaOption(
@@ -41,10 +41,18 @@ public sealed record PressureSettings
     public int? FinalEpap { get; init; }
 }
 
+public sealed record PapTherapyStage
+{
+    public PapTherapyMode Mode { get; init; } = PapTherapyMode.Cpap;
+    public PressureSettings Pressures { get; init; } = new();
+    public int? BackupRate { get; init; }
+    public string? TransitionReason { get; init; }
+}
+
 public sealed record SleepNoteFormData
 {
     public StudyType StudyType { get; init; } = StudyType.Polysomnogram;
-    public TitrationMode TitrationMode { get; init; } = TitrationMode.Cpap;
+    public IReadOnlyList<PapTherapyStage> TherapyCourse { get; init; } = [];
 
     public IReadOnlySet<string> BodyPositions { get; init; } = new HashSet<string>();
     public IReadOnlySet<string> SnoringLevels { get; init; } = new HashSet<string>();
@@ -52,8 +60,6 @@ public sealed record SleepNoteFormData
     public IReadOnlySet<string> Arrhythmias { get; init; } = new HashSet<string>();
     public IReadOnlySet<string> MiscOptions { get; init; } = new HashSet<string>();
     public IReadOnlySet<string> Effects { get; init; } = new HashSet<string>();
-
-    public PressureSettings? Pressures { get; init; }
 
     public string? MaskType { get; init; }
     public string? MaskSize { get; init; }

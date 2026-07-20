@@ -286,8 +286,14 @@ public sealed class SleepNoteNarrativeGeneratorTests
     {
         var data = CreateFormData() with
         {
-            TitrationMode = TitrationMode.Cpap,
-            Pressures = new PressureSettings { InitialCpap = 4, FinalCpap = 10 }
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Cpap,
+                    Pressures = new PressureSettings { InitialCpap = 4, FinalCpap = 10 }
+                }
+            ]
         };
 
         var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
@@ -296,23 +302,180 @@ public sealed class SleepNoteNarrativeGeneratorTests
     }
 
     [Test]
-    public void GenerateTreatmentInfo_Bipap_ReturnsInitiatedAndIncreased()
+    public void GenerateTreatmentInfo_Bipap_ReturnsInitiatedAndTitrated()
     {
         var data = CreateFormData() with
         {
-            TitrationMode = TitrationMode.Bipap,
-            Pressures = new PressureSettings
-            {
-                InitialIpap = 8,
-                InitialEpap = 4,
-                FinalIpap = 14,
-                FinalEpap = 10
-            }
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Bipap,
+                    Pressures = new PressureSettings
+                    {
+                        InitialIpap = 8,
+                        InitialEpap = 4,
+                        FinalIpap = 30,
+                        FinalEpap = 26
+                    }
+                }
+            ]
         };
 
         var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
         Assert.That(result, Does.Contain("BIPAP was initiated at 8/4 cm H2O"));
-        Assert.That(result, Does.Contain("increased to 14/10 cm H2O"));
+        Assert.That(result, Does.Contain("titrated to 30/26 cm H2O"));
+    }
+
+    [Test]
+    public void GenerateTreatmentInfo_BipapSt_IncludesBackupRate()
+    {
+        var data = CreateFormData() with
+        {
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.BipapSt,
+                    BackupRate = 10,
+                    Pressures = new PressureSettings
+                    {
+                        InitialIpap = 8,
+                        InitialEpap = 4,
+                        FinalIpap = 20,
+                        FinalEpap = 16
+                    }
+                }
+            ]
+        };
+
+        var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
+
+        Assert.That(result, Does.Contain("BIPAP ST was initiated at 8/4 cm H2O"));
+        Assert.That(result, Does.Contain("with a backup rate of 10 bpm"));
+        Assert.That(result, Does.Contain("titrated to 20/16 cm H2O"));
+    }
+
+    [Test]
+    public void GenerateTreatmentInfo_CpapToBipap_ReportsReasonAndChronology()
+    {
+        var data = CreateFormData() with
+        {
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Cpap,
+                    Pressures = new PressureSettings { InitialCpap = 5, FinalCpap = 20 }
+                },
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Bipap,
+                    TransitionReason = "Persistent obstructive events",
+                    Pressures = new PressureSettings
+                    {
+                        InitialIpap = 20,
+                        InitialEpap = 16,
+                        FinalIpap = 25,
+                        FinalEpap = 21
+                    }
+                }
+            ]
+        };
+
+        var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
+
+        Assert.That(result, Does.StartWith(" CPAP was initiated at 5 cm H2O"));
+        Assert.That(result, Does.Contain(
+            "Due to persistent obstructive events, therapy was changed to BIPAP at 20/16 cm H2O"));
+        Assert.That(result, Does.Contain("titrated to 25/21 cm H2O"));
+    }
+
+    [TestCase("CPAP intolerance", "Due to CPAP intolerance")]
+    [TestCase("REM-related events", "Due to REM-related events")]
+    [TestCase("OSA persisted", "Due to OSA persisted")]
+    [TestCase("Persistent central apneas", "Due to persistent central apneas")]
+    public void GenerateTreatmentInfo_TransitionReason_PreservesAcronymsAndFlowsAsSentence(
+        string reason,
+        string expected)
+    {
+        var data = CreateFormData() with
+        {
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Cpap,
+                    Pressures = new PressureSettings { InitialCpap = 5, FinalCpap = 11 }
+                },
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Bipap,
+                    TransitionReason = reason,
+                    Pressures = new PressureSettings
+                    {
+                        InitialIpap = 11,
+                        InitialEpap = 7,
+                        FinalIpap = 15,
+                        FinalEpap = 11
+                    }
+                }
+            ]
+        };
+
+        var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
+
+        Assert.That(result, Does.Contain($"{expected}, therapy was changed to BIPAP"));
+        Assert.That(result, Does.Not.Contain("cPAP"));
+    }
+
+    [Test]
+    public void GenerateTreatmentInfo_CpapToBipapToSt_ReportsAllStagesInOrder()
+    {
+        var data = CreateFormData() with
+        {
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Cpap,
+                    Pressures = new PressureSettings { InitialCpap = 5, FinalCpap = 11 }
+                },
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Bipap,
+                    TransitionReason = "Persistent central apneas",
+                    Pressures = new PressureSettings
+                    {
+                        InitialIpap = 11,
+                        InitialEpap = 7,
+                        FinalIpap = 15,
+                        FinalEpap = 11
+                    }
+                },
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.BipapSt,
+                    TransitionReason = "Persistent central apneas",
+                    BackupRate = 10,
+                    Pressures = new PressureSettings
+                    {
+                        InitialIpap = 15,
+                        InitialEpap = 11,
+                        FinalIpap = 18,
+                        FinalEpap = 14
+                    }
+                }
+            ]
+        };
+
+        var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
+
+        Assert.That(result.IndexOf("CPAP was initiated", StringComparison.Ordinal),
+            Is.LessThan(result.IndexOf("changed to BIPAP at", StringComparison.Ordinal)));
+        Assert.That(result.IndexOf("changed to BIPAP at", StringComparison.Ordinal),
+            Is.LessThan(result.IndexOf("changed to BIPAP ST", StringComparison.Ordinal)));
+        Assert.That(result, Does.Contain("backup rate of 10 bpm"));
     }
 
     [Test]
@@ -320,8 +483,14 @@ public sealed class SleepNoteNarrativeGeneratorTests
     {
         var data = CreateFormData() with
         {
-            TitrationMode = TitrationMode.Cpap,
-            Pressures = new PressureSettings { InitialCpap = 4, FinalCpap = 8 },
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Cpap,
+                    Pressures = new PressureSettings { InitialCpap = 4, FinalCpap = 8 }
+                }
+            ],
             MaskType = "Respironics Comfort Select",
             MaskSize = "medium",
             ChinStrap = true,
@@ -337,7 +506,7 @@ public sealed class SleepNoteNarrativeGeneratorTests
     [Test]
     public void GenerateTreatmentInfo_NoTitration_ReturnsEmpty()
     {
-        var data = CreateFormData() with { TitrationMode = TitrationMode.None };
+        var data = CreateFormData();
         var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
         Assert.That(result, Is.Empty);
     }
@@ -396,11 +565,17 @@ public sealed class SleepNoteNarrativeGeneratorTests
         var data = CreateFormData() with
         {
             StudyType = StudyType.CpapBipapTitration,
-            TitrationMode = TitrationMode.Cpap,
             BodyPositions = Set("Supine"),
             SnoringLevels = Set("Mild", "Moderate"),
             Events = Set("RespiratoryEvents"),
-            Pressures = new PressureSettings { InitialCpap = 5, FinalCpap = 12 },
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Cpap,
+                    Pressures = new PressureSettings { InitialCpap = 5, FinalCpap = 12 }
+                }
+            ],
             MaskType = "F&P Flexifit HC407",
             MaskSize = "large"
         };
@@ -419,10 +594,16 @@ public sealed class SleepNoteNarrativeGeneratorTests
         var data = CreateFormData() with
         {
             StudyType = StudyType.SplitNight,
-            TitrationMode = TitrationMode.Cpap,
             BodyPositions = Set("Supine", "Lateral"),
             SnoringLevels = Set("Moderate", "Loud"),
-            Pressures = new PressureSettings { InitialCpap = 6, FinalCpap = 10 }
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Cpap,
+                    Pressures = new PressureSettings { InitialCpap = 6, FinalCpap = 10 }
+                }
+            ]
         };
 
         var result = SleepNoteNarrativeGenerator.Generate(data);
@@ -440,7 +621,6 @@ public sealed class SleepNoteNarrativeGeneratorTests
         new()
         {
             StudyType = StudyType.Polysomnogram,
-            TitrationMode = TitrationMode.None,
             BodyPositions = Set(),
             SnoringLevels = Set(),
             Events = Set(),
