@@ -139,6 +139,37 @@ public class ProtocolEditorUiContractsTests
             "Medication Tool should use the primary clinical-tool styling.");
     }
 
+    [Test]
+    public void AdminViews_UsePasswordFormAndDoNotExposeSecretsInRoutes()
+    {
+        var layout = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/Shared/_Layout.cshtml"));
+        var medications = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/Admin/Medications.cshtml"));
+        var loginPath = ResolveRepoFile("SleepEditWeb/Views/Admin/Login.cshtml");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(File.Exists(loginPath), Is.True, "Admin login view must exist.");
+            Assert.That(layout, Does.Not.Contain("medAdmin2025xK9!"));
+            Assert.That(layout, Does.Not.Contain("new { secretKey"));
+            Assert.That(medications, Does.Not.Contain("asp-route-secretKey"));
+            Assert.That(medications, Does.Not.Contain("new { secretKey"));
+        });
+
+        if (!File.Exists(loginPath))
+        {
+            return;
+        }
+
+        var login = File.ReadAllText(loginPath);
+        Assert.Multiple(() =>
+        {
+            Assert.That(login, Does.Contain("type=\"password\""));
+            Assert.That(login, Does.Contain("@Html.AntiForgeryToken()"));
+            Assert.That(login, Does.Contain("Admin password"));
+            Assert.That(login, Does.Not.Contain("sleep123"));
+        });
+    }
+
     private static void AssertRouteTemplate<TAttribute>(string actionName, string expectedTemplate)
         where TAttribute : HttpMethodAttribute
     {

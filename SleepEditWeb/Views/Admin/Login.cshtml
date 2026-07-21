@@ -1,0 +1,38 @@
+@model SleepEditWeb.Models.AdminLoginViewModel
+@{
+    ViewData["Title"] = "Admin Access";
+}
+
+<div class="page-header text-center">
+    <h1 class="page-title">Admin Access</h1>
+    <p class="page-subtitle">Enter the Admin password to continue.</p>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="dashboard-card">
+            <div class="dashboard-card-body">
+                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+                }
+
+                <form asp-action="Login" asp-controller="Admin" method="post">
+                    @Html.AntiForgeryToken()
+                    <input asp-for="ReturnUrl" type="hidden" />
+
+                    <div class="mb-3">
+                        <label asp-for="Password" class="form-label">Admin password</label>
+                        <input asp-for="Password"
+                               type="password"
+                               class="form-control"
+                               autocomplete="current-password"
+                               autofocus />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Unlock Admin</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
