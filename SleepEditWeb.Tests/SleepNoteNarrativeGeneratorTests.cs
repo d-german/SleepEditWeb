@@ -256,29 +256,6 @@ public sealed class SleepNoteNarrativeGeneratorTests
         Assert.That(result, Is.Empty);
     }
 
-    // ── Misc Options ───────────────────────────────────────────────────
-
-    [Test]
-    public void GenerateMiscOptions_Ambien_ReturnsAmbienText()
-    {
-        var result = SleepNoteNarrativeGenerator.GenerateMiscOptions(Set("Ambien"));
-        Assert.That(result, Does.Contain("10 mg Ambien as per protocol"));
-    }
-
-    [Test]
-    public void GenerateMiscOptions_O2Mask_ReturnsO2Text()
-    {
-        var result = SleepNoteNarrativeGenerator.GenerateMiscOptions(Set("O2Mask"));
-        Assert.That(result, Does.Contain("15 lpm O2 via NRB mask"));
-    }
-
-    [Test]
-    public void GenerateMiscOptions_None_ReturnsEmpty()
-    {
-        var result = SleepNoteNarrativeGenerator.GenerateMiscOptions(Set());
-        Assert.That(result, Is.Empty);
-    }
-
     // ── Treatment Info ─────────────────────────────────────────────────
 
     [Test]
@@ -479,7 +456,7 @@ public sealed class SleepNoteNarrativeGeneratorTests
     }
 
     [Test]
-    public void GenerateTreatmentInfo_WithMaskAndAccessories_AppendsMaskInfo()
+    public void GenerateTreatmentInfo_WithMaskCourse_AppendsInitialMaskAndHumidity()
     {
         var data = CreateFormData() with
         {
@@ -491,16 +468,69 @@ public sealed class SleepNoteNarrativeGeneratorTests
                     Pressures = new PressureSettings { InitialCpap = 4, FinalCpap = 8 }
                 }
             ],
-            MaskType = "Respironics Comfort Select",
-            MaskSize = "medium",
-            ChinStrap = true,
-            HeatedHumidifier = true
+            MaskCourse =
+            [
+                new MaskSetupStage
+                {
+                    MaskType = "Respironics Comfort Select",
+                    MaskSize = "medium",
+                    ChinStrap = true
+                }
+            ]
         };
 
         var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
-        Assert.That(result, Does.Contain("medium Respironics Comfort Select mask was used"));
-        Assert.That(result, Does.Contain("chin strap was used"));
+        Assert.That(result, Does.Contain("medium Respironics Comfort Select mask with a chin strap was used"));
         Assert.That(result, Does.Contain("Heated humidity was used"));
+    }
+
+    [Test]
+    public void GenerateTreatmentInfo_MaskCourse_ReportsChinStrapAndMaskChangesInOrder()
+    {
+        var data = CreateFormData() with
+        {
+            TherapyCourse =
+            [
+                new PapTherapyStage
+                {
+                    Mode = PapTherapyMode.Cpap,
+                    Pressures = new PressureSettings { InitialCpap = 4, FinalCpap = 8 }
+                }
+            ],
+            MaskCourse =
+            [
+                new MaskSetupStage
+                {
+                    MaskType = "Nasal pillows",
+                    MaskSize = "medium"
+                },
+                new MaskSetupStage
+                {
+                    MaskType = "Nasal pillows",
+                    MaskSize = "medium",
+                    ChinStrap = true,
+                    TransitionReason = "Oral leak or mouth opening"
+                },
+                new MaskSetupStage
+                {
+                    MaskType = "Full face",
+                    MaskSize = "medium",
+                    TransitionReason = "Persistent oral leak despite chin strap"
+                }
+            ]
+        };
+
+        var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
+
+        var initialMask = result.IndexOf("medium Nasal pillows mask was used", StringComparison.Ordinal);
+        var chinStrapAdded = result.IndexOf("Due to oral leak or mouth opening, a chin strap was added", StringComparison.Ordinal);
+        var fullFaceMask = result.IndexOf(
+            "Due to persistent oral leak despite chin strap, the mask was changed to a medium Full face mask",
+            StringComparison.Ordinal);
+
+        Assert.That(initialMask, Is.GreaterThanOrEqualTo(0));
+        Assert.That(chinStrapAdded, Is.GreaterThan(initialMask));
+        Assert.That(fullFaceMask, Is.GreaterThan(chinStrapAdded));
     }
 
     [Test]
@@ -508,32 +538,6 @@ public sealed class SleepNoteNarrativeGeneratorTests
     {
         var data = CreateFormData();
         var result = SleepNoteNarrativeGenerator.GenerateTreatmentInfo(data);
-        Assert.That(result, Is.Empty);
-    }
-
-    // ── Patient Machine ────────────────────────────────────────────────
-
-    [Test]
-    public void GeneratePatientMachine_HasMachine_ReturnsMachineInfo()
-    {
-        var data = CreateFormData() with
-        {
-            PatientHasMachine = true,
-            PressureVerifiedAt = 8,
-            PressureChangedTo = 12
-        };
-
-        var result = SleepNoteNarrativeGenerator.GeneratePatientMachine(data);
-        Assert.That(result, Does.Contain("Patient has and brought machine"));
-        Assert.That(result, Does.Contain("Pressure verified at 8 cm H2O"));
-        Assert.That(result, Does.Contain("changed to 12 cm H2O"));
-    }
-
-    [Test]
-    public void GeneratePatientMachine_NoMachine_ReturnsEmpty()
-    {
-        var data = CreateFormData();
-        var result = SleepNoteNarrativeGenerator.GeneratePatientMachine(data);
         Assert.That(result, Is.Empty);
     }
 
@@ -576,8 +580,14 @@ public sealed class SleepNoteNarrativeGeneratorTests
                     Pressures = new PressureSettings { InitialCpap = 5, FinalCpap = 12 }
                 }
             ],
-            MaskType = "F&P Flexifit HC407",
-            MaskSize = "large"
+            MaskCourse =
+            [
+                new MaskSetupStage
+                {
+                    MaskType = "F&P Flexifit HC407",
+                    MaskSize = "large"
+                }
+            ]
         };
 
         var result = SleepNoteNarrativeGenerator.Generate(data);

@@ -102,8 +102,6 @@
             <fieldset class="border rounded p-2 mb-3">
                 <legend class="w-auto px-2 fs-6 fw-semibold">Miscellaneous</legend>
                 @foreach (var (key, label) in new[] {
-                    ("Ambien", "Ambien (10 mg)"),
-                    ("O2Mask", "O₂ NRB Mask (15 lpm)"),
                     ("TooLateForCpap", "Too late for CPAP"),
                     ("NoSplitNightCriteria", "No split night criteria")
                 })
@@ -314,110 +312,196 @@
 
                     <hr class="my-3" />
 
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label small">Mask Type</label>
-                            <select class="form-select form-select-sm" @bind="_maskType">
-                                @foreach (var t in _config.MaskTypes) { <option value="@t">@t</option> }
-                            </select>
+                    <section class="mask-course">
+                        <div class="mask-course-heading">
+                            <span>Mask Course</span>
+                            <button type="button"
+                                    class="btn btn-outline-secondary btn-sm mask-course-manage-button"
+                                    aria-haspopup="dialog"
+                                    @ref="_maskManagerTrigger"
+                                    @onclick="OpenMaskManager">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" aria-hidden="true" viewBox="0 0 16 16">
+                                    <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872zM8 10.93a2.929 2.929 0 1 1 0-5.858 2.929 2.929 0 0 1 0 5.858" />
+                                </svg>
+                                Manage masks
+                            </button>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label small">Mask Size</label>
-                            <select class="form-select form-select-sm" @bind="_maskSize">
-                                @foreach (var s in _config.MaskSizes) { <option value="@s">@s</option> }
-                            </select>
-                        </div>
-                    </div>
 
-                    <div class="d-flex gap-3 mb-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="chinStrap" @bind="_chinStrap" />
-                            <label class="form-check-label" for="chinStrap">Chin Strap</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="heatedHumid" @bind="_heatedHumidifier" />
-                            <label class="form-check-label" for="heatedHumid">Heated Humidifier</label>
-                        </div>
-                    </div>
+                        @for (var i = 0; i < _maskStages.Count; i++)
+                        {
+                            var stageIndex = i;
+                            var stage = _maskStages[stageIndex];
 
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" id="ptMachine" @bind="_patientHasMachine" />
-                        <label class="form-check-label" for="ptMachine">Patient Has Machine</label>
-                    </div>
+                            <section class="mask-stage @(stageIndex > 0 ? "mask-stage-transition" : null)">
+                                <div class="therapy-stage-heading">
+                                    <span>@(stageIndex == 0 ? "Mask started with" : "Changed to")</span>
+                                    <span class="badge bg-secondary">Stage @(stageIndex + 1)</span>
+                                </div>
 
-                    @if (_patientHasMachine)
-                    {
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label small">Pressure Verified At</label>
-                                <select class="form-select form-select-sm" @bind="_pressureVerifiedAt">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
+                                @if (stageIndex > 0)
+                                {
+                                    <div class="mb-2">
+                                        <label class="form-label small" for="@($"maskTransitionReason_{stageIndex}")">
+                                            Reason for mask setup change <span class="text-muted">(optional)</span>
+                                        </label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"maskTransitionReason_{stageIndex}")"
+                                                @bind="stage.TransitionReason">
+                                            <option value="">Select a reason</option>
+                                            @foreach (var reason in MaskTransitionReasons)
+                                            {
+                                                <option value="@reason">@reason</option>
+                                            }
+                                        </select>
+                                    </div>
+
+                                    @if (stage.TransitionReason == "Other")
+                                    {
+                                        <div class="mb-2">
+                                            <label class="form-label small" for="@($"maskTransitionReasonOther_{stageIndex}")">
+                                                Other reason
+                                            </label>
+                                            <input class="form-control form-control-sm"
+                                                   id="@($"maskTransitionReasonOther_{stageIndex}")"
+                                                   type="text"
+                                                   @bind="stage.OtherTransitionReason" />
+                                        </div>
+                                    }
+                                }
+
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label small" for="@($"maskType_{stageIndex}")">Mask Type</label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"maskType_{stageIndex}")"
+                                                @bind="stage.MaskType">
+                                            @foreach (var t in _config.MaskTypes) { <option value="@t">@t</option> }
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small" for="@($"maskSize_{stageIndex}")">Mask Size</label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"maskSize_{stageIndex}")"
+                                                @bind="stage.MaskSize">
+                                            @foreach (var s in _config.MaskSizes) { <option value="@s">@s</option> }
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="@($"chinStrap_{stageIndex}")"
+                                           @bind="stage.ChinStrap" />
+                                    <label class="form-check-label" for="@($"chinStrap_{stageIndex}")">Chin strap used</label>
+                                </div>
+                            </section>
+
+                            <div class="form-check mask-transition-toggle mb-3">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="@($"maskTransitionAfter_{stageIndex}")"
+                                       checked="@(_maskStages.Count > stageIndex + 1)"
+                                       @onchange="e => SetMaskTransitionAfter(stageIndex, (bool)e.Value!)" />
+                                <label class="form-check-label" for="@($"maskTransitionAfter_{stageIndex}")">
+                                    @(stageIndex == 0 ? "Mask setup changed during the study" : "Mask setup changed again")
+                                </label>
                             </div>
-                            <div class="col-6">
-                                <label class="form-label small">Changed To</label>
-                                <select class="form-select form-select-sm" @bind="_pressureChangedTo">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
-                            </div>
-                        </div>
-                    }
+                        }
+                    </section>
+
                 </fieldset>
+            }
 
-                    <fieldset class="border rounded p-2 mb-3">
-                    <legend class="w-auto px-2 fs-6 fw-semibold">Manage Config</legend>
-                    <div class="row g-2 mb-2">
-                        <div class="col">
-                            <label class="form-label small fw-semibold mb-1">Mask Types</label>
-                            <div class="input-group input-group-sm">
-                                <input type="text" class="form-control" placeholder="New mask type" @bind="_newMaskType" />
-                                <button class="btn btn-outline-primary btn-sm" @onclick="AddMaskType">Add</button>
+            @if (_showMaskManager)
+            {
+                <div class="mask-manager-overlay" @onclick="CloseMaskManager">
+                    <section class="mask-manager-dialog"
+                             role="dialog"
+                             aria-modal="true"
+                             aria-labelledby="maskManagerTitle"
+                             tabindex="-1"
+                             @onkeydown="HandleMaskManagerKeyDown"
+                             @onclick:stopPropagation="true">
+                        <header class="mask-manager-header">
+                            <div>
+                                <h2 id="maskManagerTitle" class="mask-manager-title">Manage masks</h2>
+                                <p class="mask-manager-description">Add or remove options used by every mask dropdown.</p>
                             </div>
-                            <div class="mt-1">
-                                @foreach (var t in _config.MaskTypes)
-                                {
-                                    <span class="badge bg-secondary me-1">
-                                        @t
-                                        <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5em"
-                                                @onclick="() => RemoveMaskType(t)"></button>
-                                    </span>
-                                }
-                                @if (_config.MaskTypes.Count == 0)
-                                {
-                                    <span class="text-muted small fst-italic">No mask types configured.</span>
-                                }
-                            </div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" @onclick="CloseMaskManager">Close</button>
+                        </header>
+
+                        <div class="mask-manager-body">
+                            <section class="mask-manager-section" aria-labelledby="maskTypesHeading">
+                                <h3 id="maskTypesHeading" class="mask-manager-section-title">Mask types</h3>
+                                <div class="input-group input-group-sm">
+                                    <input type="text"
+                                           class="form-control"
+                                           placeholder="New mask type"
+                                           aria-label="New mask type"
+                                           @bind="_newMaskType"
+                                           @ref="_maskManagerInitialFocus"
+                                           autofocus />
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddMaskType">Add</button>
+                                </div>
+                                <div class="mask-manager-items">
+                                    @foreach (var maskType in _config.MaskTypes)
+                                    {
+                                        <span class="mask-manager-item">
+                                            <span>@maskType</span>
+                                            <button type="button"
+                                                    class="mask-manager-remove"
+                                                    aria-label="Remove @maskType mask type"
+                                                    title="Remove @maskType"
+                                                    @onclick="() => RemoveMaskType(maskType)">×</button>
+                                        </span>
+                                    }
+                                    @if (_config.MaskTypes.Count == 0)
+                                    {
+                                        <span class="text-muted small fst-italic">No mask types configured.</span>
+                                    }
+                                </div>
+                            </section>
+
+                            <section class="mask-manager-section" aria-labelledby="maskSizesHeading">
+                                <h3 id="maskSizesHeading" class="mask-manager-section-title">Mask sizes</h3>
+                                <div class="input-group input-group-sm">
+                                    <input type="text"
+                                           class="form-control"
+                                           placeholder="New mask size"
+                                           aria-label="New mask size"
+                                           @bind="_newMaskSize" />
+                                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="AddMaskSize">Add</button>
+                                </div>
+                                <div class="mask-manager-items">
+                                    @foreach (var maskSize in _config.MaskSizes)
+                                    {
+                                        <span class="mask-manager-item">
+                                            <span>@maskSize</span>
+                                            <button type="button"
+                                                    class="mask-manager-remove"
+                                                    aria-label="Remove @maskSize mask size"
+                                                    title="Remove @maskSize"
+                                                    @onclick="() => RemoveMaskSize(maskSize)">×</button>
+                                        </span>
+                                    }
+                                    @if (_config.MaskSizes.Count == 0)
+                                    {
+                                        <span class="text-muted small fst-italic">No mask sizes configured.</span>
+                                    }
+                                </div>
+                            </section>
                         </div>
-                    </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col">
-                            <label class="form-label small fw-semibold mb-1">Mask Sizes</label>
-                            <div class="input-group input-group-sm">
-                                <input type="text" class="form-control" placeholder="New mask size" @bind="_newMaskSize" />
-                                <button class="btn btn-outline-primary btn-sm" @onclick="AddMaskSize">Add</button>
-                            </div>
-                            <div class="mt-1">
-                                @foreach (var s in _config.MaskSizes)
-                                {
-                                    <span class="badge bg-secondary me-1">
-                                        @s
-                                        <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.5em"
-                                                @onclick="() => RemoveMaskSize(s)"></button>
-                                    </span>
-                                }
-                                @if (_config.MaskSizes.Count == 0)
-                                {
-                                    <span class="text-muted small fst-italic">No mask sizes configured.</span>
-                                }
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-2">
-                        <button class="btn btn-outline-warning btn-sm" @onclick="ResetConfigToDefaults">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>Reset to Defaults
-                        </button>
-                    </div>
-                </fieldset>
+
+                        <footer class="mask-manager-footer">
+                            <button type="button" class="btn btn-outline-warning btn-sm" @onclick="ResetConfigToDefaults">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" aria-hidden="true" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>
+                                Reset to defaults
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" @onclick="CloseMaskManager">Done</button>
+                        </footer>
+                    </section>
+                </div>
             }
 
             <div class="d-flex gap-2 mb-3">

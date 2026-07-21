@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
@@ -49,18 +50,27 @@ public partial class SleepNoteForm : ComponentBase
         "Other"
     ];
 
-    // Treatment accessories
-    private string _maskType = string.Empty;
-    private string _maskSize = string.Empty;
-    private bool _chinStrap;
-    private bool _heatedHumidifier;
+    private static readonly IReadOnlyList<string> MaskTransitionReasons =
+    [
+        "Oral leak or mouth opening",
+        "Persistent oral leak despite chin strap",
+        "Excessive mask leak",
+        "Poor mask fit",
+        "Patient discomfort or intolerance",
+        "Skin irritation or pressure point",
+        "Claustrophobia",
+        "Other"
+    ];
 
-    // Patient machine
-    private bool _patientHasMachine;
-    private int _pressureVerifiedAt = 4;
-    private int _pressureChangedTo = 4;
+    // Mask setup course
+    private readonly List<MaskSetupStageState> _maskStages = [];
 
     // Config management
+    private bool _showMaskManager;
+    private bool _focusMaskManager;
+    private bool _restoreMaskManagerFocus;
+    private ElementReference _maskManagerTrigger;
+    private ElementReference _maskManagerInitialFocus;
     private string _newMaskType = string.Empty;
     private string _newMaskSize = string.Empty;
 
@@ -81,15 +91,28 @@ public partial class SleepNoteForm : ComponentBase
         LoadConfiguration();
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusMaskManager)
+        {
+            _focusMaskManager = false;
+            await _maskManagerInitialFocus.FocusAsync();
+            return;
+        }
+
+        if (_restoreMaskManagerFocus)
+        {
+            _restoreMaskManagerFocus = false;
+            await _maskManagerTrigger.FocusAsync();
+        }
+    }
+
     private void LoadConfiguration()
     {
         try
         {
             _config = SleepNoteService.GetConfiguration();
-            if (_config.MaskTypes.Count > 0)
-                _maskType = _config.MaskTypes[0];
-            if (_config.MaskSizes.Count > 0)
-                _maskSize = _config.MaskSizes[0];
+            EnsureMaskStageSelections();
         }
         catch (Exception ex)
         {
@@ -104,10 +127,22 @@ public partial class SleepNoteForm : ComponentBase
         if (!ShowTitrationControls)
         {
             _therapyStages.Clear();
+            _showMaskManager = false;
+            _focusMaskManager = false;
+            _restoreMaskManagerFocus = false;
         }
         else if (_therapyStages.Count == 0)
         {
             _therapyStages.Add(CreateTherapyStageState(PapTherapyMode.Cpap));
+        }
+
+        if (!ShowTitrationControls)
+        {
+            _maskStages.Clear();
+        }
+        else if (_maskStages.Count == 0)
+        {
+            _maskStages.Add(CreateMaskSetupStageState());
         }
     }
 
@@ -142,6 +177,28 @@ public partial class SleepNoteForm : ComponentBase
         var nextModes = GetAllowedNextModes(_therapyStages[stageIndex].Mode);
         if (nextModes.Count > 0)
             _therapyStages.Add(CreateTherapyStageState(nextModes[0]));
+    }
+
+    private void SetMaskTransitionAfter(int stageIndex, bool enabled)
+    {
+        if (!enabled)
+        {
+            if (_maskStages.Count > stageIndex + 1)
+                _maskStages.RemoveRange(stageIndex + 1, _maskStages.Count - stageIndex - 1);
+
+            return;
+        }
+
+        if (_maskStages.Count > stageIndex + 1)
+            return;
+
+        var current = _maskStages[stageIndex];
+        _maskStages.Add(new MaskSetupStageState
+        {
+            MaskType = current.MaskType,
+            MaskSize = current.MaskSize,
+            ChinStrap = current.ChinStrap
+        });
     }
 
     private IReadOnlyList<PapTherapyMode> GetAvailableModesForStage(int stageIndex) =>
@@ -196,6 +253,25 @@ public partial class SleepNoteForm : ComponentBase
             FinalEpap = 4,
             BackupRate = 10
         };
+
+    private MaskSetupStageState CreateMaskSetupStageState() =>
+        new()
+        {
+            MaskType = _config.MaskTypes.FirstOrDefault() ?? string.Empty,
+            MaskSize = _config.MaskSizes.FirstOrDefault() ?? string.Empty
+        };
+
+    private void EnsureMaskStageSelections()
+    {
+        foreach (var stage in _maskStages)
+        {
+            if (!_config.MaskTypes.Contains(stage.MaskType, StringComparer.OrdinalIgnoreCase))
+                stage.MaskType = _config.MaskTypes.FirstOrDefault() ?? string.Empty;
+
+            if (!_config.MaskSizes.Contains(stage.MaskSize, StringComparer.OrdinalIgnoreCase))
+                stage.MaskSize = _config.MaskSizes.FirstOrDefault() ?? string.Empty;
+        }
+    }
 
     private static void ToggleSetItem(HashSet<string> set, string item, bool isChecked)
     {
@@ -255,16 +331,30 @@ public partial class SleepNoteForm : ComponentBase
             Arrhythmias = new HashSet<string>(_arrhythmias),
             Effects = new HashSet<string>(_effects),
             MiscOptions = new HashSet<string>(_miscOptions),
-            MaskType = _maskType,
-            MaskSize = _maskSize,
-            ChinStrap = _chinStrap,
-            HeatedHumidifier = _heatedHumidifier,
-            PatientHasMachine = _patientHasMachine,
-            PressureVerifiedAt = _pressureVerifiedAt,
-            PressureChangedTo = _pressureChangedTo
+            MaskCourse = ShowTitrationControls
+                ? _maskStages.Select((stage, index) => new MaskSetupStage
+                {
+                    MaskType = stage.MaskType,
+                    MaskSize = stage.MaskSize,
+                    ChinStrap = stage.ChinStrap,
+                    TransitionReason = index == 0 ? null : ResolveMaskTransitionReason(stage)
+                }).ToList()
+                : []
         };
 
     private static string? ResolveTransitionReason(TherapyStageState stage)
+    {
+        if (stage.TransitionReason == "Other")
+            return string.IsNullOrWhiteSpace(stage.OtherTransitionReason)
+                ? null
+                : stage.OtherTransitionReason.Trim();
+
+        return string.IsNullOrWhiteSpace(stage.TransitionReason)
+            ? null
+            : stage.TransitionReason;
+    }
+
+    private static string? ResolveMaskTransitionReason(MaskSetupStageState stage)
     {
         if (stage.TransitionReason == "Other")
             return string.IsNullOrWhiteSpace(stage.OtherTransitionReason)
@@ -326,20 +416,44 @@ public partial class SleepNoteForm : ComponentBase
     {
         _studyType = StudyType.Polysomnogram;
         _therapyStages.Clear();
+        _maskStages.Clear();
         _bodyPositions.Clear();
         _snoringLevels.Clear();
         _events.Clear();
         _arrhythmias.Clear();
         _effects.Clear();
         _miscOptions.Clear();
-        _maskType = _config.MaskTypes.Count > 0 ? _config.MaskTypes[0] : string.Empty;
-        _maskSize = _config.MaskSizes.Count > 0 ? _config.MaskSizes[0] : string.Empty;
-        _chinStrap = false;
-        _heatedHumidifier = false;
-        _patientHasMachine = false;
-        _pressureVerifiedAt = _pressureChangedTo = 4;
+        _showMaskManager = false;
+        _focusMaskManager = false;
+        _restoreMaskManagerFocus = false;
+        _newMaskType = string.Empty;
+        _newMaskSize = string.Empty;
         _narrativeText = string.Empty;
         _statusMessage = "Form reset.";
+    }
+
+    private void OpenMaskManager()
+    {
+        _newMaskType = string.Empty;
+        _newMaskSize = string.Empty;
+        _showMaskManager = true;
+        _focusMaskManager = true;
+        _restoreMaskManagerFocus = false;
+    }
+
+    private void CloseMaskManager()
+    {
+        _showMaskManager = false;
+        _focusMaskManager = false;
+        _restoreMaskManagerFocus = true;
+        _newMaskType = string.Empty;
+        _newMaskSize = string.Empty;
+    }
+
+    private void HandleMaskManagerKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+            CloseMaskManager();
     }
 
     private void AddMaskType()
@@ -350,12 +464,15 @@ public partial class SleepNoteForm : ComponentBase
         LoadConfiguration();
     }
 
-    private void RemoveMaskType(string maskType)
+    private async Task RemoveMaskType(string maskType)
     {
+        var confirmed = await JsRuntime.InvokeAsync<bool>(
+            "confirm",
+            $"Remove '{maskType}' from every mask type dropdown?");
+        if (!confirmed) return;
+
         SleepNoteService.RemoveMaskType(maskType);
         LoadConfiguration();
-        if (_maskType == maskType && _config.MaskTypes.Count > 0)
-            _maskType = _config.MaskTypes[0];
     }
 
     private void AddMaskSize()
@@ -366,16 +483,24 @@ public partial class SleepNoteForm : ComponentBase
         LoadConfiguration();
     }
 
-    private void RemoveMaskSize(string maskSize)
+    private async Task RemoveMaskSize(string maskSize)
     {
+        var confirmed = await JsRuntime.InvokeAsync<bool>(
+            "confirm",
+            $"Remove '{maskSize}' from every mask size dropdown?");
+        if (!confirmed) return;
+
         SleepNoteService.RemoveMaskSize(maskSize);
         LoadConfiguration();
-        if (_maskSize == maskSize && _config.MaskSizes.Count > 0)
-            _maskSize = _config.MaskSizes[0];
     }
 
-    private void ResetConfigToDefaults()
+    private async Task ResetConfigToDefaults()
     {
+        var confirmed = await JsRuntime.InvokeAsync<bool>(
+            "confirm",
+            "Reset all mask types and sizes to their defaults?");
+        if (!confirmed) return;
+
         SleepNoteService.ResetConfigToDefaults();
         LoadConfiguration();
         _statusMessage = "Configuration reset to defaults.";
@@ -391,6 +516,15 @@ public partial class SleepNoteForm : ComponentBase
         public int FinalIpap { get; set; }
         public int FinalEpap { get; set; }
         public int BackupRate { get; set; }
+        public string TransitionReason { get; set; } = string.Empty;
+        public string OtherTransitionReason { get; set; } = string.Empty;
+    }
+
+    private sealed class MaskSetupStageState
+    {
+        public string MaskType { get; set; } = string.Empty;
+        public string MaskSize { get; set; } = string.Empty;
+        public bool ChinStrap { get; set; }
         public string TransitionReason { get; set; } = string.Empty;
         public string OtherTransitionReason { get; set; } = string.Empty;
     }
