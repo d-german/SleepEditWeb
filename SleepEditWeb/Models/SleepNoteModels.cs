@@ -49,6 +49,14 @@ public sealed record PapTherapyStage
     public string? TransitionReason { get; init; }
 }
 
+public sealed record MaskSetupStage
+{
+    public string? MaskType { get; init; }
+    public string? MaskSize { get; init; }
+    public bool ChinStrap { get; init; }
+    public string? TransitionReason { get; init; }
+}
+
 public sealed record SleepNoteFormData
 {
     public StudyType StudyType { get; init; } = StudyType.Polysomnogram;
@@ -61,13 +69,8 @@ public sealed record SleepNoteFormData
     public IReadOnlySet<string> MiscOptions { get; init; } = new HashSet<string>();
     public IReadOnlySet<string> Effects { get; init; } = new HashSet<string>();
 
-    public string? MaskType { get; init; }
-    public string? MaskSize { get; init; }
-    public bool ChinStrap { get; init; }
-    public bool HeatedHumidifier { get; init; }
-    public bool PatientHasMachine { get; init; }
-    public int? PressureVerifiedAt { get; init; }
-    public int? PressureChangedTo { get; init; }
+    public IReadOnlyList<MaskSetupStage> MaskCourse { get; init; } = [];
+    public bool HeatedHumidifier { get; init; } = true;
 }
 
 public sealed record SleepNoteConfiguration

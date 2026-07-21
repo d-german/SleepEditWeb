@@ -102,8 +102,6 @@
             <fieldset class="border rounded p-2 mb-3">
                 <legend class="w-auto px-2 fs-6 fw-semibold">Miscellaneous</legend>
                 @foreach (var (key, label) in new[] {
-                    ("Ambien", "Ambien (10 mg)"),
-                    ("O2Mask", "O₂ NRB Mask (15 lpm)"),
                     ("TooLateForCpap", "Too late for CPAP"),
                     ("NoSplitNightCriteria", "No split night criteria")
                 })
@@ -314,54 +312,92 @@
 
                     <hr class="my-3" />
 
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label small">Mask Type</label>
-                            <select class="form-select form-select-sm" @bind="_maskType">
-                                @foreach (var t in _config.MaskTypes) { <option value="@t">@t</option> }
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label small">Mask Size</label>
-                            <select class="form-select form-select-sm" @bind="_maskSize">
-                                @foreach (var s in _config.MaskSizes) { <option value="@s">@s</option> }
-                            </select>
-                        </div>
-                    </div>
+                    <section class="mask-course">
+                        <div class="mask-course-heading">Mask Course</div>
 
-                    <div class="d-flex gap-3 mb-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="chinStrap" @bind="_chinStrap" />
-                            <label class="form-check-label" for="chinStrap">Chin Strap</label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="heatedHumid" @bind="_heatedHumidifier" />
-                            <label class="form-check-label" for="heatedHumid">Heated Humidifier</label>
-                        </div>
-                    </div>
+                        @for (var i = 0; i < _maskStages.Count; i++)
+                        {
+                            var stageIndex = i;
+                            var stage = _maskStages[stageIndex];
 
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" id="ptMachine" @bind="_patientHasMachine" />
-                        <label class="form-check-label" for="ptMachine">Patient Has Machine</label>
-                    </div>
+                            <section class="mask-stage @(stageIndex > 0 ? "mask-stage-transition" : null)">
+                                <div class="therapy-stage-heading">
+                                    <span>@(stageIndex == 0 ? "Mask started with" : "Changed to")</span>
+                                    <span class="badge bg-secondary">Stage @(stageIndex + 1)</span>
+                                </div>
 
-                    @if (_patientHasMachine)
-                    {
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label small">Pressure Verified At</label>
-                                <select class="form-select form-select-sm" @bind="_pressureVerifiedAt">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
+                                @if (stageIndex > 0)
+                                {
+                                    <div class="mb-2">
+                                        <label class="form-label small" for="@($"maskTransitionReason_{stageIndex}")">
+                                            Reason for mask setup change <span class="text-muted">(optional)</span>
+                                        </label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"maskTransitionReason_{stageIndex}")"
+                                                @bind="stage.TransitionReason">
+                                            <option value="">Select a reason</option>
+                                            @foreach (var reason in MaskTransitionReasons)
+                                            {
+                                                <option value="@reason">@reason</option>
+                                            }
+                                        </select>
+                                    </div>
+
+                                    @if (stage.TransitionReason == "Other")
+                                    {
+                                        <div class="mb-2">
+                                            <label class="form-label small" for="@($"maskTransitionReasonOther_{stageIndex}")">
+                                                Other reason
+                                            </label>
+                                            <input class="form-control form-control-sm"
+                                                   id="@($"maskTransitionReasonOther_{stageIndex}")"
+                                                   type="text"
+                                                   @bind="stage.OtherTransitionReason" />
+                                        </div>
+                                    }
+                                }
+
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label small" for="@($"maskType_{stageIndex}")">Mask Type</label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"maskType_{stageIndex}")"
+                                                @bind="stage.MaskType">
+                                            @foreach (var t in _config.MaskTypes) { <option value="@t">@t</option> }
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small" for="@($"maskSize_{stageIndex}")">Mask Size</label>
+                                        <select class="form-select form-select-sm"
+                                                id="@($"maskSize_{stageIndex}")"
+                                                @bind="stage.MaskSize">
+                                            @foreach (var s in _config.MaskSizes) { <option value="@s">@s</option> }
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="@($"chinStrap_{stageIndex}")"
+                                           @bind="stage.ChinStrap" />
+                                    <label class="form-check-label" for="@($"chinStrap_{stageIndex}")">Chin strap used</label>
+                                </div>
+                            </section>
+
+                            <div class="form-check mask-transition-toggle mb-3">
+                                <input class="form-check-input"
+                                       type="checkbox"
+                                       id="@($"maskTransitionAfter_{stageIndex}")"
+                                       checked="@(_maskStages.Count > stageIndex + 1)"
+                                       @onchange="e => SetMaskTransitionAfter(stageIndex, (bool)e.Value!)" />
+                                <label class="form-check-label" for="@($"maskTransitionAfter_{stageIndex}")">
+                                    @(stageIndex == 0 ? "Mask setup changed during the study" : "Mask setup changed again")
+                                </label>
                             </div>
-                            <div class="col-6">
-                                <label class="form-label small">Changed To</label>
-                                <select class="form-select form-select-sm" @bind="_pressureChangedTo">
-                                    @foreach (var p in _config.PressureValues) { <option value="@p">@p</option> }
-                                </select>
-                            </div>
-                        </div>
-                    }
+                        }
+                    </section>
+
                 </fieldset>
 
                     <fieldset class="border rounded p-2 mb-3">

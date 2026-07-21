@@ -121,3 +121,32 @@
     margin-top: 0.5rem;
     padding: 0.5rem 0.65rem 0.5rem 2.1rem;
 }
+
+.mask-course {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.mask-course-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.mask-stage {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+}
+
+.mask-stage-transition {
+    border-left: 3px solid var(--accent-cyan);
+}
+
+.mask-transition-toggle {
+    background: var(--accent-cyan-bg);
+    border-radius: 0.375rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem 0.65rem 0.5rem 2.1rem;
+}

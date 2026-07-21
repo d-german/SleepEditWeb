@@ -8,14 +8,12 @@ public static class SleepNoteNarrativeGenerator
     {
         var parts = new List<string>();
 
-        AppendMiscOptions(parts, data.MiscOptions);
         AppendBodyPosition(parts, data.BodyPositions);
         AppendSnoring(parts, data.SnoringLevels, data.StudyType);
         AppendRespiratoryInfo(parts, data.Events, data.StudyType);
         AppendCpapCriteria(parts, data.MiscOptions);
         AppendTreatmentInfo(parts, data);
         AppendEventsAndArrhythmias(parts, data.Events, data.Arrhythmias);
-        AppendPatientMachine(parts, data);
         AppendEffects(parts, data.Effects);
 
         return string.Join("", parts).Trim();
@@ -89,16 +87,95 @@ public static class SleepNoteNarrativeGenerator
                 : GenerateTherapyTransition(stage));
         }
 
-        if (!string.IsNullOrEmpty(data.MaskType))
-            parts.Add($" A {data.MaskSize} {data.MaskType} mask was used.");
-
-        if (data.ChinStrap)
-            parts.Add(" A chin strap was used.");
+        parts.AddRange(GenerateMaskCourse(data.MaskCourse));
 
         if (data.HeatedHumidifier)
             parts.Add(" Heated humidity was used.");
 
         return string.Join("", parts);
+    }
+
+    private static IReadOnlyList<string> GenerateMaskCourse(IReadOnlyList<MaskSetupStage> maskCourse)
+    {
+        if (maskCourse.Count == 0)
+            return [];
+
+        var parts = new List<string>();
+        var initialDescription = DescribeMaskSetup(maskCourse[0]);
+        if (!string.IsNullOrEmpty(initialDescription))
+            parts.Add($" A {initialDescription} was used.");
+
+        for (var index = 1; index < maskCourse.Count; index++)
+        {
+            var transition = GenerateMaskTransition(maskCourse[index - 1], maskCourse[index]);
+            if (!string.IsNullOrEmpty(transition))
+                parts.Add(transition);
+        }
+
+        return parts;
+    }
+
+    private static string GenerateMaskTransition(MaskSetupStage previous, MaskSetupStage current)
+    {
+        var typeChanged = !string.Equals(previous.MaskType, current.MaskType, StringComparison.OrdinalIgnoreCase);
+        var sizeChanged = !string.Equals(previous.MaskSize, current.MaskSize, StringComparison.OrdinalIgnoreCase);
+        var reason = string.IsNullOrWhiteSpace(current.TransitionReason)
+            ? string.Empty
+            : $" Due to {FormatSentenceFragment(current.TransitionReason)},";
+
+        if (typeChanged)
+        {
+            var description = DescribeMaskSetup(current);
+            return string.IsNullOrEmpty(description)
+                ? string.Empty
+                : $"{(reason.Length == 0 ? " The" : reason + " the")} mask was changed to a {description}.";
+        }
+
+        if (sizeChanged)
+        {
+            var maskType = string.IsNullOrWhiteSpace(current.MaskType)
+                ? "mask"
+                : EnsureMaskSuffix(current.MaskType);
+            var size = string.IsNullOrWhiteSpace(current.MaskSize)
+                ? "a different size"
+                : current.MaskSize.Trim();
+            return $"{(reason.Length == 0 ? " The" : reason + " the")} {maskType} size was changed to {size}.";
+        }
+
+        if (!previous.ChinStrap && current.ChinStrap)
+            return reason.Length == 0
+                ? " A chin strap was added."
+                : $"{reason} a chin strap was added.";
+
+        if (previous.ChinStrap && !current.ChinStrap)
+            return reason.Length == 0
+                ? " The chin strap was discontinued."
+                : $"{reason} the chin strap was discontinued.";
+
+        return string.Empty;
+    }
+
+    private static string? DescribeMaskSetup(MaskSetupStage stage)
+    {
+        if (string.IsNullOrWhiteSpace(stage.MaskType))
+            return null;
+
+        var maskType = EnsureMaskSuffix(stage.MaskType);
+        var description = string.IsNullOrWhiteSpace(stage.MaskSize)
+            ? maskType
+            : $"{stage.MaskSize.Trim()} {maskType}";
+
+        return stage.ChinStrap
+            ? $"{description} with a chin strap"
+            : description;
+    }
+
+    private static string EnsureMaskSuffix(string maskType)
+    {
+        var trimmed = maskType.Trim();
+        return trimmed.EndsWith("mask", StringComparison.OrdinalIgnoreCase)
+            ? trimmed
+            : $"{trimmed} mask";
     }
 
     private static string GenerateInitialTherapyStage(PapTherapyStage stage) =>
@@ -203,34 +280,6 @@ public static class SleepNoteNarrativeGenerator
         return string.Join("", parts);
     }
 
-    internal static string GenerateMiscOptions(IReadOnlySet<string> miscOptions)
-    {
-        var parts = new List<string>();
-
-        if (miscOptions.Contains("Ambien"))
-            parts.Add(" The patient took 10 mg Ambien as per protocol.");
-
-        if (miscOptions.Contains("O2Mask"))
-            parts.Add(" The patient was placed on 15 lpm O2 via NRB mask as per protocol.");
-
-        return string.Join("", parts);
-    }
-
-    internal static string GeneratePatientMachine(SleepNoteFormData data)
-    {
-        if (!data.PatientHasMachine)
-            return string.Empty;
-
-        return $" Patient has and brought machine. Pressure verified at {data.PressureVerifiedAt} cm H2O and changed to {data.PressureChangedTo} cm H2O.";
-    }
-
-    private static void AppendMiscOptions(List<string> parts, IReadOnlySet<string> miscOptions)
-    {
-        var text = GenerateMiscOptions(miscOptions);
-        if (!string.IsNullOrEmpty(text))
-            parts.Add(text);
-    }
-
     private static void AppendBodyPosition(List<string> parts, IReadOnlySet<string> positions)
     {
         parts.Add(" " + GenerateBodyPosition(positions));
@@ -278,13 +327,6 @@ public static class SleepNoteNarrativeGenerator
         IReadOnlySet<string> arrhythmias)
     {
         parts.Add(GenerateEventsAndArrhythmias(events, arrhythmias));
-    }
-
-    private static void AppendPatientMachine(List<string> parts, SleepNoteFormData data)
-    {
-        var text = GeneratePatientMachine(data);
-        if (!string.IsNullOrEmpty(text))
-            parts.Add(text);
     }
 
     private static void AppendEffects(List<string> parts, IReadOnlySet<string> effects)
