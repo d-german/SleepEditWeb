@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using SleepEditWeb.Models;
 using SleepEditWeb.Services;
@@ -65,6 +66,11 @@ public partial class SleepNoteForm : ComponentBase
     private readonly List<MaskSetupStageState> _maskStages = [];
 
     // Config management
+    private bool _showMaskManager;
+    private bool _focusMaskManager;
+    private bool _restoreMaskManagerFocus;
+    private ElementReference _maskManagerTrigger;
+    private ElementReference _maskManagerInitialFocus;
     private string _newMaskType = string.Empty;
     private string _newMaskSize = string.Empty;
 
@@ -83,6 +89,22 @@ public partial class SleepNoteForm : ComponentBase
     protected override void OnInitialized()
     {
         LoadConfiguration();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusMaskManager)
+        {
+            _focusMaskManager = false;
+            await _maskManagerInitialFocus.FocusAsync();
+            return;
+        }
+
+        if (_restoreMaskManagerFocus)
+        {
+            _restoreMaskManagerFocus = false;
+            await _maskManagerTrigger.FocusAsync();
+        }
     }
 
     private void LoadConfiguration()
@@ -105,6 +127,9 @@ public partial class SleepNoteForm : ComponentBase
         if (!ShowTitrationControls)
         {
             _therapyStages.Clear();
+            _showMaskManager = false;
+            _focusMaskManager = false;
+            _restoreMaskManagerFocus = false;
         }
         else if (_therapyStages.Count == 0)
         {
@@ -398,8 +423,37 @@ public partial class SleepNoteForm : ComponentBase
         _arrhythmias.Clear();
         _effects.Clear();
         _miscOptions.Clear();
+        _showMaskManager = false;
+        _focusMaskManager = false;
+        _restoreMaskManagerFocus = false;
+        _newMaskType = string.Empty;
+        _newMaskSize = string.Empty;
         _narrativeText = string.Empty;
         _statusMessage = "Form reset.";
+    }
+
+    private void OpenMaskManager()
+    {
+        _newMaskType = string.Empty;
+        _newMaskSize = string.Empty;
+        _showMaskManager = true;
+        _focusMaskManager = true;
+        _restoreMaskManagerFocus = false;
+    }
+
+    private void CloseMaskManager()
+    {
+        _showMaskManager = false;
+        _focusMaskManager = false;
+        _restoreMaskManagerFocus = true;
+        _newMaskType = string.Empty;
+        _newMaskSize = string.Empty;
+    }
+
+    private void HandleMaskManagerKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+            CloseMaskManager();
     }
 
     private void AddMaskType()
@@ -410,8 +464,13 @@ public partial class SleepNoteForm : ComponentBase
         LoadConfiguration();
     }
 
-    private void RemoveMaskType(string maskType)
+    private async Task RemoveMaskType(string maskType)
     {
+        var confirmed = await JsRuntime.InvokeAsync<bool>(
+            "confirm",
+            $"Remove '{maskType}' from every mask type dropdown?");
+        if (!confirmed) return;
+
         SleepNoteService.RemoveMaskType(maskType);
         LoadConfiguration();
     }
@@ -424,14 +483,24 @@ public partial class SleepNoteForm : ComponentBase
         LoadConfiguration();
     }
 
-    private void RemoveMaskSize(string maskSize)
+    private async Task RemoveMaskSize(string maskSize)
     {
+        var confirmed = await JsRuntime.InvokeAsync<bool>(
+            "confirm",
+            $"Remove '{maskSize}' from every mask size dropdown?");
+        if (!confirmed) return;
+
         SleepNoteService.RemoveMaskSize(maskSize);
         LoadConfiguration();
     }
 
-    private void ResetConfigToDefaults()
+    private async Task ResetConfigToDefaults()
     {
+        var confirmed = await JsRuntime.InvokeAsync<bool>(
+            "confirm",
+            "Reset all mask types and sizes to their defaults?");
+        if (!confirmed) return;
+
         SleepNoteService.ResetConfigToDefaults();
         LoadConfiguration();
         _statusMessage = "Configuration reset to defaults.";
