@@ -2,19 +2,17 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using SleepEditWeb.Data;
 using SleepEditWeb.Models;
+using SleepEditWeb.Web.AdminAccess;
 
 namespace SleepEditWeb.Controllers;
 
 /// <summary>
 /// Admin controller for medication database management.
-/// Protected by secret URL - wrong key returns 404.
+/// Access is protected by the Admin session middleware.
 /// </summary>
 [Route("Admin/Medications")]
 public class AdminController : Controller
 {
-    // TODO: Consider moving to appsettings.json for production
-    private const string SecretKey = "medAdmin2025xK9!";
-
     private readonly IMedicationRepository _repository;
     private readonly ILogger<AdminController> _logger;
 
@@ -24,47 +22,65 @@ public class AdminController : Controller
         _logger = logger;
     }
 
-    /// <summary>
-    /// Validates the secret key and returns NotFound if invalid.
-    /// </summary>
-    private static bool IsValidKey(string secretKey)
+    [HttpGet("/Admin/Login")]
+    public IActionResult Login(string? returnUrl = null)
     {
-        return !string.IsNullOrEmpty(secretKey) && 
-               secretKey.Equals(SecretKey, StringComparison.Ordinal);
+        return View("Login", new AdminLoginViewModel { ReturnUrl = returnUrl });
+    }
+
+    [HttpPost("/Admin/Login")]
+    [ValidateAntiForgeryToken]
+    public IActionResult Login(AdminLoginViewModel model)
+    {
+        if (!string.Equals(model.Password, AdminAccessConstants.Password, StringComparison.Ordinal))
+        {
+            _logger.LogWarning("Admin login denied due to an incorrect password.");
+            model.Password = string.Empty;
+            model.ErrorMessage = "Incorrect password.";
+            return View("Login", model);
+        }
+
+        HttpContext.Session.SetString(
+            AdminAccessConstants.SessionKey,
+            AdminAccessConstants.SessionUnlockedValue);
+        _logger.LogInformation("Admin session unlocked.");
+
+        if (Url.IsLocalUrl(model.ReturnUrl))
+        {
+            return LocalRedirect(model.ReturnUrl!);
+        }
+
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost("/Admin/Logout")]
+    [ValidateAntiForgeryToken]
+    public IActionResult Logout()
+    {
+        HttpContext.Session.Remove(AdminAccessConstants.SessionKey);
+        _logger.LogInformation("Admin session locked.");
+        return RedirectToAction(nameof(Login));
     }
 
     /// <summary>
     /// Admin dashboard with database statistics.
-    /// GET: /Admin/Medications/{secretKey}
+    /// GET: /Admin/Medications
     /// </summary>
-    [HttpGet("{secretKey}")]
-    public IActionResult Index(string secretKey)
+    [HttpGet("")]
+    public IActionResult Index()
     {
-        if (!IsValidKey(secretKey))
-        {
-            _logger.LogWarning("Admin index denied due to invalid key.");
-            return NotFound();
-        }
-
         _logger.LogInformation("Admin index requested.");
         var stats = _repository.GetStats();
-        ViewBag.SecretKey = secretKey;
         return View("Medications", stats);
     }
 
     /// <summary>
     /// Export all medications as JSON backup file.
-    /// GET: /Admin/Medications/{secretKey}/Export
+    /// GET: /Admin/Medications/Export
     /// </summary>
-    [HttpGet("{secretKey}/Export")]
-    public IActionResult Export(string secretKey)
+    [HttpGet("Export")]
+    public IActionResult Export()
     {
-        if (!IsValidKey(secretKey))
-        {
-            _logger.LogWarning("Admin export denied due to invalid key.");
-            return NotFound();
-        }
-
         _logger.LogInformation("Admin export requested.");
         var backup = _repository.ExportAll();
         var json = JsonSerializer.Serialize(backup, new JsonSerializerOptions 
@@ -79,22 +95,17 @@ public class AdminController : Controller
 
     /// <summary>
     /// Import medications from JSON backup file.
-    /// POST: /Admin/Medications/{secretKey}/Import
+    /// POST: /Admin/Medications/Import
     /// </summary>
-    [HttpPost("{secretKey}/Import")]
-    public async Task<IActionResult> Import(string secretKey, IFormFile file, string mode)
+    [HttpPost("Import")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Import(IFormFile file, string mode)
     {
-        if (!IsValidKey(secretKey))
-        {
-            _logger.LogWarning("Admin import denied due to invalid key.");
-            return NotFound();
-        }
-
         if (file == null || file.Length == 0)
         {
             _logger.LogWarning("Admin import aborted because uploaded file was missing or empty.");
             TempData["Error"] = "Please select a backup file to import.";
-            return RedirectToAction(nameof(Index), new { secretKey });
+            return RedirectToAction(nameof(Index));
         }
 
         _logger.LogInformation("Admin import requested. Mode: {Mode}, FileName: {FileName}, Size: {Size}", mode, file.FileName, file.Length);
@@ -112,7 +123,7 @@ public class AdminController : Controller
             {
                 _logger.LogWarning("Admin import aborted because backup content was invalid or empty.");
                 TempData["Error"] = "Invalid backup file or empty medication list.";
-                return RedirectToAction(nameof(Index), new { secretKey });
+                return RedirectToAction(nameof(Index));
             }
 
             if (mode == "replace")
@@ -139,23 +150,17 @@ public class AdminController : Controller
             TempData["Error"] = $"Import failed: {ex.Message}";
         }
 
-        return RedirectToAction(nameof(Index), new { secretKey });
+        return RedirectToAction(nameof(Index));
     }
 
     /// <summary>
     /// Reseed database from embedded resource.
-    /// POST: /Admin/Medications/{secretKey}/Reseed
+    /// POST: /Admin/Medications/Reseed
     /// </summary>
-    [HttpPost("{secretKey}/Reseed")]
+    [HttpPost("Reseed")]
     [ValidateAntiForgeryToken]
-    public IActionResult Reseed(string secretKey)
+    public IActionResult Reseed()
     {
-        if (!IsValidKey(secretKey))
-        {
-            _logger.LogWarning("Admin reseed denied due to invalid key.");
-            return NotFound();
-        }
-
         _logger.LogInformation("Admin reseed requested.");
         try
         {
@@ -169,23 +174,17 @@ public class AdminController : Controller
             TempData["Error"] = $"Reseed failed: {ex.Message}";
         }
 
-        return RedirectToAction(nameof(Index), new { secretKey });
+        return RedirectToAction(nameof(Index));
     }
 
     /// <summary>
     /// Clear all user-added medications.
-    /// POST: /Admin/Medications/{secretKey}/ClearUserMeds
+    /// POST: /Admin/Medications/ClearUserMeds
     /// </summary>
-    [HttpPost("{secretKey}/ClearUserMeds")]
+    [HttpPost("ClearUserMeds")]
     [ValidateAntiForgeryToken]
-    public IActionResult ClearUserMeds(string secretKey)
+    public IActionResult ClearUserMeds()
     {
-        if (!IsValidKey(secretKey))
-        {
-            _logger.LogWarning("Admin clear-user-meds denied due to invalid key.");
-            return NotFound();
-        }
-
         _logger.LogInformation("Admin clear-user-meds requested.");
         try
         {
@@ -199,6 +198,6 @@ public class AdminController : Controller
             TempData["Error"] = $"Clear failed: {ex.Message}";
         }
 
-        return RedirectToAction(nameof(Index), new { secretKey });
+        return RedirectToAction(nameof(Index));
     }
 }
