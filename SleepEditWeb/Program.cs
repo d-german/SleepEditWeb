@@ -10,6 +10,7 @@ using SleepEditWeb.Services;
 using SleepEditWeb.Components;
 using SleepEditWeb.Infrastructure.SleepNote;
 using SleepEditWeb.Web.ProtocolEditor;
+using SleepEditWeb.Web.AdminAccess;
 using Microsoft.AspNetCore.StaticFiles;
 
 namespace SleepEditWeb;
@@ -105,6 +106,7 @@ public class Program
 
 		app.UseForwardedHeaders();
 		app.UseSession();
+		app.UseMiddleware<AdminPasswordMiddleware>();
 		app.UseHttpsRedirection();
 		var mimeProvider = new FileExtensionContentTypeProvider();
 		mimeProvider.Mappings[".gz"] = "application/gzip";
