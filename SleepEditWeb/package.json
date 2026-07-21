@@ -5,6 +5,11 @@
   "scripts": {
     "lint:frontend": "node ./scripts/frontend-lint.mjs",
     "test:frontend": "node --test ./wwwroot/js/__tests__/*.test.mjs",
+    "test:e2e": "dotnet build SleepEditWeb.csproj --no-restore && playwright test",
+    "test:e2e:headed": "dotnet build SleepEditWeb.csproj --no-restore && playwright test --headed",
     "check:frontend": "npm run lint:frontend && npm run test:frontend"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
   }
 }

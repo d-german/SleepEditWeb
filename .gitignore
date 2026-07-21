@@ -198,6 +198,10 @@ ClientBin/
 *.pfx
 *.publishsettings
 node_modules/
+.playwright-cli/
+playwright-report/
+test-results/
+blob-report/
 orleans.codegen.cs
 
 # Since there are multiple workflows, uncomment next line to ignore bower_components

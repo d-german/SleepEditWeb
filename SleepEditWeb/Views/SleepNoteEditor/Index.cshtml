@@ -5,32 +5,52 @@
 
 @Html.AntiForgeryToken()
 
-<div class="page-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+<div class="page-header sleep-note-editor-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div>
         <h1 class="page-title">Sleep Note Editor</h1>
-        <p class="page-subtitle">Document-first editing with medication tool integration</p>
+        <p class="page-subtitle">Document-first editing with integrated clinical tools</p>
     </div>
-    <div class="d-flex gap-2">
-        <button type="button" id="openSleepNoteBtn" class="btn btn-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 1.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5zm-5 0A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5v1A1.5 1.5 0 0 1 9.5 4h-3A1.5 1.5 0 0 1 5 2.5zm-2 0h1v1A2.5 2.5 0 0 0 6.5 5h3A2.5 2.5 0 0 0 12 2.5v-1h1a2 2 0 0 1 2 2V14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3.5a2 2 0 0 1 2-2m6.979 3.856a.5.5 0 0 0-.968.04L7.92 10.49l-.94-3.135a.5.5 0 0 0-.895-.12L4.232 10H2.5a.5.5 0 0 0 0 1h2a.5.5 0 0 0 .416-.223l1.41-2.115 1.195 3.982a.5.5 0 0 0 .968-.04L9.58 7.51l.94 3.135A.5.5 0 0 0 11 11h2.5a.5.5 0 0 0 0-1h-2.116z"/></svg>Sleep Note
-        </button>
-        <button type="button" id="openMedToolBtn" class="btn btn-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M1.828 8.9 8.9 1.827a4 4 0 1 1 5.657 5.657l-7.07 7.071A4 4 0 1 1 1.827 8.9Zm9.128.771 2.893-2.893a3 3 0 1 0-4.243-4.242L6.713 5.429z"/></svg>Medication Tool
-        </button>
-        <button type="button" id="openProtocolViewerBtn" class="btn btn-outline-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H14a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 2 7h5.5V6A1.5 1.5 0 0 1 6 4.5zM8.5 5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5zM0 11.5A1.5 1.5 0 0 1 1.5 10h1A1.5 1.5 0 0 1 4 11.5v1A1.5 1.5 0 0 1 2.5 14h-1A1.5 1.5 0 0 1 0 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.5.5A1.5 1.5 0 0 1 7.5 10h1a1.5 1.5 0 0 1 1.5 1.5v1A1.5 1.5 0 0 1 8.5 14h-1A1.5 1.5 0 0 1 6 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.5.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/></svg>Protocol Viewer
-        </button>
-        <button type="button" id="printEditorBtn" class="btn btn-outline-secondary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/><path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 10a1 1 0 0 1-1-1V9h8v3a1 1 0 0 1-1 1zM14 8H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1"/></svg>Print
-        </button>
-        <button type="button" id="saveEditorBtn" class="btn btn-outline-secondary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M11 2H9v3h2z"/><path d="M1.5 0h11.586a1.5 1.5 0 0 1 1.06.44l1.415 1.414A1.5 1.5 0 0 1 16 2.914V14.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 14.5v-13A1.5 1.5 0 0 1 1.5 0M1 1.5v13a.5.5 0 0 0 .5.5H2v-4.5A1.5 1.5 0 0 1 3.5 9h9a1.5 1.5 0 0 1 1.5 1.5V15h.5a.5.5 0 0 0 .5-.5V2.914a.5.5 0 0 0-.146-.353l-1.415-1.415A.5.5 0 0 0 13.086 1H13v4.5A1.5 1.5 0 0 1 11.5 7h-7A1.5 1.5 0 0 1 3 5.5V1H1.5a.5.5 0 0 0-.5.5m3 4a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V1H4zM3 15h10v-4.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5z"/></svg>Save
-        </button>
+    <div class="sleep-note-editor-header-actions">
+        <div class="editor-tool-actions" role="group" aria-label="Clinical tools">
+            <button type="button" id="openSleepNoteBtn" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 1.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5zm-5 0A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5v1A1.5 1.5 0 0 1 9.5 4h-3A1.5 1.5 0 0 1 5 2.5zm-2 0h1v1A2.5 2.5 0 0 0 6.5 5h3A2.5 2.5 0 0 0 12 2.5v-1h1a2 2 0 0 1 2 2V14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3.5a2 2 0 0 1 2-2m6.979 3.856a.5.5 0 0 0-.968.04L7.92 10.49l-.94-3.135a.5.5 0 0 0-.895-.12L4.232 10H2.5a.5.5 0 0 0 0 1h2a.5.5 0 0 0 .416-.223l1.41-2.115 1.195 3.982a.5.5 0 0 0 .968-.04L9.58 7.51l.94 3.135A.5.5 0 0 0 11 11h2.5a.5.5 0 0 0 0-1h-2.116z"/></svg>Generate Sleep Note
+            </button>
+            <button type="button" id="openProtocolViewerBtn" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M6 3.5A1.5 1.5 0 0 1 7.5 2h1A1.5 1.5 0 0 1 10 3.5v1A1.5 1.5 0 0 1 8.5 6v1H14a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0V8h-5v.5a.5.5 0 0 1-1 0v-1A.5.5 0 0 1 2 7h5.5V6A1.5 1.5 0 0 1 6 4.5zM8.5 5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5zM0 11.5A1.5 1.5 0 0 1 1.5 10h1A1.5 1.5 0 0 1 4 11.5v1A1.5 1.5 0 0 1 2.5 14h-1A1.5 1.5 0 0 1 0 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.5.5A1.5 1.5 0 0 1 7.5 10h1a1.5 1.5 0 0 1 1.5 1.5v1A1.5 1.5 0 0 1 8.5 14h-1A1.5 1.5 0 0 1 6 12.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5zm4.5.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 1.5 1.5v1a1.5 1.5 0 0 1-1.5 1.5h-1a1.5 1.5 0 0 1-1.5-1.5zm1.5-.5a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5z"/></svg>Protocol Viewer
+            </button>
+            <button type="button" id="openMedToolBtn" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M1.828 8.9 8.9 1.827a4 4 0 1 1 5.657 5.657l-7.07 7.071A4 4 0 1 1 1.827 8.9Zm9.128.771 2.893-2.893a3 3 0 1 0-4.243-4.242L6.713 5.429z"/></svg>Medication Tool
+            </button>
+        </div>
+        <div class="editor-document-actions">
+            <button type="button" id="workflowHelpToggle" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#workflowHelp" aria-expanded="false" aria-controls="workflowHelp">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M2 6a6 6 0 1 1 10.174 4.31c-.203.196-.359.4-.453.619l-.762 1.769A.5.5 0 0 1 10.5 13a.5.5 0 0 1 0 1 .5.5 0 0 1 0 1l-.224.447a1 1 0 0 1-.894.553H6.618a1 1 0 0 1-.894-.553L5.5 15a.5.5 0 0 1 0-1 .5.5 0 0 1 0-1 .5.5 0 0 1-.46-.302l-.761-1.77a2 2 0 0 0-.453-.618A5.98 5.98 0 0 1 2 6m6-5a5 5 0 0 0-3.479 8.592c.263.254.514.564.676.941L5.83 12h4.342l.632-1.467c.162-.377.413-.687.676-.941A5 5 0 0 0 8 1"/></svg>How this works
+            </button>
+            <button type="button" id="printEditorBtn" class="btn btn-outline-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/><path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 10a1 1 0 0 1-1-1V9h8v3a1 1 0 0 1-1 1zM14 8H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1"/></svg>Print
+            </button>
+            <button type="button" id="saveEditorBtn" class="btn btn-outline-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-1" viewBox="0 0 16 16"><path d="M11 2H9v3h2z"/><path d="M1.5 0h11.586a1.5 1.5 0 0 1 1.06.44l1.415 1.414A1.5 1.5 0 0 1 16 2.914V14.5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 14.5v-13A1.5 1.5 0 0 1 1.5 0M1 1.5v13a.5.5 0 0 0 .5.5H2v-4.5A1.5 1.5 0 0 1 3.5 9h9a1.5 1.5 0 0 1 1.5 1.5V15h.5a.5.5 0 0 0 .5-.5V2.914a.5.5 0 0 0-.146-.353l-1.415-1.415A.5.5 0 0 0 13.086 1H13v4.5A1.5 1.5 0 0 1 11.5 7h-7A1.5 1.5 0 0 1 3 5.5V1H1.5a.5.5 0 0 0-.5.5m3 4a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5V1H4zM3 15h10v-4.5a.5.5 0 0 0-.5-.5h-9a.5.5 0 0 0-.5.5z"/></svg>Save
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="collapse workflow-help" id="workflowHelp">
+    <div class="workflow-help-card" role="region" aria-labelledby="workflowHelpToggle">
+        <div class="workflow-help-title">How this works</div>
+        <ol class="instructions-list mb-0">
+            <li>Type and format directly in the editor.</li>
+            <li>Use Generate Sleep Note for the guided sleep-study form.</li>
+            <li>Use Protocol Viewer to insert protocol-driven selections.</li>
+            <li>Open Medication Tool when medication details are needed.</li>
+            <li>Choose Insert, Replace Section, or Copy, then select Done to return to the editor.</li>
+        </ol>
     </div>
 </div>
 
 <div class="row g-4">
-    <div class="col-12 col-xl-8">
+    <div class="col-12 sleep-note-editor-column">
         <div class="dashboard-card">
             <div class="dashboard-card-header">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M7.5 3.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m-.861 1.542 1.33.886 1.854-1.855a.25.25 0 0 1 .289-.047L11 4.75V7a.5.5 0 0 1-.5.5h-5A.5.5 0 0 1 5 7V5.375l1.639-1.083M5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5"/><path d="M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2"/><path d="M1 5v-.5a.5.5 0 0 1 1 0V5h.5a.5.5 0 0 1 0 1H2v.5a.5.5 0 0 1-1 0V6h-.5a.5.5 0 0 1 0-1z"/></svg>
@@ -70,23 +90,6 @@
         </div>
     </div>
 
-    <div class="col-12 col-xl-4">
-        <div class="dashboard-card h-100">
-            <div class="dashboard-card-header instructions-header">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M2 6a6 6 0 1 1 10.174 4.31c-.203.196-.359.4-.453.619l-.762 1.769A.5.5 0 0 1 10.5 13a.5.5 0 0 1 0 1 .5.5 0 0 1 0 1l-.224.447a1 1 0 0 1-.894.553H6.618a1 1 0 0 1-.894-.553L5.5 15a.5.5 0 0 1 0-1 .5.5 0 0 1 0-1 .5.5 0 0 1-.46-.302l-.761-1.77a2 2 0 0 0-.453-.618A5.98 5.98 0 0 1 2 6m6-5a5 5 0 0 0-3.479 8.592c.263.254.514.564.676.941L5.83 12h4.342l.632-1.467c.162-.377.413-.687.676-.941A5 5 0 0 0 8 1"/></svg>
-                Workflow
-            </div>
-            <div class="dashboard-card-body">
-                <ol class="instructions-list mb-0">
-                    <li>Use the editor for free typing and formatting.</li>
-                    <li>Open Medication Tool and search medications.</li>
-                    <li>Open Protocol Viewer to insert protocol-driven selections.</li>
-                    <li>Choose insertion mode: Insert, Replace Section, or Copy.</li>
-                    <li>Click Done to apply narrative and keep editing.</li>
-                </ol>
-            </div>
-        </div>
-    </div>
 </div>
 
 <div class="modal fade" id="medToolModal" tabindex="-1" aria-labelledby="medToolLabel" aria-hidden="true">
@@ -197,7 +200,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="sleepNoteModalLabel">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-2" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 1.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5zm-5 0A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5v1A1.5 1.5 0 0 1 9.5 4h-3A1.5 1.5 0 0 1 5 2.5zm-2 0h1v1A2.5 2.5 0 0 0 6.5 5h3A2.5 2.5 0 0 0 12 2.5v-1h1a2 2 0 0 1 2 2V14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3.5a2 2 0 0 1 2-2m6.979 3.856a.5.5 0 0 0-.968.04L7.92 10.49l-.94-3.135a.5.5 0 0 0-.895-.12L4.232 10H2.5a.5.5 0 0 0 0 1h2a.5.5 0 0 0 .416-.223l1.41-2.115 1.195 3.982a.5.5 0 0 0 .968-.04L9.58 7.51l.94 3.135A.5.5 0 0 0 11 11h2.5a.5.5 0 0 0 0-1h-2.116z"/></svg>Sleep Note
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="me-2" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M10 1.5a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v1a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5zm-5 0A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5v1A1.5 1.5 0 0 1 9.5 4h-3A1.5 1.5 0 0 1 5 2.5zm-2 0h1v1A2.5 2.5 0 0 0 6.5 5h3A2.5 2.5 0 0 0 12 2.5v-1h1a2 2 0 0 1 2 2V14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V3.5a2 2 0 0 1 2-2m6.979 3.856a.5.5 0 0 0-.968.04L7.92 10.49l-.94-3.135a.5.5 0 0 0-.895-.12L4.232 10H2.5a.5.5 0 0 0 0 1h2a.5.5 0 0 0 .416-.223l1.41-2.115 1.195 3.982a.5.5 0 0 0 .968-.04L9.58 7.51l.94 3.135A.5.5 0 0 0 11 11h2.5a.5.5 0 0 0 0-1h-2.116z"/></svg>Generate Sleep Note
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -247,11 +250,20 @@
 
         const medModal = new bootstrap.Modal(document.getElementById('medToolModal'));
         const drugInfoModal = new bootstrap.Modal(document.getElementById('drugInfoModal'));
-        const protocolViewerModal = new bootstrap.Modal(document.getElementById('protocolViewerModal'));
+        const protocolViewerModalElement = document.getElementById('protocolViewerModal');
+        const protocolViewerModal = new bootstrap.Modal(protocolViewerModalElement);
         const sleepNoteFrame = document.getElementById('sleepNoteFrame');
-        const sleepNoteModal = new bootstrap.Modal(document.getElementById('sleepNoteModal'));
+        const sleepNoteModalElement = document.getElementById('sleepNoteModal');
+        const sleepNoteModal = new bootstrap.Modal(sleepNoteModalElement);
         const sleepNoteUrl = '@Url.Action("Index", "SleepNote", new { embed = 1 })';
         let selectedMeds = initialSelections.map(item => item.name);
+        let protocolViewerModalShown = false;
+        let sleepNoteModalShown = false;
+
+        protocolViewerModalElement.addEventListener('shown.bs.modal', () => protocolViewerModalShown = true);
+        protocolViewerModalElement.addEventListener('hidden.bs.modal', () => protocolViewerModalShown = false);
+        sleepNoteModalElement.addEventListener('shown.bs.modal', () => sleepNoteModalShown = true);
+        sleepNoteModalElement.addEventListener('hidden.bs.modal', () => sleepNoteModalShown = false);
 
         document.getElementById('openSleepNoteBtn').addEventListener('click', openSleepNote);
 
@@ -271,6 +283,9 @@
 
         document.querySelectorAll('.format-btn').forEach(button => {
             button.addEventListener('click', () => {
+                if (!getSelectionRangeInside(editor)) {
+                    editor.focus();
+                }
                 document.execCommand(button.dataset.command, false, null);
                 editor.focus();
             });
@@ -560,13 +575,13 @@
         }
 
         function insertTextAtCursor(text) {
-            const selection = window.getSelection();
-            if (!selection || !selection.rangeCount) {
-                editor.innerText += text;
+            const selectionState = getSelectionRangeInside(editor);
+            if (!selectionState) {
+                editor.append(document.createTextNode(text));
                 return;
             }
 
-            const range = selection.getRangeAt(0);
+            const { selection, range } = selectionState;
             range.deleteContents();
             range.insertNode(document.createTextNode(text));
             range.collapse(false);
@@ -625,7 +640,7 @@
 
             const data = event.data || {};
             if (data.type === 'protocolViewer:cancel') {
-                protocolViewerModal.hide();
+                hideProtocolViewerModal();
                 return;
             }
 
@@ -634,7 +649,7 @@
             }
 
             insertTextAtCursor((data.content || '') + '\n');
-            protocolViewerModal.hide();
+            hideProtocolViewerModal();
             await saveEditorContent();
             setStatus('Protocol content inserted');
         }
@@ -652,7 +667,7 @@
 
             const data = event.data || {};
             if (data.type === 'sleepNote:cancel') {
-                sleepNoteModal.hide();
+                hideSleepNoteModal();
                 return;
             }
 
@@ -661,9 +676,26 @@
             }
 
             insertTextAtCursor((data.content || '') + '\n');
-            sleepNoteModal.hide();
+            hideSleepNoteModal();
             await saveEditorContent();
             setStatus('Sleep note inserted');
+        }
+
+        function hideProtocolViewerModal() {
+            hideModalWhenReady(protocolViewerModalElement, protocolViewerModal, () => protocolViewerModalShown);
+        }
+
+        function hideSleepNoteModal() {
+            hideModalWhenReady(sleepNoteModalElement, sleepNoteModal, () => sleepNoteModalShown);
+        }
+
+        function hideModalWhenReady(modalElement, modal, isShown) {
+            if (isShown()) {
+                modal.hide();
+                return;
+            }
+
+            modalElement.addEventListener('shown.bs.modal', () => modal.hide(), { once: true });
         }
 
         function debounce(callback, wait) {
@@ -675,15 +707,30 @@
         }
 
         function getCursorOffset(element) {
-            const selection = window.getSelection();
-            if (!selection || !selection.rangeCount) {
+            const selectionState = getSelectionRangeInside(element);
+            if (!selectionState) {
                 return getEditorText().length;
             }
 
-            const range = selection.getRangeAt(0).cloneRange();
+            const { selection } = selectionState;
+            const range = selectionState.range.cloneRange();
             range.selectNodeContents(element);
             range.setEnd(selection.focusNode, selection.focusOffset);
             return range.toString().length;
+        }
+
+        function getSelectionRangeInside(element) {
+            const selection = window.getSelection();
+            if (!selection || !selection.rangeCount) {
+                return null;
+            }
+
+            const range = selection.getRangeAt(0);
+            if (!element.contains(range.commonAncestorContainer)) {
+                return null;
+            }
+
+            return { selection, range };
         }
 
         function escapeHtml(value) {

@@ -31,6 +31,8 @@ export function initializeProtocolViewer(config) {
     renderAllSections();
     refreshLookupSelects();
     elements.studyDateInput.value = toDateInputValue(config.initialStudyDate);
+    elements.okButton.disabled = false;
+    elements.cancelButton.disabled = false;
     setStatus("Ready");
 
     function bindEvents() {
@@ -412,7 +414,9 @@ function resolveElements() {
         studyDateInput: document.getElementById("studyDate"),
         patientNameInput: document.getElementById("patientName"),
         maskStyleSelect: document.getElementById("maskStyleSelect"),
-        maskSizeSelect: document.getElementById("maskSizeSelect")
+        maskSizeSelect: document.getElementById("maskSizeSelect"),
+        okButton: document.getElementById("protocolViewerOkBtn"),
+        cancelButton: document.getElementById("protocolViewerCancelBtn")
     };
 }
 

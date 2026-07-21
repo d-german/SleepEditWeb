@@ -808,6 +808,43 @@ textarea.form-control[readonly] {
 /* ==========================================
    Sleep Note Editor
    ========================================== */
+.sleep-note-editor-header-actions,
+.editor-tool-actions,
+.editor-document-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sleep-note-editor-header-actions {
+    justify-content: flex-end;
+}
+
+.editor-document-actions {
+    border-left: 1px solid var(--card-border);
+    padding-left: 0.75rem;
+}
+
+.workflow-help {
+    margin-bottom: 1rem;
+}
+
+.workflow-help-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--border-radius-sm);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 1rem 1.25rem;
+}
+
+.workflow-help-title {
+    color: var(--heading-color);
+    font-family: "Roboto Slab", Georgia, serif;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
 .editor-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -830,6 +867,32 @@ textarea.form-control[readonly] {
     outline: none;
     border-color: var(--btn-primary-bg);
     box-shadow: 0 0 0 0.2rem var(--focus-ring);
+}
+
+@media (max-width: 1399.98px) {
+    .sleep-note-editor-header-actions {
+        justify-content: flex-start;
+        width: 100%;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .editor-tool-actions,
+    .editor-document-actions {
+        width: 100%;
+    }
+
+    .editor-document-actions {
+        border-left: 0;
+        border-top: 1px solid var(--card-border);
+        padding-left: 0;
+        padding-top: 0.75rem;
+    }
+
+    .editor-tool-actions .btn,
+    .editor-document-actions .btn {
+        flex: 1 1 auto;
+    }
 }
 
 /* ==========================================

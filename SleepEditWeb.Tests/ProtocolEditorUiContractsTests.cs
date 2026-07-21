@@ -104,6 +104,41 @@ public class ProtocolEditorUiContractsTests
         Assert.That(File.Exists(sharedUtilsPath), Is.True, "Protocol shared utilities module must exist for the Protocol Viewer module graph.");
     }
 
+    [Test]
+    public void SleepNoteEditorView_PrioritizesClinicalToolsAndUsesCompactWorkflowHelp()
+    {
+        var content = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/SleepNoteEditor/Index.cshtml"));
+
+        var generateIndex = content.IndexOf("id=\"openSleepNoteBtn\"", StringComparison.Ordinal);
+        var protocolIndex = content.IndexOf("id=\"openProtocolViewerBtn\"", StringComparison.Ordinal);
+        var medicationIndex = content.IndexOf("id=\"openMedToolBtn\"", StringComparison.Ordinal);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(generateIndex, Is.GreaterThanOrEqualTo(0), "Generate Sleep Note launcher not found.");
+            Assert.That(protocolIndex, Is.GreaterThan(generateIndex), "Protocol Viewer should follow Generate Sleep Note.");
+            Assert.That(medicationIndex, Is.GreaterThan(protocolIndex), "Medication Tool should be the last clinical tool.");
+            Assert.That(content, Does.Contain(">Generate Sleep Note"));
+            Assert.That(content, Does.Contain("id=\"workflowHelp\""));
+            Assert.That(content, Does.Contain("data-bs-target=\"#workflowHelp\""));
+            Assert.That(content, Does.Contain("class=\"col-12 sleep-note-editor-column\""));
+            Assert.That(content, Does.Not.Contain("class=\"col-12 col-xl-4\""));
+        });
+
+        Assert.That(
+            Regex.IsMatch(content, "<button(?=[^>]*id=\"openSleepNoteBtn\")(?=[^>]*class=\"[^\"]*btn-primary[^\"]*\")[^>]*>", RegexOptions.Multiline),
+            Is.True,
+            "Generate Sleep Note should use the primary clinical-tool styling.");
+        Assert.That(
+            Regex.IsMatch(content, "<button(?=[^>]*id=\"openProtocolViewerBtn\")(?=[^>]*class=\"[^\"]*btn-primary[^\"]*\")[^>]*>", RegexOptions.Multiline),
+            Is.True,
+            "Protocol Viewer should use the same primary styling as the other clinical tools.");
+        Assert.That(
+            Regex.IsMatch(content, "<button(?=[^>]*id=\"openMedToolBtn\")(?=[^>]*class=\"[^\"]*btn-primary[^\"]*\")[^>]*>", RegexOptions.Multiline),
+            Is.True,
+            "Medication Tool should use the primary clinical-tool styling.");
+    }
+
     private static void AssertRouteTemplate<TAttribute>(string actionName, string expectedTemplate)
         where TAttribute : HttpMethodAttribute
     {
