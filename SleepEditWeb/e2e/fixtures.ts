@@ -1,4 +1,5 @@
 import { test as base, expect } from '@playwright/test';
+import { saveEditor } from './helpers';
 
 const defaultEditorText = [
   'Sleep Study Note',
@@ -20,8 +21,7 @@ export const test = base.extend({
       element.innerText = value;
       element.dispatchEvent(new InputEvent('input', { bubbles: true }));
     }, defaultEditorText);
-    await page.locator('#saveEditorBtn').click();
-    await expect(page.locator('#editorStatus')).toHaveText('Saved');
+    await saveEditor(page);
 
     await use(page);
   },

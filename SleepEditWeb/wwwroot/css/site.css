@@ -826,25 +826,6 @@ textarea.form-control[readonly] {
     padding-left: 0.75rem;
 }
 
-.workflow-help {
-    margin-bottom: 1rem;
-}
-
-.workflow-help-card {
-    background-color: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: var(--border-radius-sm);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-    padding: 1rem 1.25rem;
-}
-
-.workflow-help-title {
-    color: var(--heading-color);
-    font-family: "Roboto Slab", Georgia, serif;
-    font-weight: 500;
-    margin-bottom: 0.75rem;
-}
-
 .editor-toolbar {
     display: flex;
     flex-wrap: wrap;

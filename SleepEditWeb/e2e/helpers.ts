@@ -1,7 +1,21 @@
 import type { FrameLocator, Page } from '@playwright/test';
-import { expect } from './fixtures';
+import { expect } from '@playwright/test';
 
 export const editor = (page: Page) => page.locator('#sleepNoteEditor');
+
+export async function saveEditor(page: Page): Promise<void> {
+  const ok = await page.evaluate(async () => {
+    const element = document.getElementById('sleepNoteEditor');
+    const token = document.querySelector<HTMLInputElement>('input[name="__RequestVerificationToken"]')?.value ?? '';
+    const response = await fetch('/SleepNoteEditor/Save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+      body: JSON.stringify({ content: element?.innerText ?? '' }),
+    });
+    return response.ok;
+  });
+  expect(ok).toBe(true);
+}
 
 export async function selectPageTitle(page: Page): Promise<void> {
   await page.evaluate(() => {

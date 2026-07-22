@@ -105,7 +105,7 @@ public class ProtocolEditorUiContractsTests
     }
 
     [Test]
-    public void SleepNoteEditorView_PrioritizesClinicalToolsAndUsesCompactWorkflowHelp()
+    public void SleepNoteEditorView_PrioritizesClinicalToolsAndOmitsSaveAndHelp()
     {
         var content = File.ReadAllText(ResolveRepoFile("SleepEditWeb/Views/SleepNoteEditor/Index.cshtml"));
 
@@ -119,8 +119,9 @@ public class ProtocolEditorUiContractsTests
             Assert.That(protocolIndex, Is.GreaterThan(generateIndex), "Protocol Viewer should follow Generate Sleep Note.");
             Assert.That(medicationIndex, Is.GreaterThan(protocolIndex), "Medication Tool should be the last clinical tool.");
             Assert.That(content, Does.Contain(">Generate Sleep Note"));
-            Assert.That(content, Does.Contain("id=\"workflowHelp\""));
-            Assert.That(content, Does.Contain("data-bs-target=\"#workflowHelp\""));
+            Assert.That(content, Does.Not.Contain("id=\"workflowHelp\""), "The workflow help region should be removed.");
+            Assert.That(content, Does.Not.Contain("data-bs-target=\"#workflowHelp\""), "The How this works toggle should be removed.");
+            Assert.That(content, Does.Not.Contain("id=\"saveEditorBtn\""), "The Save button should be removed.");
             Assert.That(content, Does.Contain("class=\"col-12 sleep-note-editor-column\""));
             Assert.That(content, Does.Not.Contain("class=\"col-12 col-xl-4\""));
         });

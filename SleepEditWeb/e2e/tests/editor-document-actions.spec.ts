@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures';
-import { editor } from '../helpers';
+import { editor, saveEditor } from '../helpers';
 
 test('direct editing, formatting, save, reload, and print preserve the document', async ({ page }) => {
   await editor(page).evaluate(element => {
@@ -14,8 +14,7 @@ test('direct editing, formatting, save, reload, and print preserve the document'
   await page.getByTitle('Bold').click();
   await expect(editor(page).locator('b, strong')).toContainText('Formatted sleep note');
 
-  await page.locator('#saveEditorBtn').click();
-  await expect(page.locator('#editorStatus')).toHaveText('Saved');
+  await saveEditor(page);
   await page.reload();
   await expect(editor(page)).toHaveText('Formatted sleep note');
 
