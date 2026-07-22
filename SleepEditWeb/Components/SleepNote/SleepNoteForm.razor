@@ -223,8 +223,9 @@
                                         <label class="form-label small" for="@($"initialIpap_{stageIndex}")">Initial IPAP</label>
                                         <select class="form-select form-select-sm"
                                                 id="@($"initialIpap_{stageIndex}")"
+                                                @key="stage.InitialEpap"
                                                 @bind="stage.InitialIpap">
-                                            @foreach (var p in BipapIpapValues)
+                                            @foreach (var p in GetAvailableIpapValues(stage.InitialEpap))
                                             {
                                                 <option value="@p">@p</option>
                                             }
@@ -234,8 +235,9 @@
                                         <label class="form-label small" for="@($"initialEpap_{stageIndex}")">Initial EPAP</label>
                                         <select class="form-select form-select-sm"
                                                 id="@($"initialEpap_{stageIndex}")"
+                                                @key="stage.InitialIpap"
                                                 @bind="stage.InitialEpap">
-                                            @foreach (var p in BipapEpapValues)
+                                            @foreach (var p in GetAvailableEpapValues(stage.InitialIpap))
                                             {
                                                 <option value="@p">@p</option>
                                             }
@@ -245,8 +247,9 @@
                                         <label class="form-label small" for="@($"finalIpap_{stageIndex}")">Final IPAP</label>
                                         <select class="form-select form-select-sm"
                                                 id="@($"finalIpap_{stageIndex}")"
+                                                @key="stage.FinalEpap"
                                                 @bind="stage.FinalIpap">
-                                            @foreach (var p in BipapIpapValues)
+                                            @foreach (var p in GetAvailableIpapValues(stage.FinalEpap))
                                             {
                                                 <option value="@p">@p</option>
                                             }
@@ -256,8 +259,9 @@
                                         <label class="form-label small" for="@($"finalEpap_{stageIndex}")">Final EPAP</label>
                                         <select class="form-select form-select-sm"
                                                 id="@($"finalEpap_{stageIndex}")"
+                                                @key="stage.FinalIpap"
                                                 @bind="stage.FinalEpap">
-                                            @foreach (var p in BipapEpapValues)
+                                            @foreach (var p in GetAvailableEpapValues(stage.FinalIpap))
                                             {
                                                 <option value="@p">@p</option>
                                             }

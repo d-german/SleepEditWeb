@@ -8,6 +8,8 @@ namespace SleepEditWeb.Components.SleepNote;
 
 public partial class SleepNoteForm : ComponentBase
 {
+    private const int MinimumPressureSupport = 4;
+
     [Inject] private ISleepNoteService SleepNoteService { get; set; } = null!;
     [Inject] private IJSRuntime JsRuntime { get; set; } = null!;
     [Inject] private ILogger<SleepNoteForm> Logger { get; set; } = null!;
@@ -43,7 +45,7 @@ public partial class SleepNoteForm : ComponentBase
         Enumerable.Range(8, 23).ToArray();
 
     private static readonly IReadOnlyList<int> BipapEpapValues =
-        Enumerable.Range(4, 27).ToArray();
+        Enumerable.Range(4, 23).ToArray();
 
     private static readonly IReadOnlyList<string> TransitionReasons =
     [
@@ -244,8 +246,14 @@ public partial class SleepNoteForm : ComponentBase
         };
     }
 
+    private static IEnumerable<int> GetAvailableIpapValues(int epap) =>
+        BipapIpapValues.Where(ipap => ipap - epap >= MinimumPressureSupport);
+
+    private static IEnumerable<int> GetAvailableEpapValues(int ipap) =>
+        BipapEpapValues.Where(epap => ipap - epap >= MinimumPressureSupport);
+
     private static bool IsLowPressureSupport(int ipap, int epap) =>
-        epap <= ipap && ipap - epap < 4;
+        epap <= ipap && ipap - epap < MinimumPressureSupport;
 
     private static bool HasLowPressureSupport(TherapyStageState stage) =>
         IsLowPressureSupport(stage.InitialIpap, stage.InitialEpap) ||

@@ -1,5 +1,16 @@
 import { test, expect } from '../fixtures';
 import { generateNarrative, openSleepNoteGenerator } from '../helpers';
+import type { Locator } from '@playwright/test';
+
+async function selectInjectedOption(select: Locator, value: string) {
+  await select.evaluate((element, optionValue) => {
+    const pressureSelect = element as HTMLSelectElement;
+    if (![...pressureSelect.options].some(option => option.value === optionValue)) {
+      pressureSelect.add(new Option(optionValue, optionValue));
+    }
+  }, value);
+  await select.selectOption(value);
+}
 
 test('multi-stage CPAP to BIPAP ST course keeps exact pressures, rate, and mask changes', async ({ page }) => {
   const generator = await openSleepNoteGenerator(page);
@@ -45,7 +56,7 @@ test('multi-stage CPAP to BIPAP ST course keeps exact pressures, rate, and mask 
   expect(narrative).toContain('persistent oral leak despite chin strap');
 });
 
-test('every PAP pressure selector reaches 30 while preserving its minimum', async ({ page }) => {
+test('PAP pressure selectors enforce four-point BiPAP support without changing companion values', async ({ page }) => {
   const generator = await openSleepNoteGenerator(page);
   await generator.locator('#studyTitration').check();
 
@@ -67,21 +78,38 @@ test('every PAP pressure selector reaches 30 while preserving its minimum', asyn
   await generator.locator('#therapyMode_0_Bipap').check();
 
   const expectedIpapValues = Array.from({ length: 23 }, (_, index) => String(index + 8));
-  const expectedEpapValues = Array.from({ length: 27 }, (_, index) => String(index + 4));
-  for (const selector of ['#initialIpap_0', '#finalIpap_0']) {
-    const pressure = generator.locator(selector);
-    await expect(pressure.locator('option')).toHaveCount(expectedIpapValues.length);
-    expect(await pressure.locator('option').allTextContents()).toEqual(expectedIpapValues);
-    await pressure.selectOption('30');
-    await expect(pressure).toHaveValue('30');
-  }
-  for (const selector of ['#initialEpap_0', '#finalEpap_0']) {
-    const pressure = generator.locator(selector);
-    await expect(pressure.locator('option')).toHaveCount(expectedEpapValues.length);
-    expect(await pressure.locator('option').allTextContents()).toEqual(expectedEpapValues);
-    await pressure.selectOption('30');
-    await expect(pressure).toHaveValue('30');
-  }
+  const initialIpap = generator.locator('#initialIpap_0');
+  const initialEpap = generator.locator('#initialEpap_0');
+  const finalIpap = generator.locator('#finalIpap_0');
+  const finalEpap = generator.locator('#finalEpap_0');
+
+  await expect(initialIpap.locator('option')).toHaveText(expectedIpapValues);
+  await expect(initialEpap.locator('option')).toHaveText(['4']);
+  await expect(finalIpap.locator('option')).toHaveText(expectedIpapValues);
+  await expect(finalEpap.locator('option')).toHaveText(['4']);
+
+  await initialIpap.selectOption('20');
+  await expect(initialEpap.locator('option')).toHaveText(
+    Array.from({ length: 13 }, (_, index) => String(index + 4))
+  );
+  await expect(initialEpap).toHaveValue('4');
+  await initialEpap.selectOption('16');
+  await expect(initialIpap.locator('option')).toHaveText(
+    Array.from({ length: 11 }, (_, index) => String(index + 20))
+  );
+  await expect(initialIpap).toHaveValue('20');
+
+  await finalIpap.selectOption('30');
+  await expect(finalEpap.locator('option')).toHaveText(
+    Array.from({ length: 23 }, (_, index) => String(index + 4))
+  );
+  await expect(finalEpap).toHaveValue('4');
+  await finalEpap.selectOption('26');
+  await expect(finalIpap.locator('option')).toHaveText(['30']);
+  await expect(finalIpap).toHaveValue('30');
+
+  await expect(initialIpap).toHaveValue('20');
+  await expect(initialEpap).toHaveValue('16');
 });
 
 test('BiPAP warning distinguishes a four-point difference from reversed pressure order', async ({ page }) => {
@@ -95,17 +123,16 @@ test('BiPAP warning distinguishes a four-point difference from reversed pressure
   await generator.locator('#finalEpap_0').selectOption('16');
   await expect(warnings).toHaveCount(0);
 
-  await generator.locator('#finalEpap_0').selectOption('17');
+  await selectInjectedOption(generator.locator('#finalEpap_0'), '17');
   await expect(warnings).toHaveCount(1);
   await expect(warnings).toContainText('final IPAP/EPAP difference is below 4 cm H2O');
 
-  await generator.locator('#finalIpap_0').selectOption('16');
-  await generator.locator('#finalEpap_0').selectOption('20');
+  await selectInjectedOption(generator.locator('#finalIpap_0'), '16');
+  await selectInjectedOption(generator.locator('#finalEpap_0'), '20');
   await expect(warnings).toHaveCount(1);
   await expect(warnings).toContainText('final EPAP exceeds IPAP');
   await expect(warnings).not.toContainText('below 4 cm H2O');
-  await expect(generator.locator('#finalIpap_0')).toHaveValue('16');
-  await expect(generator.locator('#finalEpap_0')).toHaveValue('20');
+  await expect(generator.locator('#finalIpap_0 option[value="16"]')).toHaveCount(0);
 });
 
 test('initial order and final support warnings are evaluated independently', async ({ page }) => {
@@ -114,9 +141,9 @@ test('initial order and final support warnings are evaluated independently', asy
   await generator.locator('#therapyMode_0_Bipap').check();
 
   await generator.locator('#initialIpap_0').selectOption('8');
-  await generator.locator('#initialEpap_0').selectOption('10');
+  await selectInjectedOption(generator.locator('#initialEpap_0'), '10');
   await generator.locator('#finalIpap_0').selectOption('20');
-  await generator.locator('#finalEpap_0').selectOption('17');
+  await selectInjectedOption(generator.locator('#finalEpap_0'), '17');
 
   const warnings = generator.locator('.therapy-stage').nth(0).getByRole('status');
   await expect(warnings).toHaveCount(2);
