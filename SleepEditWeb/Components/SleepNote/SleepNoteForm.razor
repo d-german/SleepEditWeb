@@ -199,7 +199,7 @@
                                     <div class="col-6">
                                         <label class="form-label small">Initial CPAP</label>
                                         <select class="form-select form-select-sm" @bind="stage.InitialCpap">
-                                            @foreach (var p in _config.PressureValues)
+                                            @foreach (var p in CpapPressureValues)
                                             {
                                                 <option value="@p">@p</option>
                                             }
@@ -208,7 +208,7 @@
                                     <div class="col-6">
                                         <label class="form-label small">Final CPAP</label>
                                         <select class="form-select form-select-sm" @bind="stage.FinalCpap">
-                                            @foreach (var p in _config.PressureValues)
+                                            @foreach (var p in CpapPressureValues)
                                             {
                                                 <option value="@p">@p</option>
                                             }
