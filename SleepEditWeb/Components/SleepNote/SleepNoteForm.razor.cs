@@ -226,14 +226,35 @@ public partial class SleepNoteForm : ComponentBase
             _ => mode.ToString()
         };
 
+    private static bool HasInvalidPressureOrder(TherapyStageState stage) =>
+        stage.InitialEpap > stage.InitialIpap ||
+        stage.FinalEpap > stage.FinalIpap;
+
+    private static string GetInvalidPressureOrderMessage(TherapyStageState stage)
+    {
+        var initialIsInvalid = stage.InitialEpap > stage.InitialIpap;
+        var finalIsInvalid = stage.FinalEpap > stage.FinalIpap;
+
+        return (initialIsInvalid, finalIsInvalid) switch
+        {
+            (true, true) => "The initial and final EPAP values exceed IPAP.",
+            (true, false) => "The initial EPAP exceeds IPAP.",
+            (false, true) => "The final EPAP exceeds IPAP.",
+            _ => string.Empty
+        };
+    }
+
+    private static bool IsLowPressureSupport(int ipap, int epap) =>
+        epap <= ipap && ipap - epap < 4;
+
     private static bool HasLowPressureSupport(TherapyStageState stage) =>
-        stage.InitialIpap - stage.InitialEpap < 4 ||
-        stage.FinalIpap - stage.FinalEpap < 4;
+        IsLowPressureSupport(stage.InitialIpap, stage.InitialEpap) ||
+        IsLowPressureSupport(stage.FinalIpap, stage.FinalEpap);
 
     private static string GetLowPressureSupportMessage(TherapyStageState stage)
     {
-        var initialIsLow = stage.InitialIpap - stage.InitialEpap < 4;
-        var finalIsLow = stage.FinalIpap - stage.FinalEpap < 4;
+        var initialIsLow = IsLowPressureSupport(stage.InitialIpap, stage.InitialEpap);
+        var finalIsLow = IsLowPressureSupport(stage.FinalIpap, stage.FinalEpap);
 
         return (initialIsLow, finalIsLow) switch
         {

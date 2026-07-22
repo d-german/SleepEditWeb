@@ -70,16 +70,58 @@ test('every PAP pressure selector reaches 30 while preserving its minimum', asyn
   const expectedEpapValues = Array.from({ length: 27 }, (_, index) => String(index + 4));
   for (const selector of ['#initialIpap_0', '#finalIpap_0']) {
     const pressure = generator.locator(selector);
+    await expect(pressure.locator('option')).toHaveCount(expectedIpapValues.length);
     expect(await pressure.locator('option').allTextContents()).toEqual(expectedIpapValues);
     await pressure.selectOption('30');
     await expect(pressure).toHaveValue('30');
   }
   for (const selector of ['#initialEpap_0', '#finalEpap_0']) {
     const pressure = generator.locator(selector);
+    await expect(pressure.locator('option')).toHaveCount(expectedEpapValues.length);
     expect(await pressure.locator('option').allTextContents()).toEqual(expectedEpapValues);
     await pressure.selectOption('30');
     await expect(pressure).toHaveValue('30');
   }
+});
+
+test('BiPAP warning distinguishes a four-point difference from reversed pressure order', async ({ page }) => {
+  const generator = await openSleepNoteGenerator(page);
+  await generator.locator('#studyTitration').check();
+  await generator.locator('#therapyMode_0_Bipap').check();
+
+  const stage = generator.locator('.therapy-stage').nth(0);
+  const warnings = stage.getByRole('status');
+  await generator.locator('#finalIpap_0').selectOption('20');
+  await generator.locator('#finalEpap_0').selectOption('16');
+  await expect(warnings).toHaveCount(0);
+
+  await generator.locator('#finalEpap_0').selectOption('17');
+  await expect(warnings).toHaveCount(1);
+  await expect(warnings).toContainText('final IPAP/EPAP difference is below 4 cm H2O');
+
+  await generator.locator('#finalIpap_0').selectOption('16');
+  await generator.locator('#finalEpap_0').selectOption('20');
+  await expect(warnings).toHaveCount(1);
+  await expect(warnings).toContainText('final EPAP exceeds IPAP');
+  await expect(warnings).not.toContainText('below 4 cm H2O');
+  await expect(generator.locator('#finalIpap_0')).toHaveValue('16');
+  await expect(generator.locator('#finalEpap_0')).toHaveValue('20');
+});
+
+test('initial order and final support warnings are evaluated independently', async ({ page }) => {
+  const generator = await openSleepNoteGenerator(page);
+  await generator.locator('#studyTitration').check();
+  await generator.locator('#therapyMode_0_Bipap').check();
+
+  await generator.locator('#initialIpap_0').selectOption('8');
+  await generator.locator('#initialEpap_0').selectOption('10');
+  await generator.locator('#finalIpap_0').selectOption('20');
+  await generator.locator('#finalEpap_0').selectOption('17');
+
+  const warnings = generator.locator('.therapy-stage').nth(0).getByRole('status');
+  await expect(warnings).toHaveCount(2);
+  await expect(warnings.nth(0)).toContainText('initial EPAP exceeds IPAP');
+  await expect(warnings.nth(1)).toContainText('final IPAP/EPAP difference is below 4 cm H2O');
 });
 
 test('mask manager adds an option to dropdowns and can remove it again', async ({ page }) => {

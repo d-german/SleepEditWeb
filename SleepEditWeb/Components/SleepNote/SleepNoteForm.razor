@@ -265,6 +265,14 @@
                                     </div>
                                 </div>
 
+                                @if (HasInvalidPressureOrder(stage))
+                                {
+                                    <div class="alert alert-warning px-3 py-2 mb-2 small" role="status">
+                                        Review pressure order: @GetInvalidPressureOrderMessage(stage)
+                                        Values remain exactly as selected.
+                                    </div>
+                                }
+
                                 @if (HasLowPressureSupport(stage))
                                 {
                                     <div class="alert alert-warning px-3 py-2 mb-2 small" role="status">
