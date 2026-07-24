@@ -65,13 +65,15 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
         var count = Math.Clamp(maxCount, 1, 200);
         var collection = _database.GetCollection<ProtocolVersionEntity>(VersionsCollection);
 
-        return collection
-            .Query()
-            .OrderByDescending(version => version.SavedUtc)
-            .Limit(count)
-            .ToList()
-            .Select(MapVersion)
-            .ToList();
+        return
+        [
+            .. collection
+                .Query()
+                .OrderByDescending(version => version.SavedUtc)
+                .Limit(count)
+                .ToList()
+                .Select(MapVersion)
+        ];
     }
 
     public ProtocolVersion SaveCurrentProtocol(ProtocolDocument document, string source)
@@ -222,17 +224,19 @@ public sealed class LiteDbProtocolRepository : IProtocolRepository, IDisposable
 
         var collection = _database.GetCollection<SavedProtocolEntity>(SavedProtocolsCollection);
 
-        return collection
-            .Query()
-            .OrderBy(entity => entity.CreatedUtc)
-            .ToList()
-            .Select(static entity => new SavedProtocolMetadata(
-                entity.ProtocolId,
-                entity.Name,
-                entity.CreatedUtc,
-                entity.LastModifiedUtc,
-                entity.IsDefault))
-            .ToList();
+        return
+        [
+            .. collection
+                .Query()
+                .OrderBy(entity => entity.CreatedUtc)
+                .ToList()
+                .Select(static entity => new SavedProtocolMetadata(
+                    entity.ProtocolId,
+                    entity.Name,
+                    entity.CreatedUtc,
+                    entity.LastModifiedUtc,
+                    entity.IsDefault))
+        ];
     }
 
     public bool DeleteProtocol(Guid protocolId)

@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using LiteDB;
 using SleepEditWeb.Models;
 
@@ -185,7 +186,10 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         var lines = content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
         
         Console.WriteLine($"[LiteDB] Loaded {lines.Length} medication names from embedded resource");
-        return lines.ToList();
+        return
+        [
+            .. lines
+        ];
     }
 
     /// <summary>
@@ -203,10 +207,12 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
     public IEnumerable<string> GetAllMedicationNames()
     {
         var medications = _database.GetCollection<Medication>(MedicationsCollection);
-        return medications.FindAll()
-            .OrderBy(m => m.Name)
-            .Select(m => m.Name)
-            .ToList();
+        return
+        [
+            .. medications.FindAll()
+                .OrderBy(m => m.Name)
+                .Select(m => m.Name)
+        ];
     }
 
     public IEnumerable<string> SearchMedications(string query)
@@ -217,10 +223,12 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         var medications = _database.GetCollection<Medication>(MedicationsCollection);
         var lowerQuery = query.ToLowerInvariant();
         
-        return medications.Find(m => m.Name.ToLower().StartsWith(lowerQuery))
-            .OrderBy(m => m.Name)
-            .Select(m => m.Name)
-            .ToList();
+        return
+        [
+            .. medications.Find(m => m.Name.ToLower().StartsWith(lowerQuery))
+                .OrderBy(m => m.Name)
+                .Select(m => m.Name)
+        ];
     }
 
     public bool MedicationExists(string name)
@@ -241,20 +249,36 @@ public sealed class LiteDbMedicationRepository : IMedicationRepository, IDisposa
         if (string.IsNullOrWhiteSpace(name))
             return false;
 
-        if (MedicationExists(name))
+        // The master list is intentionally writable by any user (technicians add drugs mid-study),
+        // so treat the name as untrusted: strip markup before persisting. A real drug name has no
+        // angle brackets, so this is invisible to legitimate input but prevents stored markup/XSS.
+        var sanitized = SanitizeMedicationName(name);
+        if (string.IsNullOrWhiteSpace(sanitized))
+            return false;
+
+        if (MedicationExists(sanitized))
             return false;
 
         var medications = _database.GetCollection<Medication>(MedicationsCollection);
         var medication = new Medication
         {
-            Name = name.Trim(),
+            Name = sanitized,
             IsSystemMed = false,
             CreatedAt = DateTime.UtcNow
         };
 
         medications.Insert(medication);
-        Console.WriteLine($"[LiteDB] Added user medication: {name}");
+        Console.WriteLine($"[LiteDB] Added user medication: {sanitized}");
         return true;
+    }
+
+    private static string SanitizeMedicationName(string name)
+    {
+        // Remove any HTML tags, then drop stray angle brackets and collapse whitespace.
+        var cleaned = Regex.Replace(name, "<[^>]*>", " ");
+        cleaned = cleaned.Replace("<", " ").Replace(">", " ");
+        cleaned = Regex.Replace(cleaned, @"\s+", " ");
+        return cleaned.Trim();
     }
 
     public bool RemoveUserMedication(string name)

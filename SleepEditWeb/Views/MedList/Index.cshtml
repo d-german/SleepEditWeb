@@ -239,7 +239,7 @@
                 if (drugName.length < 2) return;
 
                 var modal = new bootstrap.Modal(document.getElementById('drugInfoModal'));
-                $('#drugInfoModalLabel').html(svgIcon.capsule + drugName);
+                $('#drugInfoModalLabel').html(svgIcon.capsule).append(document.createTextNode(drugName));
                 $('#drugInfoContent').html(
                     '<div class="text-center py-4">' +
                     '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>' +
@@ -252,31 +252,36 @@
                     type: 'GET',
                     data: { name: drugName },
                     success: function(info) {
+                        // Escape all server/third-party supplied values before inserting via .html().
+                        // Medication names are user-writable and openfda fields are untrusted, so treat all as unsafe.
+                        var esc = function(s) {
+                            return $('<div>').text(s == null ? '' : s).html();
+                        };
                         var html = '';
                         if (info.found) {
                             html = '<div class="drug-info">';
                             if (info.genericName) {
-                                html += '<p class="text-muted mb-3"><strong>Generic Name:</strong> ' + info.genericName + '</p>';
+                                html += '<p class="text-muted mb-3"><strong>Generic Name:</strong> ' + esc(info.genericName) + '</p>';
                             }
                             if (info.manufacturer) {
-                                html += '<p class="text-muted mb-3"><strong>Manufacturer:</strong> ' + info.manufacturer + '</p>';
+                                html += '<p class="text-muted mb-3"><strong>Manufacturer:</strong> ' + esc(info.manufacturer) + '</p>';
                             }
                             if (info.purpose) {
-                                html += '<div class="mb-3"><h6 class="text-primary">' + svgIcon.bullseye + 'Purpose</h6><p>' + info.purpose + '</p></div>';
+                                html += '<div class="mb-3"><h6 class="text-primary">' + svgIcon.bullseye + 'Purpose</h6><p>' + esc(info.purpose) + '</p></div>';
                             }
                             if (info.uses) {
-                                html += '<div class="mb-3"><h6 class="text-success">' + svgIcon.checkCircle + 'Uses</h6><p>' + info.uses + '</p></div>';
+                                html += '<div class="mb-3"><h6 class="text-success">' + svgIcon.checkCircle + 'Uses</h6><p>' + esc(info.uses) + '</p></div>';
                             }
                             if (info.warnings) {
-                                html += '<div class="mb-3"><h6 class="text-warning">' + svgIcon.exclamationTriangle + 'Warnings</h6><p class="small">' + info.warnings + '</p></div>';
+                                html += '<div class="mb-3"><h6 class="text-warning">' + svgIcon.exclamationTriangle + 'Warnings</h6><p class="small">' + esc(info.warnings) + '</p></div>';
                             }
                             if (info.dosage) {
-                                html += '<div class="mb-3"><h6 class="text-info">' + svgIcon.clock + 'Dosage</h6><p>' + info.dosage + '</p></div>';
+                                html += '<div class="mb-3"><h6 class="text-info">' + svgIcon.clock + 'Dosage</h6><p>' + esc(info.dosage) + '</p></div>';
                             }
                             html += '</div>';
                         } else {
-                            html = '<div class="alert alert-info">' + svgIcon.infoCircle + 
-                                   (info.errorMessage || 'No information found for this medication.') + '</div>' +
+                            html = '<div class="alert alert-info">' + svgIcon.infoCircle +
+                                   esc(info.errorMessage || 'No information found for this medication.') + '</div>' +
                                    '<p>Try searching on <a href="https://www.drugs.com/search.php?searchterm=' + encodeURIComponent(drugName) + '" target="_blank">Drugs.com</a> or ' +
                                    '<a href="https://www.google.com/search?q=' + encodeURIComponent(drugName + ' medication') + '" target="_blank">Google</a>.</p>';
                         }

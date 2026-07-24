@@ -13,7 +13,7 @@ public static class ProtocolTreeMapper
             LinkId: document.LinkId,
             LinkText: document.LinkText ?? string.Empty,
             Text: document.Text ?? string.Empty,
-            Sections: document.Sections.Select(ToDomainNode).ToList());
+            Sections: [.. document.Sections.Select(ToDomainNode)]);
     }
 
     public static ProtocolDocument ToMutable(ProtocolTreeDocument document)
@@ -26,7 +26,7 @@ public static class ProtocolTreeMapper
             LinkId = document.LinkId,
             LinkText = document.LinkText ?? string.Empty,
             Text = document.Text ?? string.Empty,
-            Sections = document.Sections.Select(ToMutableNode).ToList()
+            Sections = [.. document.Sections.Select(ToMutableNode)]
         };
     }
 
@@ -38,11 +38,11 @@ public static class ProtocolTreeMapper
             LinkText: node.LinkText ?? string.Empty,
             Text: node.Text ?? string.Empty,
             Kind: ToDomainKind(node.Kind),
-            SubText: node.SubText
-                .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Select(value => value.Trim())
-                .ToList(),
-            Children: node.Children.Select(ToDomainNode).ToList());
+            SubText: [.. node.SubText
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Select(value => value.Trim())],
+            Children:
+            [.. node.Children.Select(ToDomainNode)]);
     }
 
     private static ProtocolNodeModel ToMutableNode(ProtocolTreeNode node)
@@ -54,11 +54,11 @@ public static class ProtocolTreeMapper
             LinkText = node.LinkText ?? string.Empty,
             Text = node.Text ?? string.Empty,
             Kind = ToMutableKind(node.Kind),
-            SubText = node.SubText
-                .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Select(value => value.Trim())
-                .ToList(),
-            Children = node.Children.Select(ToMutableNode).ToList()
+            SubText =
+            [.. node.SubText
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .Select(value => value.Trim())],
+            Children = [.. node.Children.Select(ToMutableNode)]
         };
     }
 

@@ -276,12 +276,10 @@ public sealed class ProtocolEditorService : IProtocolEditorService
     {
         if (domainHistory.Count > 0)
         {
-            return domainHistory.ToList();
+            return [.. domainHistory];
         }
 
-        return legacyHistory
-            .Select(ProtocolTreeMapper.ToDomain)
-            .ToList();
+        return [.. legacyHistory.Select(ProtocolTreeMapper.ToDomain)];
     }
 
     private static List<ProtocolDocument> CreateLegacyHistoryPlaceholders(int count)
@@ -291,9 +289,7 @@ public sealed class ProtocolEditorService : IProtocolEditorService
             return [];
         }
 
-        return Enumerable
-            .Range(0, count)
-            .Select(_ => new ProtocolDocument())
-            .ToList();
+        return
+        [.. Enumerable.Range(0, count).Select(_ => new ProtocolDocument())];
     }
 }

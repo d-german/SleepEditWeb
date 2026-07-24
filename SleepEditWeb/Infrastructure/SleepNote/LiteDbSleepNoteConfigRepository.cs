@@ -39,10 +39,10 @@ public sealed class LiteDbSleepNoteConfigRepository : ISleepNoteConfigRepository
         var entity = new SleepNoteConfigEntity
         {
             Id = ConfigKey,
-            MaskTypes = config.MaskTypes.ToList(),
-            MaskSizes = config.MaskSizes.ToList(),
-            TechnicianNames = config.TechnicianNames.ToList(),
-            PressureValues = config.PressureValues.ToList()
+            MaskTypes = [.. config.MaskTypes],
+            MaskSizes = [.. config.MaskSizes],
+            TechnicianNames = [.. config.TechnicianNames],
+            PressureValues = [.. config.PressureValues]
         };
         collection.Upsert(entity);
     }
@@ -63,9 +63,8 @@ public sealed class LiteDbSleepNoteConfigRepository : ISleepNoteConfigRepository
         var config = GetConfiguration();
         var updated = config with
         {
-            MaskTypes = config.MaskTypes
-                .Where(t => !string.Equals(t, maskType, StringComparison.OrdinalIgnoreCase))
-                .ToList()
+            MaskTypes = [.. config.MaskTypes
+                    .Where(t => !string.Equals(t, maskType, StringComparison.OrdinalIgnoreCase))]
         };
         SaveConfiguration(updated);
         _logger.LogInformation("Removed mask type: {MaskType}", maskType);
@@ -87,9 +86,9 @@ public sealed class LiteDbSleepNoteConfigRepository : ISleepNoteConfigRepository
         var config = GetConfiguration();
         var updated = config with
         {
-            MaskSizes = config.MaskSizes
-                .Where(s => !string.Equals(s, maskSize, StringComparison.OrdinalIgnoreCase))
-                .ToList()
+            MaskSizes =
+            [.. config.MaskSizes
+                    .Where(s => !string.Equals(s, maskSize, StringComparison.OrdinalIgnoreCase))]
         };
         SaveConfiguration(updated);
         _logger.LogInformation("Removed mask size: {MaskSize}", maskSize);
@@ -114,7 +113,7 @@ public sealed class LiteDbSleepNoteConfigRepository : ISleepNoteConfigRepository
             MaskTypes = ["Respironics Comfort Select", "F&P Flexifit HC407"],
             MaskSizes = ["small", "medium", "large"],
             TechnicianNames = [],
-            PressureValues = Enumerable.Range(4, 17).ToList()
+            PressureValues = [.. Enumerable.Range(4, 17)]
         };
 
     private static SleepNoteConfiguration MapToConfiguration(SleepNoteConfigEntity entity) =>
@@ -125,10 +124,6 @@ public sealed class LiteDbSleepNoteConfigRepository : ISleepNoteConfigRepository
             TechnicianNames = entity.TechnicianNames,
             PressureValues = entity.PressureValues
         };
-
-    
-
-    
 
     private sealed class SleepNoteConfigEntity
     {

@@ -9,8 +9,7 @@ public static class ProtocolTreeFunctions
 
     public static int NextId(ProtocolTreeDocument document)
     {
-        var max = document.Sections.Select(GetMaxId).DefaultIfEmpty(0).Max();
-        return max + 1;
+        return document.Sections.Select(GetMaxId).DefaultIfEmpty(0).Max() + 1;
     }
 
     public static ProtocolTreeDocument AddSection(ProtocolTreeDocument document, string text)
@@ -161,12 +160,8 @@ public static class ProtocolTreeFunctions
 
     public static bool ContainsNode(ProtocolTreeNode node, int id)
     {
-        if (node.Id == id)
-        {
-            return true;
-        }
+        return node.Id == id || node.Children.Any(child => ContainsNode(child, id));
 
-        return node.Children.Any(child => ContainsNode(child, id));
     }
 
     private static ProtocolTreeNode? FindNode(IReadOnlyList<ProtocolTreeNode> nodes, int id)
@@ -196,8 +191,8 @@ public static class ProtocolTreeFunctions
             LinkText: string.Empty,
             Text: string.IsNullOrWhiteSpace(text) ? "New Node" : text.Trim(),
             Kind: kind,
-            SubText: Array.Empty<string>(),
-            Children: Array.Empty<ProtocolTreeNode>());
+            SubText: [],
+            Children: []);
     }
 
     private static int GetMaxId(ProtocolTreeNode node)

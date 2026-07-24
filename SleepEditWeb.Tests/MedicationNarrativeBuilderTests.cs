@@ -23,7 +23,7 @@ public class MedicationNarrativeBuilderTests
 
         // Act
         var result = _builder.Build(
-            selectedMedicationNames.Select(name => name!).ToList(),
+            [.. selectedMedicationNames.Select(name => name!)],
             knownMedicationNames);
 
         // Assert

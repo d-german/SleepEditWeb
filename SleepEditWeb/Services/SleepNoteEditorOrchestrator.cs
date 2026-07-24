@@ -102,15 +102,17 @@ public sealed class SleepNoteEditorOrchestrator : ISleepNoteEditorOrchestrator
         IReadOnlyList<string> selectedMedicationNames,
         IReadOnlySet<string> knownMedicationNames)
     {
-        return selectedMedicationNames
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Select(name => name.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(name => new MedicationSelection
-            {
-                Name = name,
-                IsKnown = knownMedicationNames.Contains(name)
-            })
-            .ToList();
+        return
+        [
+            .. selectedMedicationNames
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(name => new MedicationSelection
+                {
+                    Name = name,
+                    IsKnown = knownMedicationNames.Contains(name)
+                })
+        ];
     }
 }

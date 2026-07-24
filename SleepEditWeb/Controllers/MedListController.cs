@@ -116,7 +116,8 @@ public class MedListController : Controller
     private List<string> GetSelectedMedsFromSession()
     {
         var selectedMeds = HttpContext.Session.GetString("SelectedMeds");
-        return selectedMeds != null ? selectedMeds.Split(',').ToList() : [];
+        return selectedMeds != null ?
+        [.. selectedMeds.Split(',')] : [];
     }
 
     public class MedRequest

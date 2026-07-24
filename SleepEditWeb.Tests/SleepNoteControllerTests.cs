@@ -176,7 +176,7 @@ public sealed class SleepNoteControllerTests : IDisposable
             MaskTypes = ["Respironics Comfort Select", "F&P Flexifit HC407"],
             MaskSizes = ["small", "medium", "large"],
             TechnicianNames = [],
-            PressureValues = Enumerable.Range(4, 17).ToList()
+            PressureValues = [.. Enumerable.Range(4, 17)]
         };
         _mockService.Setup(s => s.GetConfiguration()).Returns(defaultConfig);
 

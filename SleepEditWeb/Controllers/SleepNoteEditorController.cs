@@ -199,7 +199,7 @@ public sealed class SleepNoteEditorController : Controller
         {
             InitialContent = snapshot.DocumentContent,
             SelectedMedications = snapshot.SelectedMedications,
-            MedicationSuggestions = _repository.GetAllMedicationNames().Take(200).ToList(),
+            MedicationSuggestions = [.. _repository.GetAllMedicationNames().Take(200)],
             DictationEnabled = _featureOptions.DictationEnabled
         };
     }

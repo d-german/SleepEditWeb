@@ -38,7 +38,7 @@ public class SleepNoteEditorOrchestratorTests
         var request = new SleepNoteEditorCompletionRequest
         {
             EditorContent = "Initial content",
-            SelectedMedications = new[] { "Aspirin", "UnknownMed" },
+            SelectedMedications = ["Aspirin", "UnknownMed"],
             Mode = EditorInsertionMode.InsertAtCursor,
             CursorIndex = 4
         };
@@ -46,7 +46,7 @@ public class SleepNoteEditorOrchestratorTests
         var medicationNarrative = new MedicationNarrative
         {
             Text = "Medications: Aspirin, UnknownMed [UNKNOWN MEDICATION].",
-            UnknownMedications = new[] { "UnknownMed" }
+            UnknownMedications = ["UnknownMed"]
         };
 
         var insertionResult = new EditorInsertionResult
@@ -59,7 +59,7 @@ public class SleepNoteEditorOrchestratorTests
         SleepNoteEditorSnapshot? persistedSnapshot = null;
         var saveWindowStart = DateTimeOffset.UtcNow;
 
-        _repository.Setup(repo => repo.GetAllMedicationNames()).Returns(new[] { "aspirin" });
+        _repository.Setup(repo => repo.GetAllMedicationNames()).Returns(["aspirin"]);
         _narrativeBuilder
             .Setup(builder => builder.Build(
                 request.SelectedMedications,
@@ -125,7 +125,7 @@ public class SleepNoteEditorOrchestratorTests
         var request = new SleepNoteEditorCompletionRequest
         {
             EditorContent = "Original",
-            SelectedMedications = new[] { " Aspirin ", "aspirin", "  ", "UnknownMed", "unknownmed" },
+            SelectedMedications = [" Aspirin ", "aspirin", "  ", "UnknownMed", "unknownmed"],
             Mode = EditorInsertionMode.ReplaceMedicationSection,
             CursorIndex = 0
         };
@@ -133,7 +133,7 @@ public class SleepNoteEditorOrchestratorTests
         var medicationNarrative = new MedicationNarrative
         {
             Text = "Medications: Aspirin, UnknownMed [UNKNOWN MEDICATION].",
-            UnknownMedications = new[] { "UnknownMed" }
+            UnknownMedications = ["UnknownMed"]
         };
 
         var insertionResult = new EditorInsertionResult
@@ -142,7 +142,7 @@ public class SleepNoteEditorOrchestratorTests
             AppliedMode = EditorInsertionMode.ReplaceMedicationSection
         };
 
-        _repository.Setup(repo => repo.GetAllMedicationNames()).Returns(new[] { "ASPIRIN" });
+        _repository.Setup(repo => repo.GetAllMedicationNames()).Returns(["ASPIRIN"]);
         _narrativeBuilder
             .Setup(builder => builder.Build(request.SelectedMedications, It.IsAny<IReadOnlySet<string>>()))
             .Returns(medicationNarrative);

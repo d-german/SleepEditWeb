@@ -39,13 +39,13 @@ public partial class SleepNoteForm : ComponentBase
     ];
 
     private static readonly IReadOnlyList<int> CpapPressureValues =
-        Enumerable.Range(4, 27).ToArray();
+    [.. Enumerable.Range(4, 27)];
 
     private static readonly IReadOnlyList<int> BipapIpapValues =
-        Enumerable.Range(8, 23).ToArray();
+    [.. Enumerable.Range(8, 23)];
 
     private static readonly IReadOnlyList<int> BipapEpapValues =
-        Enumerable.Range(4, 23).ToArray();
+    [.. Enumerable.Range(4, 23)];
 
     private static readonly IReadOnlyList<string> TransitionReasons =
     [

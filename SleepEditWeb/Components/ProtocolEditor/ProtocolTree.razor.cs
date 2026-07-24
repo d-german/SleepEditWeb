@@ -14,7 +14,7 @@ public partial class ProtocolTree : ComponentBase, IAsyncDisposable
     [Parameter] public EventCallback<int> OnNodeSelected { get; set; }
     [Parameter] public EventCallback<(int NodeId, int NewParentId, int NewIndex)> OnNodeMoved { get; set; }
 
-    private HashSet<int> _collapsedSectionIds = new();
+    private HashSet<int> _collapsedSectionIds = [];
     private DotNetObjectReference<ProtocolTree>? _dotNetRef;
 
     private const string CollapseStorageKey = "protocolEditor.collapsedSections";
@@ -31,7 +31,7 @@ public partial class ProtocolTree : ComponentBase, IAsyncDisposable
                     var ids = JsonSerializer.Deserialize<List<int>>(stored);
                     if (ids != null)
                     {
-                        _collapsedSectionIds = new HashSet<int>(ids);
+                        _collapsedSectionIds = [.. ids];
                         StateHasChanged();
                         return;
                     }

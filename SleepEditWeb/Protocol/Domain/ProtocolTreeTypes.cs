@@ -19,7 +19,7 @@ public sealed record ProtocolTreeDocument(
         LinkId: -1,
         LinkText: string.Empty,
         Text: string.Empty,
-        Sections: Array.Empty<ProtocolTreeNode>());
+        Sections: []);
 }
 
 public sealed record ProtocolTreeNode(
