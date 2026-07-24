@@ -22,7 +22,11 @@ public static class ProtocolTreeFunctions
     public static ProtocolTreeDocument AddChild(ProtocolTreeDocument document, int parentId, string text)
     {
         var child = CreateNode(document, text, ProtocolTreeNodeKind.SubSection);
-        if (!TryAddChild(document.Sections, parentId, child, out var updatedSections))
+        if (!TryUpdateNode(
+                document.Sections,
+                parentId,
+                node => node with { Children = [.. node.Children, child] },
+                out var updatedSections))
         {
             return document;
         }
@@ -96,7 +100,17 @@ public static class ProtocolTreeFunctions
             return document with { Sections = root };
         }
 
-        if (!TryInsertChild(remainingSections, parentId, normalized, targetIndex, out var updatedSections))
+        if (!TryUpdateNode(
+                remainingSections,
+                parentId,
+                node =>
+                {
+                    var children = node.Children.ToList();
+                    var index = Math.Clamp(targetIndex, 0, children.Count);
+                    children.Insert(index, normalized);
+                    return node with { Children = children };
+                },
+                out var updatedSections))
         {
             return document;
         }
@@ -199,40 +213,6 @@ public static class ProtocolTreeFunctions
     {
         var childMax = node.Children.Select(GetMaxId).DefaultIfEmpty(node.Id).Max();
         return Math.Max(node.Id, childMax);
-    }
-
-    private static bool TryAddChild(
-        IReadOnlyList<ProtocolTreeNode> nodes,
-        int parentId,
-        ProtocolTreeNode child,
-        out IReadOnlyList<ProtocolTreeNode> updatedNodes)
-    {
-        var changed = false;
-        var result = new List<ProtocolTreeNode>(nodes.Count);
-
-        foreach (var node in nodes)
-        {
-            if (node.Id == parentId)
-            {
-                var children = node.Children.ToList();
-                children.Add(child);
-                result.Add(node with { Children = children });
-                changed = true;
-                continue;
-            }
-
-            if (TryAddChild(node.Children, parentId, child, out var updatedChildren))
-            {
-                result.Add(node with { Children = updatedChildren });
-                changed = true;
-                continue;
-            }
-
-            result.Add(node);
-        }
-
-        updatedNodes = changed ? result : nodes;
-        return changed;
     }
 
     private static bool TryUpdateNode(
@@ -346,41 +326,5 @@ public static class ProtocolTreeFunctions
         }
 
         return FindNode(document, parentId) != null;
-    }
-
-    private static bool TryInsertChild(
-        IReadOnlyList<ProtocolTreeNode> nodes,
-        int parentId,
-        ProtocolTreeNode child,
-        int targetIndex,
-        out IReadOnlyList<ProtocolTreeNode> updatedNodes)
-    {
-        var changed = false;
-        var result = new List<ProtocolTreeNode>(nodes.Count);
-
-        foreach (var node in nodes)
-        {
-            if (node.Id == parentId)
-            {
-                var children = node.Children.ToList();
-                var index = Math.Clamp(targetIndex, 0, children.Count);
-                children.Insert(index, child);
-                result.Add(node with { Children = children });
-                changed = true;
-                continue;
-            }
-
-            if (TryInsertChild(node.Children, parentId, child, targetIndex, out var updatedChildren))
-            {
-                result.Add(node with { Children = updatedChildren });
-                changed = true;
-                continue;
-            }
-
-            result.Add(node);
-        }
-
-        updatedNodes = changed ? result : nodes;
-        return changed;
     }
 }
